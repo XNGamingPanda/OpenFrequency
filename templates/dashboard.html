@@ -1,0 +1,508 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row h-100">
+    <!-- Left Column: Cockpit (Always Visible) -->
+    <div class="col-lg-8 col-md-12 d-flex flex-column h-100">
+        <div class="alert alert-secondary py-1 text-center small d-lg-none">
+            Responsive Desktop View (Settings hidden) - <a href="/?view=mobile">Switch to Mobile Strict</a>
+        </div>
+
+        <!-- Top Gauges -->
+        <div class="row text-center mb-3">
+            <div class="col-4">
+                <div class="card shadow-sm">
+                    <div class="card-body py-2">
+                        <small class="text-muted">ALTITUDE</small>
+                        <h4 id="data-altitude" class="card-title mb-0">0 FT</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card shadow-sm">
+                    <div class="card-body py-2">
+                        <small class="text-muted">AIRSPEED</small>
+                        <h4 id="data-airspeed" class="card-title mb-0">0 KTS</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card shadow-sm">
+                    <div class="card-body py-2">
+                        <small class="text-muted">HEADING</small>
+                        <h4 id="data-heading" class="card-title mb-0">0°</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Area -->
+        <div id="map" class="flex-grow-1 rounded shadow-sm mb-3" style="min-height: 300px;"></div>
+
+        <!-- Chat Log & PTT -->
+        <div class="card flex-grow-1 shadow-sm mb-3" style="min-height: 200px;">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                <strong>Comms Log</strong>
+                <div>
+                    <!-- Visible on small desktop windows where settings are hidden -->
+                    <a href="/?view=mobile" class="btn btn-sm btn-outline-secondary d-lg-none me-1"
+                        title="Mobile View">📱</a>
+                    <span id="status-badge" class="badge bg-secondary">Connecting...</span>
+                </div>
+            </div>
+            <div class="card-body p-2" id="log-container"
+                style="overflow-y: auto; max-height: 300px; background-color: #f8f9fa;">
+                <!-- Chat messages go here -->
+            </div>
+        </div>
+
+        <button id="ptt-btn" class="btn btn-primary btn-lg w-100 py-3 fw-bold shadow-sm mb-3">PUSH TO TALK</button>
+    </div>
+
+    <!-- Right Column: Settings (Hidden on Mobile) -->
+    <div class="col-lg-4 d-none d-lg-block h-100 ps-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">System Configuration</h5>
+                <div>
+                    <a href="/?view=mobile" class="btn btn-sm btn-outline-light me-1" title="Force Mobile View">📱</a>
+                    <button class="btn btn-sm btn-outline-light" onclick="testAudio()">🔊 Test Audio</button>
+                </div>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <form id="settings-form" style="overflow-y: auto; flex-grow: 1;">
+                    <!-- Pilot Profile & SimBrief -->
+                    <h6 class="border-bottom pb-1 mb-2">Pilot Profile</h6>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Callsign</label>
+                        <input type="text" class="form-control form-control-sm" id="conf-callsign"
+                            placeholder="e.g. CCA1024">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">SimBrief Username</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" id="conf-simbrief-user" placeholder="J.Doe">
+                            <button class="btn btn-outline-primary" type="button"
+                                onclick="importSimBrief()">Import</button>
+                        </div>
+                        <div id="simbrief-status" class="form-text x-small text-muted">Enter username to fetch latest
+                            OFP.</div>
+                    </div>
+
+                    <!-- Connection Settings -->
+                    <h6 class="border-bottom pb-1 mb-2">AI Connection</h6>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Provider</label>
+                        <select class="form-select form-select-sm" id="conf-provider">
+                            <option value="gemini">Google Gemini (Cloud)</option>
+                            <option value="openai_compatible">OpenAI Compatible (Ollama/Local)</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">API Key</label>
+                        <input type="password" class="form-control form-control-sm" id="conf-api-key"
+                            placeholder="Enter API Key">
+                        <div class="form-text x-small">Existing key is hidden. Leave as ****** to keep current.</div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Model Name</label>
+                        <input type="text" class="form-control form-control-sm" id="conf-model">
+                    </div>
+                    <div class="mb-2" id="base-url-group">
+                        <label class="form-label small mb-0">Base URL (Local/Ollama)</label>
+                        <input type="text" class="form-control form-control-sm" id="conf-base-url"
+                            placeholder="http://localhost:11434/v1">
+                    </div>
+
+                    <!-- Audio Settings -->
+                    <h6 class="border-bottom pb-1 mb-2 mt-3">Audio & Controls</h6>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label small mb-0">Joystick PTT</label>
+                            <span id="ptt-bind-status" class="badge bg-secondary"
+                                style="font-size: 0.7em;">Unbound</span>
+                        </div>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-warning flex-grow-1" id="btn-bind-ptt"
+                                onclick="startBindingPTT(); return false;">Click to Bind Button</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="clearBindingPTT(); return false;"
+                                title="Clear Binding">✕</button>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="conf-radio-effect">
+                            <label class="form-check-label small" for="conf-radio-effect">Radio Static Effect</label>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Traffic Density</label>
+                        <select class="form-select form-select-sm" id="conf-busy-level">
+                            <option value="low">Low (Lazy Afternoon)</option>
+                            <option value="medium">Medium (Standard)</option>
+                            <option value="high">High (Busy Hub)</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">STT Model Path</label>
+                        <input type="text" class="form-control form-control-sm" id="conf-stt-path">
+                    </div>
+                </form>
+
+                <div class="d-grid gap-2 mt-2">
+                    <button class="btn btn-success" onclick="saveConfig()">Save Settings</button>
+                    <button class="btn btn-secondary" onclick="loadConfig()">Reload</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const socket = io();
+
+    const logContainer = document.getElementById('log-container');
+    const altitudeEl = document.getElementById('data-altitude');
+    const airspeedEl = document.getElementById('data-airspeed');
+    const headingEl = document.getElementById('data-heading');
+    const pttBtn = document.getElementById('ptt-btn');
+
+    // --- Gamepad PTT Logic ---
+    let gamepadIndex = -1;
+    let pttButtonIndex = -1;
+    let isBinding = false;
+    let wasPressed = false;
+
+    function startBindingPTT() {
+        isBinding = true;
+        const btn = document.getElementById('btn-bind-ptt');
+        btn.innerText = "PRESS ANY JOYSTICK BUTTON...";
+        btn.classList.add('active');
+    }
+
+    function gamepadLoop() {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        if (!gamepads) return;
+
+        for (let i = 0; i < gamepads.length; i++) {
+            const gp = gamepads[i];
+            if (gp) {
+                // Binding Mode
+                if (isBinding) {
+                    for (let b = 0; b < gp.buttons.length; b++) {
+                        if (gp.buttons[b].pressed) {
+                            gamepadIndex = i;
+                            pttButtonIndex = b;
+                            isBinding = false;
+
+                            // UI Update
+                            document.getElementById('btn-bind-ptt').innerText = `Bound: Pad ${i} Btn ${b}`;
+                            document.getElementById('btn-bind-ptt').classList.remove('active');
+                            document.getElementById('btn-bind-ptt').classList.replace('btn-outline-warning', 'btn-outline-success');
+                            document.getElementById('ptt-bind-status').innerText = "Active";
+                            document.getElementById('ptt-bind-status').className = "badge bg-success";
+                            return; // Exit loop to avoid double bind
+                        }
+                    }
+                }
+                // Operation Mode
+                else if (i === gamepadIndex && pttButtonIndex !== -1) {
+                    const isPressed = gp.buttons[pttButtonIndex].pressed;
+
+                    if (isPressed && !wasPressed) {
+                        startRecording(); // Rising edge
+                    } else if (!isPressed && wasPressed) {
+                        stopRecording(); // Falling edge
+                    }
+                    wasPressed = isPressed;
+                }
+            }
+        }
+        requestAnimationFrame(gamepadLoop);
+    }
+
+    window.addEventListener("gamepadconnected", (e) => {
+        console.log("Gamepad connected at index %d: %s. %d buttons, %d axes.",
+            e.gamepad.index, e.gamepad.id,
+            e.gamepad.buttons.length, e.gamepad.axes.length);
+        gamepadLoop(); // Start loop if not already
+    });
+
+    // Fallback start for polling if already connected before load
+    requestAnimationFrame(gamepadLoop);
+
+    // --- Map Setup ---
+    let map = L.map('map').setView([40.08, 116.58], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+    let aircraftMarker;
+
+    // --- Config Logic (Form Based) ---
+    async function loadConfig() {
+        try {
+            const response = await fetch('/get_config');
+            const data = await response.json();
+
+            // Map JSON to Form
+            document.getElementById('conf-callsign').value = data.user_profile?.callsign || 'N/A';
+            document.getElementById('conf-simbrief-user').value = data.simbrief?.username || '';
+
+            document.getElementById('conf-provider').value = data.connection?.provider || 'gemini';
+            document.getElementById('conf-api-key').value = data.connection?.api_key || '';
+            document.getElementById('conf-model').value = data.connection?.model || '';
+            document.getElementById('conf-base-url').value = data.connection?.base_url || '';
+
+            document.getElementById('conf-radio-effect').checked = data.audio.radio_effect;
+            document.getElementById('conf-stt-path').value = data.audio.stt_model_path || '';
+
+            document.getElementById('conf-busy-level').value = data.immersion.busy_level || 'medium';
+
+            // Visual toggle for Base URL
+            toggleBaseUrl();
+        } catch (e) {
+            console.error("Failed to load config", e);
+        }
+    }
+
+    async function saveConfig() {
+        try {
+            // Map Form to JSON Structure
+            const newConfig = {
+                user_profile: {
+                    callsign: document.getElementById('conf-callsign').value
+                },
+                simbrief: {
+                    username: document.getElementById('conf-simbrief-user').value
+                },
+                connection: {
+                    provider: document.getElementById('conf-provider').value,
+                    api_key: document.getElementById('conf-api-key').value,
+                    model: document.getElementById('conf-model').value,
+                    base_url: document.getElementById('conf-base-url').value
+                },
+                audio: {
+                    radio_effect: document.getElementById('conf-radio-effect').checked,
+                    stt_model_path: document.getElementById('conf-stt-path').value
+                },
+                immersion: {
+                    busy_level: document.getElementById('conf-busy-level').value
+                }
+            };
+
+            await fetch('/save_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newConfig)
+            });
+            alert("Settings Saved Successfully!");
+            loadConfig(); // Reload to confirm (and see **** mask)
+        } catch (e) {
+            alert("Error saving settings!");
+            console.error(e);
+        }
+    }
+
+    async function importSimBrief() {
+        const username = document.getElementById('conf-simbrief-user').value;
+        const statusEl = document.getElementById('simbrief-status');
+
+        if (!username) {
+            alert("Please enter a SimBrief username!");
+            return;
+        }
+
+        statusEl.innerText = "Fetching flight plan...";
+        statusEl.className = "form-text x-small text-info";
+
+        try {
+            const resp = await fetch('/import_simbrief', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username })
+            });
+            const result = await resp.json();
+
+            if (result.status === 'success') {
+                const fp = result.data;
+                statusEl.innerText = `Loaded: ${fp.origin} -> ${fp.destination} (${fp.route.substring(0, 20)}...)`;
+                statusEl.className = "form-text x-small text-success";
+                // Optionally auto-fill callsign?
+                // document.getElementById('conf-callsign').value = fp.flight_number;
+            } else {
+                statusEl.innerText = "Error: " + result.message;
+                statusEl.className = "form-text x-small text-danger";
+            }
+        } catch (e) {
+            statusEl.innerText = "Network Error.";
+            statusEl.className = "form-text x-small text-danger";
+        }
+    }
+
+    // Dynamic UI: Show/Hide Base URL based on provider
+    document.getElementById('conf-provider').addEventListener('change', toggleBaseUrl);
+    function toggleBaseUrl() {
+        const val = document.getElementById('conf-provider').value;
+        const grp = document.getElementById('base-url-group');
+        grp.style.display = (val === 'openai_compatible') ? 'block' : 'none';
+    }
+
+    // Load config on startup (always)
+    loadConfig();
+
+
+    // --- SocketIO & PTT Logic (Same as before) ---
+    let mediaRecorder;
+    let audioChunks = [];
+
+    socket.on('connect', () => {
+        document.getElementById('status-badge').className = 'badge bg-success';
+        document.getElementById('status-badge').innerText = 'Connected';
+    });
+
+    socket.on('disconnect', () => {
+        document.getElementById('status-badge').className = 'badge bg-danger';
+        document.getElementById('status-badge').innerText = 'Disconnected';
+    });
+
+    socket.on('chat_log', (data) => {
+        const div = document.createElement('div');
+        div.className = `mb-2 p-2 rounded ${data.sender === 'Pilot' ? 'bg-primary text-white text-end' : 'bg-success text-white text-start'}`;
+        div.innerHTML = `<strong>${data.sender}:</strong> ${data.text}`;
+        logContainer.appendChild(div);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    });
+
+    // --- Flight Path ---
+    const flightPathNodes = [];
+    const flightPathPolyline = L.polyline([], { color: 'red', weight: 3 }).addTo(map);
+
+    socket.on('telemetry_update', (data) => {
+        // Update Stats
+        if (altitudeEl) altitudeEl.innerText = Math.round(data.altitude || 0);
+        if (airspeedEl) airspeedEl.innerText = Math.round(data.airspeed || 0);
+        if (headingEl) headingEl.innerText = Math.round(data.heading || 0);
+
+        if (data.latitude && data.longitude) {
+            const latLng = [data.latitude, data.longitude];
+
+            // Marker
+            if (!aircraftMarker) {
+                aircraftMarker = L.marker(latLng).addTo(map);
+                map.setView(latLng, 13); // Center map on first position
+            } else {
+                aircraftMarker.setLatLng(latLng);
+            }
+
+            // Flight Path (Add point if moved > 50m)
+            if (flightPathNodes.length === 0) {
+                flightPathNodes.push(latLng);
+                flightPathPolyline.setLatLngs(flightPathNodes);
+            } else {
+                const lastPt = flightPathNodes[flightPathNodes.length - 1];
+                if (map.distance(lastPt, latLng) > 50) {
+                    flightPathNodes.push(latLng);
+                    flightPathPolyline.setLatLngs(flightPathNodes);
+                }
+            }
+        }
+    });
+
+    socket.on('audio_stream', (data) => {
+        console.log("Received audio stream chunk, size:", data.data.length);
+        try {
+            const audioData = atob(data.data);
+            const audioBytes = new Uint8Array(audioData.length);
+            for (let i = 0; i < audioData.length; i++) {
+                audioBytes[i] = audioData.charCodeAt(i);
+            }
+            const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
+            console.log("Blob created:", audioBlob);
+
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+
+            audio.play()
+                .then(() => console.log("Audio playing successfully."))
+                .catch(e => {
+                    console.error("Audio playback interrupted/failed:", e);
+                    alert("Audio playback blocked by browser? check console.");
+                });
+        } catch (e) {
+            console.error("Error processing audio data:", e);
+        }
+    });
+
+    // PTT
+    const startRecording = () => {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.start();
+                audioChunks = [];
+
+                mediaRecorder.addEventListener("dataavailable", event => {
+                    audioChunks.push(event.data);
+                });
+
+                mediaRecorder.addEventListener("stop", () => {
+                    const audioBlob = new Blob(audioChunks);
+                    socket.emit('voice_data', audioBlob);
+                });
+
+                pttBtn.classList.remove('btn-primary');
+                pttBtn.classList.add('btn-danger');
+                pttBtn.innerText = "TRANSMITTING...";
+            });
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            pttBtn.classList.add('btn-primary');
+            pttBtn.classList.remove('btn-danger');
+            pttBtn.innerText = "PUSH TO TALK";
+        }
+    };
+
+    function testAudio() {
+        console.log("Requesting Test Audio...");
+        socket.emit('test_tts_trigger');
+    }
+
+    // Force audio context unlock on first interaction
+    document.body.addEventListener('click', () => {
+        // Just a dummy play to wake up the audio context if needed
+        const audio = new Audio();
+    }, { once: true });
+
+    pttBtn.addEventListener('mousedown', startRecording);
+    pttBtn.addEventListener('mouseup', stopRecording);
+    pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); }); // Prevent ghost clicks
+    pttBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopRecording(); });
+
+    // --- Keyboard PTT (Spacebar) ---
+    document.addEventListener('keydown', (e) => {
+        // Ignore if typing in an input field
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+        if (e.code === 'Space' && !e.repeat) {
+            e.preventDefault(); // Prevent scrolling
+            startRecording();
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+        if (e.code === 'Space') {
+            e.preventDefault();
+            stopRecording();
+        }
+    });
+
+</script>
+{% endblock %}

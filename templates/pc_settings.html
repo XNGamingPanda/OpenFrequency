@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Settings Form Column -->
+        <div class="col-lg-7">
+            <h2>Settings</h2>
+            <hr>
+            <form id="settings-form">
+                <!-- User Profile -->
+                <fieldset class="mb-4">
+                    <legend>User Profile</legend>
+                    <div class="mb-3">
+                        <label for="callsign" class="form-label">Callsign</label>
+                        <input type="text" class="form-control" id="callsign" name="user_profile.callsign" value="{{ config.user_profile.callsign }}">
+                    </div>
+                     <div class="mb-3">
+                        <label for="tail_number" class="form-label">Tail Number</label>
+                        <input type="text" class="form-control" id="tail_number" name="user_profile.tail_number" value="{{ config.user_profile.tail_number }}">
+                    </div>
+                </fieldset>
+
+                <!-- Connection Settings -->
+                <fieldset class="mb-4">
+                    <legend>Connection</legend>
+                    <div class="mb-3">
+                        <label for="llm_provider" class="form-label">LLM Provider</label>
+                        <select class="form-select" id="llm_provider" name="connection.llm_provider">
+                            <option value="gemini" {% if config.connection.llm_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
+                            <option value="openai" {% if config.connection.llm_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="api_key" class="form-label">API Key</label>
+                        <input type="password" class="form-control" id="api_key" name="connection.api_key" value="{{ config.connection.api_key }}">
+                    </div>
+                     <div class="mb-3">
+                        <label for="model" class="form-label">Model</label>
+                        <input type="text" class="form-control" id="model" name="connection.model" value="{{ config.connection.model }}">
+                    </div>
+                </fieldset>
+
+                <!-- Immersion Settings -->
+                <fieldset class="mb-4">
+                    <legend>Immersion</legend>
+                    <div class="form-check form-switch mb-2">
+                      <input class="form-check-input" type="checkbox" role="switch" id="enable_standby_simulation" name="immersion.enable_standby_simulation" {% if config.immersion.enable_standby_simulation %}checked{% endif %}>
+                      <label class="form-check-label" for="enable_standby_simulation">Enable "Standby" Simulation</label>
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                      <input class="form-check-input" type="checkbox" role="switch" id="auto_atis_update" name="immersion.auto_atis_update" {% if config.immersion.auto_atis_update %}checked{% endif %}>
+                      <label class="form-check-label" for="auto_atis_update">Auto ATIS Update</label>
+                    </div>
+                </fieldset>
+                
+                <button type="submit" class="btn btn-primary">Save Configuration</button>
+            </form>
+        </div>
+
+        <!-- README (Canvas) Column -->
+        <div class="col-lg-5">
+            <h2>Project Outline</h2>
+            <hr>
+            <div id="readme-canvas" class="p-3 border rounded" style="height: 80vh; overflow-y: auto; background-color: #f8f9fa;">
+                {{ readme_html|safe }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast container for notifications -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+  <div id="save-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-header">
+      <strong class="me-auto">OpenSky-ATC</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+    <div class="toast-body">
+      Settings saved successfully!
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('settings-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const config = {
+        user_profile: {},
+        connection: {},
+        immersion: {},
+        phraseology: {},
+        navdata: {},
+        audio: {}
+    };
+
+    // Helper to set nested properties
+    function set(obj, path, value) {
+        const keys = path.split('.');
+        let current = obj;
+        for (let i = 0; i < keys.length - 1; i++) {
+            current = current[keys[i]];
+        }
+        current[keys[keys.length - 1]] = value;
+    }
+
+    for (const [key, value] of formData.entries()) {
+        // Handle checkboxes which don't send a value when unchecked
+        const el = document.querySelector(`[name="${key}"]`);
+        if (el.type === 'checkbox') {
+             set(config, key, el.checked);
+        } else {
+             set(config, key, value);
+        }
+    }
+    
+    // Handle any checkboxes that might be unchecked
+    document.querySelectorAll('input[type=checkbox]').forEach(cb => {
+        if (!cb.checked) {
+            if (!formData.has(cb.name)) {
+                 set(config, cb.name, false);
+            }
+        }
+    });
+
+
+    fetch('/save_settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(config)
+    })
+    .then(response => response.json())
+    .then(data => {
+        const toastEl = document.getElementById('save-toast');
+        const toastBody = toastEl.querySelector('.toast-body');
+        if (data.status === 'success') {
+            toastBody.textContent = 'Settings saved successfully!';
+            toastEl.classList.remove('bg-danger');
+            toastEl.classList.add('bg-success');
+        } else {
+            toastBody.textContent = 'Error saving settings.';
+            toastEl.classList.remove('bg-success');
+            toastEl.classList.add('bg-danger');
+        }
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+    });
+});
+</script>
+{% endblock %}

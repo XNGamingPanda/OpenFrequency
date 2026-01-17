@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+.env
+
+# Project Specific
+config.json
+logs/
+*.log
+llm_error.txt
+debug_tts.mp3
+temp_audio/
+*.webm
+*.wav
+*.mp3
+
+# Binaries & Large Files
+ffmpeg/
+models/
+*.exe
+*.bin
+*.dll
+
+# IDE
+.vscode/
+.idea/

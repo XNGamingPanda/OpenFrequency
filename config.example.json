@@ -1,0 +1,26 @@
+{
+    "user_profile": {
+        "callsign": "CCA1024",
+        "pilot_voice_preference": "male"
+    },
+    "connection": {
+        "provider": "gemini",
+        "api_key": "YOUR_API_KEY_HERE",
+        "model": "gemini-2.0-flash-exp",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"
+    },
+    "audio": {
+        "input_device": "default",
+        "output_device": "default",
+        "push_to_talk": true,
+        "radio_effect": true,
+        "stt_model_path": "base"
+    },
+    "simbrief": {
+        "username": ""
+    },
+    "immersion": {
+        "busy_level": "medium",
+        "bg_chatter": true
+    }
+}

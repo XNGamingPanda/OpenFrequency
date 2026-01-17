@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Data Display -->
+<div class="alert alert-primary py-1 text-center small">
+    📱 Mobile Strict View - <a href="/?view=desktop">Switch to Desktop</a>
+</div>
+<div class="row text-center mb-3">
+    <div class="col-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Altitude</h6>
+                <h4 id="data-altitude" class="card-title text-dark">0 FT</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Airspeed</h6>
+                <h4 id="data-airspeed" class="card-title text-dark">0 KTS</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Heading</h6>
+                <h4 id="data-heading" class="card-title text-dark">0°</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="map" style="height: 400px; margin-bottom: 1rem;"></div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Comms Log</span>
+                <span id="status-badge" class="badge bg-danger">Disconnected</span>
+            </div>
+            <div class="card-body" id="log-container"
+                style="height: 50vh; overflow-y: auto; background-color: #f8f9fa;">
+                <!-- 聊天记录 -->
+            </div>
+            <div class="card-footer d-flex justify-content-between">
+                <a href="/?view=desktop" class="btn btn-sm btn-outline-secondary">💻 Desktop View</a>
+                <button class="btn btn-sm btn-outline-secondary" onclick="testAudio()">🔊 Test Audio</button>
+            </div>
+        </div>
+        <button id="ptt-btn" class="btn btn-primary btn-lg w-100 py-4 fw-bold">PUSH TO TALK</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const socket = io();
+    const logContainer = document.getElementById('log-container');
+    const altitudeEl = document.getElementById('data-altitude');
+    const airspeedEl = document.getElementById('data-airspeed');
+    const headingEl = document.getElementById('data-heading');
+    const pttBtn = document.getElementById('ptt-btn');
+
+    function testAudio() {
+        console.log("Requesting Test Audio...");
+        socket.emit('test_tts_trigger');
+    }
+
+    // Force audio context unlock on first interaction
+    document.body.addEventListener('click', () => { const a = new Audio(); }, { once: true });
+
+    let map = L.map('map').setView([40.08, 116.58], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+    let aircraftMarker;
+
+    let mediaRecorder;
+    let audioChunks = [];
+
+    // --- SocketIO Event Handlers ---
+
+    socket.on('connect', () => {
+        document.getElementById('status-badge').className = 'badge bg-success';
+        document.getElementById('status-badge').innerText = 'Connected';
+    });
+
+    socket.on('disconnect', () => {
+        document.getElementById('status-badge').className = 'badge bg-danger';
+        document.getElementById('status-badge').innerText = 'Disconnected';
+    });
+
+    socket.on('chat_log', (data) => {
+        const div = document.createElement('div');
+        div.className = `mb-2 p-2 rounded ${data.sender === 'Pilot' ? 'bg-primary text-white text-end' : 'bg-success text-white text-start'}`;
+        div.innerHTML = `<strong>${data.sender}:</strong> ${data.text}`;
+        logContainer.appendChild(div);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    });
+
+    socket.on('telemetry_update', (data) => {
+        if (data) {
+            altitudeEl.innerText = `${Math.round(data.altitude || 0)} FT`;
+            airspeedEl.innerText = `${Math.round(data.airspeed || 0)} KTS`;
+            headingEl.innerText = `${Math.round(data.heading || 0)}°`;
+
+            if (data.latitude && data.longitude) {
+                const latLng = [data.latitude, data.longitude];
+                if (!aircraftMarker) {
+                    aircraftMarker = L.marker(latLng, {
+                        icon: L.divIcon({
+                            className: 'aircraft-icon',
+                            html: '✈️',
+                            iconSize: [24, 24]
+                        })
+                    }).addTo(map);
+                    map.setView(latLng, 13);
+                } else {
+                    aircraftMarker.setLatLng(latLng);
+                }
+                if (aircraftMarker.setRotationAngle) aircraftMarker.setRotationAngle(data.heading || 0);
+                map.panTo(latLng);
+            }
+        }
+    });
+
+    socket.on('audio_stream', (data) => {
+        console.log("Received audio stream chunk, size:", data.data.length);
+        try {
+            const audioData = atob(data.data);
+            const audioBytes = new Uint8Array(audioData.length);
+            for (let i = 0; i < audioData.length; i++) {
+                audioBytes[i] = audioData.charCodeAt(i);
+            }
+            const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
+            console.log("Blob created:", audioBlob);
+
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+
+            audio.play()
+                .then(() => console.log("Audio playing successfully."))
+                .catch(e => {
+                    console.error("Audio playback interrupted/failed:", e);
+                    // alert("Audio playback blocked? Click page to unmute.");
+                });
+        } catch (e) {
+            console.error("Error processing audio data:", e);
+        }
+    });
+
+    // ... (PTT Logic) ...
+
+    const startRecording = () => {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.start();
+                audioChunks = [];
+
+                mediaRecorder.addEventListener("dataavailable", event => {
+                    audioChunks.push(event.data);
+                });
+
+                mediaRecorder.addEventListener("stop", () => {
+                    const audioBlob = new Blob(audioChunks);
+                    socket.emit('voice_data', audioBlob);
+                });
+
+                pttBtn.classList.remove('btn-primary');
+                pttBtn.classList.add('btn-danger');
+                pttBtn.innerText = "TRANSMITTING...";
+            });
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            pttBtn.classList.add('btn-primary');
+            pttBtn.classList.remove('btn-danger');
+            pttBtn.innerText = "PUSH TO TALK";
+        }
+    };
+
+    pttBtn.addEventListener('mousedown', startRecording);
+    pttBtn.addEventListener('mouseup', stopRecording);
+    pttBtn.addEventListener('touchstart', startRecording);
+    pttBtn.addEventListener('touchend', stopRecording);
+
+</script>
+{% endblock %}
