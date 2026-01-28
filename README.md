@@ -34,6 +34,13 @@ Simulation enthusiasts deserve an ATC that:
 *   Google Gemini API Key (Free tier available)
 
 ### Installation
+
+#### Option A: All-in-One Pack (Recommended)
+1.  Go to the [Releases](https://github.com/XNGamingPanda/OpenFrequency/releases) page.
+2.  Download the latest `zip` package (includes FFmpeg and Models).
+3.  Extract, configure `config.json`, and run!
+
+#### Option B: Developer Setup (Git)
 1.  Clone the repo:
     ```bash
     git clone https://github.com/XNGamingPanda/OpenFrequency.git

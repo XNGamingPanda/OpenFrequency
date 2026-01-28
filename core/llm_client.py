@@ -2,6 +2,7 @@ import json
 import copy
 from google import genai
 from google.genai import types
+import openai
 
 class LLMClient:
     def __init__(self, config, context, lock, bus):
@@ -11,15 +12,29 @@ class LLMClient:
         self.bus = bus
         
         conn_config = config.get('connection', {})
+        self.provider = conn_config.get('provider', 'google_genai')
         self.api_key = conn_config.get('api_key', '')
         self.model = conn_config.get('model', 'gemini-3-flash-preview')
+        self.base_url = conn_config.get('base_url', None)
 
-        print(f"LLMClient: Initializing Google GenAI Client with model {self.model}...")
-        try:
-            self.client = genai.Client(api_key=self.api_key)
-        except Exception as e:
-            print(f"LLMClient Error: Failed to initialize GenAI client: {e}")
-            self.client = None
+        self.client = None
+        self.openai_client = None
+
+        if self.provider == 'google_genai':
+            print(f"LLMClient: Initializing Google GenAI Client with model {self.model}...")
+            try:
+                self.client = genai.Client(api_key=self.api_key)
+            except Exception as e:
+                print(f"LLMClient Error: Failed to initialize GenAI client: {e}")
+        elif self.provider in ['openai', 'openai_compatible']:
+            print(f"LLMClient: Initializing OpenAI Client ({self.provider}) with model {self.model}...")
+            try:
+                self.openai_client = openai.OpenAI(
+                    api_key=self.api_key,
+                    base_url=self.base_url
+                )
+            except Exception as e:
+                print(f"LLMClient Error: Failed to initialize OpenAI client: {e}")
         
         self.bus.on('llm_request', self.handle_request)
         self.bus.on('proactive_atc_request', self.request_proactive_msg)
@@ -144,7 +159,7 @@ class LLMClient:
             return response_text, None
 
     def generate_response(self, user_text=None, trigger_prompt=None, is_proactive=False, history=[]):
-        if not self.client:
+        if not self.client and not self.openai_client:
             print("LLMClient Error: Client not initialized.")
             return
 
@@ -160,22 +175,34 @@ class LLMClient:
         print(f"LLMClient: Sending request to {self.model}...")
         
         try:
-            # Conditional config based on model
-            gen_config_args = {}
-            
-            # Google GenAI's Gemma models currently don't support JSON mode enforcement
-            if "gemma" not in self.model.lower():
-                gen_config_args["response_mime_type"] = "application/json"
-            else:
-                print(f"LLMClient: Model '{self.model}' detected. Disabling strict JSON mode enforcement.")
+            if self.client:
+                # Conditional config based on model
+                gen_config_args = {}
+                
+                # Google GenAI's Gemma models currently don't support JSON mode enforcement
+                if "gemma" not in self.model.lower():
+                    gen_config_args["response_mime_type"] = "application/json"
+                else:
+                    print(f"LLMClient: Model '{self.model}' detected. Disabling strict JSON mode enforcement.")
 
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=system_prompt,
-                config=types.GenerateContentConfig(**gen_config_args)
-            )
-            
-            response_text = response.text
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=system_prompt,
+                    config=types.GenerateContentConfig(**gen_config_args)
+                )
+                response_text = response.text
+                
+            elif self.openai_client:
+                # OpenAI / Compatible API Call
+                response = self.openai_client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt}
+                    ],
+                    response_format={"type": "json_object"} if "json" in self.model.lower() or "gpt" in self.model.lower() else None
+                )
+                response_text = response.choices[0].message.content
+
             print(f"LLM Raw Response: {response_text}")
             text, action = self._parse_llm_response(response_text)
             

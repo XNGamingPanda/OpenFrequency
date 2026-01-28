@@ -54,6 +54,13 @@
                 style="overflow-y: auto; max-height: 300px; background-color: #f8f9fa;">
                 <!-- Chat messages go here -->
             </div>
+            <div class="card-footer bg-white p-2">
+                <div class="input-group">
+                    <input type="text" id="text-input" class="form-control" placeholder="Type your message..."
+                        aria-label="Type your message">
+                    <button class="btn btn-outline-primary" type="button" id="btn-send-text">Send</button>
+                </div>
+            </div>
         </div>
 
         <button id="ptt-btn" class="btn btn-primary btn-lg w-100 py-3 fw-bold shadow-sm mb-3">PUSH TO TALK</button>
@@ -167,7 +174,27 @@
     const altitudeEl = document.getElementById('data-altitude');
     const airspeedEl = document.getElementById('data-airspeed');
     const headingEl = document.getElementById('data-heading');
+
     const pttBtn = document.getElementById('ptt-btn');
+    const textInput = document.getElementById('text-input');
+    const btnSendText = document.getElementById('btn-send-text');
+
+    // --- Text Input Logic ---
+    function sendText() {
+        const text = textInput.value.trim();
+        if (text) {
+            socket.emit('text_input', text);
+            textInput.value = '';
+            // Optimistic UI update? The server will echo it back as 'Pilot: ...' so maybe wait.
+        }
+    }
+
+    btnSendText.addEventListener('click', sendText);
+    textInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendText();
+        }
+    });
 
     // --- Gamepad PTT Logic ---
     let gamepadIndex = -1;

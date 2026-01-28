@@ -198,6 +198,14 @@ def handle_voice_data(blob):
     print("Received voice data from client.")
     stt_module.transcribe(blob)
 
+@socketio.on('text_input')
+def handle_text_input(text):
+    """
+    Receives text input from the client and treats it as recognized speech.
+    """
+    print(f"Received text input: {text}")
+    event_bus.emit('user_speech_recognized', text)
+
 @socketio.on('test_tts_trigger')
 def handle_test_tts():
     print("Received Test TTS request.")

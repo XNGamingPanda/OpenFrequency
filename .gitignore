@@ -36,6 +36,8 @@ temp_audio/
 *.webm
 *.wav
 *.mp3
+build_release.py
+test_llm.py
 
 # Binaries & Large Files
 ffmpeg/
