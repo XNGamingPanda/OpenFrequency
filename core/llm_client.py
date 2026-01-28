@@ -5,6 +5,29 @@ from google.genai import types
 import openai
 
 class LLMClient:
+    ROLE_RULES = {
+        "Ground": {
+            "duties": "Clearance Delivery, Pushback, Taxi instructions.",
+            "taboos": "Do NOT give Takeoff/Landing clearances. Do NOT vector aircraft in air."
+        },
+        "Tower": {
+            "duties": "Takeoff/Landing clearances, Runway crossing, Pattern entry.",
+            "taboos": "Do NOT give complex taxi instructions to gates. Do NOT vector aircraft far from airport."
+        },
+        "Approach/Departure": {
+            "duties": "Radar vectors, Altitude assignments, ILS/Visual approach clearance.",
+            "taboos": "Do NOT give ground taxi instructions. Do NOT clear for takeoff/landing (handoff to Tower)."
+        },
+        "Center": {
+            "duties": "Enroute cruise, High altitude routing, Handoffs.",
+            "taboos": "Do NOT give precision approach clearances. Do NOT give ground instructions."
+        },
+        "Unicom": {
+            "duties": "Advisory only. State weather/traffic if asked.",
+            "taboos": "Do NOT give CLEARANCES. You are NOT a controller."
+        }
+    }
+
     def __init__(self, config, context, lock, bus):
         self.config = config
         self.context = context
@@ -17,10 +40,12 @@ class LLMClient:
         self.model = conn_config.get('model', 'gemini-3-flash-preview')
         self.base_url = conn_config.get('base_url', None)
 
+        print(f"LLMClient Debug: Provider='{self.provider}', API_Key_Present={bool(self.api_key)}, Model='{self.model}'")
+        
         self.client = None
         self.openai_client = None
 
-        if self.provider == 'google_genai':
+        if self.provider in ['google_genai', 'gemini']:
             print(f"LLMClient: Initializing Google GenAI Client with model {self.model}...")
             try:
                 self.client = genai.Client(api_key=self.api_key)
@@ -38,7 +63,39 @@ class LLMClient:
         
         self.bus.on('llm_request', self.handle_request)
         self.bus.on('proactive_atc_request', self.request_proactive_msg)
+        self.bus.on('config_updated', self.handle_config_update)
         print("LLMClient: Initialized and subscribed to 'llm_request' & 'proactive_atc_request'.")
+        
+    def handle_config_update(self, new_config):
+        """Re-initialize client when settings change."""
+        print("LLMClient: Config updated, re-initializing client...")
+        self.config = new_config
+        conn_config = new_config.get('connection', {})
+        self.provider = conn_config.get('provider', 'google_genai')
+        self.api_key = conn_config.get('api_key', '')
+        self.model = conn_config.get('model', 'gemini-3-flash-preview')
+        self.base_url = conn_config.get('base_url', None)
+
+        print(f"LLMClient Update Debug: Provider='{self.provider}', API_Key_Present={bool(self.api_key)}, Model='{self.model}'")
+
+        self.client = None
+        self.openai_client = None
+
+        if self.provider in ['google_genai', 'gemini']:
+            print(f"LLMClient: Initializing Google GenAI Client with model {self.model}...")
+            try:
+                self.client = genai.Client(api_key=self.api_key)
+            except Exception as e:
+                print(f"LLMClient Error: Failed to initialize GenAI client: {e}")
+        elif self.provider in ['openai', 'openai_compatible']:
+            print(f"LLMClient: Initializing OpenAI Client ({self.provider}) with model {self.model}...")
+            try:
+                self.openai_client = openai.OpenAI(
+                    api_key=self.api_key,
+                    base_url=self.base_url
+                )
+            except Exception as e:
+                print(f"LLMClient Error: Failed to initialize OpenAI client: {e}")
 
     def handle_request(self, user_text, history=[]):
         """Event handler for 'llm_request'."""
@@ -116,6 +173,12 @@ class LLMClient:
         Role: {role} (Responsible for: Clearing, Ground Ops, Tower Control, or Approach/Center based on freq).
         User Callsign: {callsign}.
         
+        DISPLAYED ROLE: {role}
+        
+        RULES FOR THIS POST:
+        DUTIES: {self._get_role_rules(role)['duties']}
+        TABOOS: {self._get_role_rules(role)['taboos']}
+        
         Current Weather (METAR):
         {metar}
         
@@ -124,17 +187,28 @@ class LLMClient:
         {history_text}
         
         CRITICAL RULES:
-        1. Always start/end with callsign '{callsign}'.
+        1. Address the pilot by callsign '{callsign}' at the START of your message. Do NOT repeat it at the end.
         2. USE REAL WEATHER data from the METAR above.
         3. Reply in the SAME LANGUAGE as the user (Chinese/English).
            - Chinese: "国航1024, 地面风310, 8节..."
            - English: "CCA1024, Wind 310 at 8 knots..."
         4. IF frequency = Ground/Clearance, give IFR clearance if requested.
         5. Output JSON: {{"text": "...", "action": "NONE"}}
+        6. READBACK HANDLING: If the pilot's readback is CORRECT, you do NOT need to say "Readback correct" every time. 
+           - You may return an empty string "" for text to remain silent (simulate 'click' acknowledgment).
+           - Or just reply with the callsign "{callsign}" to acknowledge.
+           - ONLY correct them if the readback is WRONG.
         
         User said: "{user_input}"
         """
         return prompt.strip()
+
+    def _get_role_rules(self, full_role_name):
+        """Extracts 'Ground', 'Tower', etc from 'ZBAA Ground' and returns rules."""
+        for key in self.ROLE_RULES:
+            if key in full_role_name:
+                return self.ROLE_RULES[key]
+        return {"duties": "General ATC assistance", "taboos": "None"}
 
     def _parse_llm_response(self, response_text):
         """Safely parses the expected JSON from the LLM, handling Markdown and extra text."""
@@ -209,19 +283,14 @@ class LLMClient:
         except Exception as e:
             import traceback
             err_msg = traceback.format_exc()
-            print(f"Error calling LLM: {e}")
-            print(err_msg)
-            
-            # Get callsign for error message
-            with self.lock:
-                callsign = self.context.get('aircraft', {}).get('callsign', 'Station')
-            
             # Check for 503 Overloaded
             if "503" in str(e) or "overloaded" in str(e).lower():
-                print("LLM Overloaded - Returning immersive standby message.")
+                print(f"LLMClient: Service Overloaded (503). Switching to immersive fallback.")
                 text = f"{callsign}, Station calling, signal unreadable, say again? (Simulated Interference)"
                 action = "NONE"
             else:
+                print(f"Error calling LLM: {e}")
+                print(err_msg)
                 try:
                     with open("llm_error.txt", "w", encoding="utf-8") as f:
                         f.write(err_msg)

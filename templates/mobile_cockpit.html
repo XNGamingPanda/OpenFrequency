@@ -45,12 +45,20 @@
                 style="height: 50vh; overflow-y: auto; background-color: #f8f9fa;">
                 <!-- 聊天记录 -->
             </div>
+            {% if can_interact %}
             <div class="card-footer d-flex justify-content-between">
                 <a href="/?view=desktop" class="btn btn-sm btn-outline-secondary">💻 Desktop View</a>
                 <button class="btn btn-sm btn-outline-secondary" onclick="testAudio()">🔊 Test Audio</button>
             </div>
+            {% else %}
+            <div class="card-footer bg-light text-center text-muted">
+                <small data-i18n="readonly_notice">Read-only mode - You can only view</small>
+            </div>
+            {% endif %}
         </div>
+        {% if can_interact %}
         <button id="ptt-btn" class="btn btn-primary btn-lg w-100 py-4 fw-bold">PUSH TO TALK</button>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -156,6 +164,7 @@
     // ... (PTT Logic) ...
 
     const startRecording = () => {
+        if (!pttBtn) return; // No PTT for readonly users
         navigator.mediaDevices.getUserMedia({ audio: true })
             .then(stream => {
                 mediaRecorder = new MediaRecorder(stream);
@@ -180,16 +189,20 @@
     const stopRecording = () => {
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
-            pttBtn.classList.add('btn-primary');
-            pttBtn.classList.remove('btn-danger');
-            pttBtn.innerText = "PUSH TO TALK";
+            if (pttBtn) {
+                pttBtn.classList.add('btn-primary');
+                pttBtn.classList.remove('btn-danger');
+                pttBtn.innerText = "PUSH TO TALK";
+            }
         }
     };
 
-    pttBtn.addEventListener('mousedown', startRecording);
-    pttBtn.addEventListener('mouseup', stopRecording);
-    pttBtn.addEventListener('touchstart', startRecording);
-    pttBtn.addEventListener('touchend', stopRecording);
+    if (pttBtn) {
+        pttBtn.addEventListener('mousedown', startRecording);
+        pttBtn.addEventListener('mouseup', stopRecording);
+        pttBtn.addEventListener('touchstart', startRecording);
+        pttBtn.addEventListener('touchend', stopRecording);
+    }
 
 </script>
 {% endblock %}

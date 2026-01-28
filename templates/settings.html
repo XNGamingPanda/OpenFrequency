@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0" data-i18n="system_config">System Configuration</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-light" onclick="testAudio()" data-i18n="test_audio">🔊 Test
+                        Audio</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <form id="settings-form">
+                    <!-- Pilot Profile & SimBrief -->
+                    <h6 class="border-bottom pb-1 mb-2" data-i18n="pilot_profile">Pilot Profile</h6>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="callsign">Callsign</label>
+                        <input type="text" class="form-control form-control-sm" id="conf-callsign"
+                            placeholder="e.g. CCA1024">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="simbrief_username">SimBrief Username</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" id="conf-simbrief-user" placeholder="J.Doe">
+                            <button class="btn btn-outline-primary" type="button" onclick="importSimBrief()"
+                                data-i18n="import">Import</button>
+                        </div>
+                        <div id="simbrief-status" class="form-text x-small text-muted" data-i18n="simbrief_hint">Enter
+                            username to fetch latest OFP.</div>
+                    </div>
+
+                    <!-- Connection Settings -->
+                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="ai_connection">AI Connection</h6>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="provider">Provider</label>
+                        <select class="form-select form-select-sm" id="conf-provider">
+                            <option value="gemini">Google Gemini (Cloud)</option>
+                            <option value="openai_compatible">OpenAI Compatible (Ollama/Local)</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="api_key">API Key</label>
+                        <input type="password" class="form-control form-control-sm" id="conf-api-key"
+                            placeholder="Enter API Key">
+                        <div class="form-text x-small" data-i18n="api_key_hint">Existing key is hidden. Leave as ******
+                            to keep current.</div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="model_name">Model Name</label>
+                        <input type="text" class="form-control form-control-sm" id="conf-model">
+                    </div>
+                    <div class="mb-2" id="base-url-group">
+                        <label class="form-label small mb-0" data-i18n="base_url">Base URL (Local/Ollama)</label>
+                        <input type="text" class="form-control form-control-sm" id="conf-base-url"
+                            placeholder="http://localhost:11434/v1">
+                    </div>
+
+                    <!-- Audio Settings -->
+                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="audio_controls">Audio & Controls</h6>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label small mb-0" data-i18n="joystick_ptt">Joystick PTT</label>
+                            <span id="ptt-bind-status" class="badge bg-secondary" style="font-size: 0.7em;"
+                                data-i18n="unbound">Unbound</span>
+                        </div>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-warning flex-grow-1" id="btn-bind-ptt"
+                                onclick="startBindingPTT(); return false;" data-i18n="bind_btn">Click to Bind
+                                Button</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="clearBindingPTT(); return false;"
+                                title="Clear Binding">✕</button>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="conf-radio-effect">
+                            <label class="form-check-label small" for="conf-radio-effect" data-i18n="radio_static">Radio
+                                Static Effect</label>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="traffic_density">Traffic Density</label>
+                        <select class="form-select form-select-sm" id="conf-busy-level">
+                            <option value="low" data-i18n="density_low">Low (Lazy Afternoon)</option>
+                            <option value="medium" data-i18n="density_medium">Medium (Standard)</option>
+                            <option value="high" data-i18n="density_high">High (Busy Hub)</option>
+                        </select>
+                    </div>
+
+                    <!-- Security Settings -->
+                    <h6 class="border-bottom pb-1 mb-2 mt-3 text-danger" data-i18n="security_settings">Security & Access
+                    </h6>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="access_mode">Access Mode</label>
+                        <select class="form-select form-select-sm" id="conf-security-mode">
+                            <option value="doorbell" data-i18n="mode_doorbell">🟡 Doorbell (Approve New)</option>
+                            <option value="open" data-i18n="mode_open">🟢 Open (Allow All)</option>
+                            <option value="lockdown" data-i18n="mode_lockdown">🔴 Lockdown (Reject All)</option>
+                        </select>
+                        <div class="form-text x-small text-muted">
+                            <span data-i18n="security_hint">Control who can access this dashboard via network.</span>
+                        </div>
+                        <div class="mt-2 text-end">
+                            <a href="/devices" class="btn btn-sm btn-outline-primary"
+                                data-i18n="manage_devices_btn">Manage Devices</a>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="stt_model_path">STT Model Path</label>
+                        <input type="text" class="form-control form-control-sm" id="conf-stt-path">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="stt_language">STT Language</label>
+                        <select class="form-select form-select-sm" id="conf-stt-language">
+                            <option value="en">English</option>
+                            <option value="zh">Chinese (中文)</option>
+                        </select>
+                    </div>
+                </form>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button class="btn btn-success" onclick="saveConfig()" data-i18n="save_settings">Save
+                        Settings</button>
+                    <button class="btn btn-secondary" onclick="loadConfig()" data-i18n="reload">Reload</button>
+                    <a href="/" class="btn btn-outline-primary" data-i18n="back_dashboard">Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const socket = window.socket;
+
+    // --- Gamepad PTT Binding Logic ---
+    let gamepadIndex = -1;
+    let pttButtonIndex = -1;
+    let isBinding = false;
+    let ignoredButtons = new Set(); // Track buttons pressed when binding starts
+
+    function startBindingPTT() {
+        isBinding = true;
+        ignoredButtons.clear();
+
+        // Scan for currently pressed buttons to ignore
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (let i = 0; i < gamepads.length; i++) {
+            const gp = gamepads[i];
+            if (gp) {
+                for (let b = 0; b < gp.buttons.length; b++) {
+                    if (gp.buttons[b].pressed) {
+                        ignoredButtons.add(`${i}-${b}`);
+                    }
+                }
+            }
+        }
+        console.log("Ignored buttons initially:", ignoredButtons);
+
+        const btn = document.getElementById('btn-bind-ptt');
+        // i18n support for dynamic text
+        const lang = localStorage.getItem('language') || 'en';
+        btn.innerText = (lang === 'zh') ? "按下摇杆按键..." : "PRESS ANY JOYSTICK BUTTON...";
+        btn.classList.add('active');
+    }
+
+    function clearBindingPTT() {
+        gamepadIndex = -1;
+        pttButtonIndex = -1;
+        isBinding = false;
+        ignoredButtons.clear();
+
+        document.getElementById('btn-bind-ptt').innerText = "Click to Bind Button";
+        document.getElementById('btn-bind-ptt').classList.remove('active', 'btn-outline-success');
+        document.getElementById('btn-bind-ptt').classList.add('btn-outline-warning');
+
+        const statusEl = document.getElementById('ptt-bind-status');
+        statusEl.innerText = "Unbound";
+        statusEl.className = "badge bg-secondary";
+
+        // Trigger update
+        const lang = localStorage.getItem('language') || 'en';
+        if (window.applyLanguage) window.applyLanguage(lang);
+
+        // Clear storage
+        localStorage.removeItem('ptt_binding');
+    }
+
+    function gamepadLoop() {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        if (!gamepads) return;
+
+        for (let i = 0; i < gamepads.length; i++) {
+            const gp = gamepads[i];
+            if (gp && isBinding) {
+                for (let b = 0; b < gp.buttons.length; b++) {
+                    const btnId = `${i}-${b}`;
+                    if (gp.buttons[b].pressed) {
+                        // If this button was already pressed when we started, ignore it
+                        if (ignoredButtons.has(btnId)) {
+                            continue;
+                        }
+
+                        // Start Binding
+                        gamepadIndex = i;
+                        pttButtonIndex = b;
+                        isBinding = false;
+
+                        // UI Update
+                        const lang = localStorage.getItem('language') || 'en';
+                        const prefix = (lang === 'zh') ? `已绑定: 设备${i} 按键${b}` : `Bound: Pad ${i} Btn ${b}`;
+
+                        const btn = document.getElementById('btn-bind-ptt');
+                        btn.innerText = prefix;
+                        btn.classList.remove('active');
+                        btn.classList.replace('btn-outline-warning', 'btn-outline-success');
+
+                        const statusEl = document.getElementById('ptt-bind-status');
+                        statusEl.innerText = "Active";
+                        statusEl.className = "badge bg-success";
+
+                        localStorage.setItem('ptt_binding', JSON.stringify({ gp: i, btn: b }));
+                        return;
+                    } else {
+                        // Button released, remove from ignore list
+                        if (ignoredButtons.has(btnId)) {
+                            ignoredButtons.delete(btnId);
+                        }
+                    }
+                }
+            }
+        }
+        requestAnimationFrame(gamepadLoop);
+    }
+
+    window.addEventListener("gamepadconnected", gamepadLoop);
+    requestAnimationFrame(gamepadLoop);
+
+    // --- Config Logic ---
+    async function loadConfig() {
+        try {
+            const response = await fetch('/get_config');
+            const data = await response.json();
+
+            document.getElementById('conf-callsign').value = data.user_profile?.callsign || 'N/A';
+            document.getElementById('conf-simbrief-user').value = data.simbrief?.username || '';
+            document.getElementById('conf-provider').value = data.connection?.provider || 'gemini';
+            document.getElementById('conf-api-key').value = data.connection?.api_key || '';
+            document.getElementById('conf-model').value = data.connection?.model || '';
+            document.getElementById('conf-base-url').value = data.connection?.base_url || '';
+            document.getElementById('conf-radio-effect').checked = data.audio.radio_effect;
+            document.getElementById('conf-stt-path').value = data.audio.stt_model_path || '';
+            document.getElementById('conf-stt-language').value = data.audio.stt_language || 'en';
+            document.getElementById('conf-busy-level').value = data.immersion.busy_level || 'medium';
+            // Security Mode from Config
+            if (data.security && data.security.mode) {
+                document.getElementById('conf-security-mode').value = data.security.mode;
+            } else {
+                document.getElementById('conf-security-mode').value = 'doorbell';
+            }
+
+            toggleBaseUrl();
+
+            // Restore PTT binding from storage if exists
+            const savedBind = localStorage.getItem('ptt_binding');
+            if (savedBind) {
+                const b = JSON.parse(savedBind);
+                const btn = document.getElementById('btn-bind-ptt');
+                btn.classList.replace('btn-outline-warning', 'btn-outline-success');
+
+                document.getElementById('ptt-bind-status').innerText = "Active";
+                document.getElementById('ptt-bind-status').className = "badge bg-success";
+
+                // Text update handled by i18n
+            }
+
+        } catch (e) {
+            console.error("Failed to load config", e);
+        }
+    }
+
+    async function saveConfig() {
+        try {
+            const newConfig = {
+                user_profile: { callsign: document.getElementById('conf-callsign').value },
+                simbrief: { username: document.getElementById('conf-simbrief-user').value },
+                connection: {
+                    provider: document.getElementById('conf-provider').value,
+                    api_key: document.getElementById('conf-api-key').value,
+                    model: document.getElementById('conf-model').value,
+                    base_url: document.getElementById('conf-base-url').value
+                },
+                audio: {
+                    radio_effect: document.getElementById('conf-radio-effect').checked,
+                    stt_model_path: document.getElementById('conf-stt-path').value,
+                    stt_language: document.getElementById('conf-stt-language').value
+                },
+                immersion: { busy_level: document.getElementById('conf-busy-level').value },
+                security: { mode: document.getElementById('conf-security-mode').value }
+            };
+
+            // Save Main Config (Includes Security)
+            await fetch('/save_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newConfig)
+            });
+
+            alert("Settings Saved!");
+            loadConfig();
+        } catch (e) {
+            alert("Error saving settings!");
+        }
+    }
+
+    async function importSimBrief() {
+        // ... (Similar to dashboard logic) ...
+        const username = document.getElementById('conf-simbrief-user').value;
+        if (!username) return alert("Enter username");
+
+        try {
+            const resp = await fetch('/import_simbrief', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username })
+            });
+            const result = await resp.json();
+            if (result.status === 'success') {
+                alert("Imported: " + result.data.origin + " -> " + result.data.destination);
+            } else {
+                alert("Error: " + result.message);
+            }
+        } catch (e) { alert("Network Error"); }
+    }
+
+    document.getElementById('conf-provider').addEventListener('change', toggleBaseUrl);
+    function toggleBaseUrl() {
+        const val = document.getElementById('conf-provider').value;
+        document.getElementById('base-url-group').style.display = (val === 'openai_compatible') ? 'block' : 'none';
+    }
+
+    function testAudio() {
+        socket.emit('test_tts_trigger');
+    }
+
+    loadConfig();
+</script>
+{% endblock %}

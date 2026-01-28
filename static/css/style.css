@@ -6,3 +6,67 @@ body {
     display: flex;
     flex-direction: column;
 }
+
+/* Responsive Cards */
+.card {
+    height: auto;
+    min-height: fit-content;
+}
+
+/* Responsive table */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    .btn-lg {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+    
+    /* Stack columns on mobile */
+    .row > [class*='col-'] {
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Smaller text on mobile */
+    h4 {
+        font-size: 1.1rem;
+    }
+    
+    small {
+        font-size: 0.75rem;
+    }
+}
+
+/* Tablet optimizations */
+@media (max-width: 992px) and (min-width: 769px) {
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Flex grow for chat container */
+#log-container {
+    flex: 1 1 auto;
+    overflow-y: auto;
+}
+
+/* Ensure proper flex behavior */
+.h-100 {
+    height: 100% !important;
+}
+
+.flex-grow-1 {
+    flex-grow: 1 !important;
+}

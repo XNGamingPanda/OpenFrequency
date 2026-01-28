@@ -141,6 +141,11 @@ class LogicManager:
             return "Approach/Departure" # Generic
         return "Center"
 
+    def _get_current_sender_name(self):
+        """Returns current controller name for chat log."""
+        with context_lock:
+             return shared_context['atc_state'].get('current_controller', 'ATC')
+
     def on_telemetry_update(self, data):
         # data is the entire shared_context from SimBridge
         ac_data = data.get('aircraft', {})
@@ -158,11 +163,25 @@ class LogicManager:
                 new_controller = self._determine_controller(current_freq)
                 
                 if new_controller != shared_context['atc_state']['current_controller']:
-                    old_c = shared_context['atc_state']['current_controller']
-                    shared_context['atc_state']['current_controller'] = new_controller
+                    # Try to get location context
+                    icao = shared_context['environment'].get('nearest_airport', 'N/A')
+                    if icao == 'N/A' or len(icao) != 4:
+                        icao = shared_context['flight_plan'].get('origin', '')
                     
-                    msg = f"Tuned: {current_freq} ({new_controller})"
+                    final_role = new_controller
+                    if icao and len(icao) == 4 and new_controller not in ["Center", "Control"]:
+                        final_role = f"{icao} {new_controller}"
+                    
+                    shared_context['atc_state']['current_controller'] = final_role
+                    
+                    # --- SWITCHBOARD MODEL: AMNESIA ---
+                    # Clear history to prevent context bleeding
+                    self.message_history.clear()
+                    print("LogicManager: Context cleared due to frequency change.")
+                    
+                    msg = f"Tuned: {current_freq} ({final_role})"
                     self._broadcast_chat("SYSTEM", msg)
+                    self._broadcast_chat("SYSTEM", "--- Switchboard: Context Reset ---")
                     
                     # PROACTIVE TRIGGER: If switching to a valid station (not Unicom), ATC greets you.
                     # We send a signal to LLM to introduce itself.
@@ -180,7 +199,8 @@ class LogicManager:
     def on_atc_broadcast(self, message):
         """Handles ATC broadcasts from the immersion engine."""
         print(f"LogicManager: Broadcasting to UI: {message}")
-        self._broadcast_chat('ATC', message)
+        sender = self._get_current_sender_name()
+        self._broadcast_chat(sender, message)
         # Optionally, trigger TTS for broadcasts
         event_bus.emit('tts_request', message)
 
@@ -193,7 +213,8 @@ class LogicManager:
             standby_text = f"{shared_context['aircraft']['callsign']}, standby."
             delay = random.uniform(3, 8)
             print(f"LogicManager: Workload high. Standing by for {delay:.1f} seconds.")
-            self._broadcast_chat('ATC', standby_text)
+            sender = self._get_current_sender_name()
+            self._broadcast_chat(sender, standby_text)
             event_bus.emit('tts_request', standby_text)
             
             # After a delay, re-process the original request
@@ -218,5 +239,12 @@ class LogicManager:
     def on_llm_response(self, text, action):
         """Handles the generated response from the LLM."""
         print(f"LogicManager: LLM response: '{text}' (Action: {action})")
-        self._broadcast_chat('ATC', text)
+        
+        # If LLM decides to be silent (e.g. implied readback confirmation), skip broadcast
+        if not text or not text.strip():
+            print("LogicManager: Received empty response (Silence).")
+            return
+
+        sender = self._get_current_sender_name()
+        self._broadcast_chat(sender, text)
         event_bus.emit('tts_request', text)

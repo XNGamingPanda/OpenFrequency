@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
@@ -11,22 +11,292 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        // Global Socket Init
+        window.socket = io();
+    </script>
 </head>
 
 <body class="bg-light text-dark">
-    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">OpenSky-ATC</a>
+            <a class="navbar-brand fw-bold" href="/">OpenFrequency-ATC</a>
+
+            <div class="d-flex align-items-center">
+                <select id="lang-selector" class="form-select form-select-sm" style="width: auto;">
+                    <option value="en">English</option>
+                    <option value="zh">中文</option>
+                </select>
+            </div>
         </div>
     </nav>
-    <div class="container mt-3">
+
+    <div class="{% block container_class %}container mt-3{% endblock %}">
         {% block content %}{% endblock %}
     </div>
+
+    <!-- Translations & Logic -->
+    <script>
+        const TRANSLATIONS = {
+            "en": {
+                "system_config": "System Configuration",
+                "test_audio": "🔊 Test Audio",
+                "pilot_profile": "Pilot Profile",
+                "callsign": "Callsign",
+                "simbrief_username": "SimBrief Username",
+                "import": "Import",
+                "simbrief_hint": "Enter username to fetch latest OFP.",
+                "ai_connection": "AI Connection",
+                "provider": "Provider",
+                "api_key": "API Key",
+                "api_key_hint": "Existing key is hidden. Leave as ****** to keep current.",
+                "model_name": "Model Name",
+                "base_url": "Base URL (Local/Ollama)",
+                "audio_controls": "Audio & Controls",
+                "joystick_ptt": "Joystick PTT",
+                "unbound": "Unbound",
+                "bind_btn": "Click to Bind Button",
+                "radio_static": "Radio Static Effect",
+                "traffic_density": "Traffic Density",
+                "density_low": "Low (Lazy Afternoon)",
+                "density_medium": "Medium (Standard)",
+                "density_high": "High (Busy Hub)",
+                "stt_model_path": "STT Model Path",
+                "stt_language": "STT Language",
+                "save_settings": "Save Settings",
+                "reload": "Reload",
+                "back_dashboard": "Back to Dashboard",
+                "settings_btn": "⚙️ Settings",
+                "altitude": "ALTITUDE",
+                "airspeed": "AIRSPEED",
+                "heading": "HEADING",
+                "comms_log": "Comms Log",
+                "connecting": "Connecting...",
+                "connected_status": "Connected",
+                "disconnected_status": "Disconnected",
+                "send_btn": "Send",
+                "type_message_placeholder": "Type your message...",
+                "ptt_btn": "PUSH TO TALK",
+                "security_settings": "Security & Access",
+                "access_mode": "Access Mode",
+                "security_hint": "Control who can access this dashboard via network.",
+                "mode_doorbell": "🟡 Doorbell (Approve New)",
+                "mode_open": "🟢 Open (Allow All)",
+                "mode_lockdown": "🔴 Lockdown (Reject All)",
+                "manage_devices_btn": "Manage Devices",
+                "device_manager_title": "Device Management",
+                "back_settings": "Back to Settings",
+                "trusted_devices": "Trusted Devices",
+                "banned_ips": "Blocked IPs",
+                "device_info": "Device Info",
+                "ip_address": "IP Address",
+                "added_on": "Added On",
+                "actions": "Actions",
+                "revoke": "Revoke",
+                "unban": "Unban",
+                "preview_radar": "Preview Waiting Room",
+                "session_devices": "Session Devices (Temporary)",
+                "permissions": "Permissions",
+                "perm_full": "Full Access",
+                "perm_readonly": "Read Only",
+                "readonly_notice": "Read-only mode - You can only view",
+                "no_trusted_devices": "No trusted devices.",
+                "no_session_devices": "No active session devices.",
+                "no_banned_ips": "No banned IPs."
+            },
+            "zh": {
+                "system_config": "系统设置",
+                "test_audio": "🔊 测试音频",
+                "pilot_profile": "飞行员资料",
+                "callsign": "呼号",
+                "simbrief_username": "SimBrief 用户名",
+                "import": "导入",
+                "simbrief_hint": "输入用户名以获取最新飞行计划。",
+                "ai_connection": "AI 连接设置",
+                "provider": "服务提供商",
+                "api_key": "API 密钥",
+                "api_key_hint": "密钥已隐藏。保持 ****** 不变即可。",
+                "model_name": "模型名称",
+                "base_url": "基础 URL (Local/Ollama)",
+                "audio_controls": "音频与控制",
+                "joystick_ptt": "摇杆 PTT 按键",
+                "unbound": "未绑定",
+                "bind_btn": "点击绑定按键",
+                "radio_static": "无线电杂音效果",
+                "traffic_density": "交通密度",
+                "density_low": "低 (闲适午后)",
+                "density_medium": "中 (标准)",
+                "density_high": "高 (繁忙枢纽)",
+                "stt_model_path": "STT 模型路径",
+                "stt_language": "语音识别语言",
+                "save_settings": "保存设置",
+                "reload": "重新加载",
+                "back_dashboard": "返回仪表盘",
+                "settings_btn": "⚙️ 设置",
+                "altitude": "高度 (ALT)",
+                "airspeed": "空速 (SPD)",
+                "heading": "航向 (HDG)",
+                "comms_log": "通讯记录",
+                "connecting": "连接中...",
+                "connected_status": "已连接",
+                "disconnected_status": "已断开",
+                "send_btn": "发送",
+                "type_message_placeholder": "输入消息...",
+                "ptt_btn": "按住通话 (PTT)",
+                "security_settings": "安全与访问控制",
+                "access_mode": "访问模式",
+                "security_hint": "控制允许谁通过网络访问仪表盘。",
+                "mode_doorbell": "🟡 门铃模式 (需批准)",
+                "mode_open": "🟢 开放模式 (允许所有)",
+                "mode_lockdown": "🔴 封锁模式 (拒绝所有)",
+                "manage_devices_btn": "管理设备",
+                "device_manager_title": "设备管理",
+                "back_settings": "返回设置",
+                "trusted_devices": "已信任设备",
+                "banned_ips": "已屏蔽 IP",
+                "device_info": "设备信息",
+                "ip_address": "IP 地址",
+                "added_on": "添加时间",
+                "actions": "操作",
+                "revoke": "撤销授权",
+                "unban": "解封",
+                "preview_radar": "预览等待室 (雷达)",
+                "session_devices": "临时设备（仅本次会话）",
+                "permissions": "权限",
+                "perm_full": "完全访问",
+                "perm_readonly": "仅查看",
+                "readonly_notice": "只读模式 - 仅可观看",
+                "no_trusted_devices": "暂无已信任设备。",
+                "no_session_devices": "暂无活跃的临时设备。",
+                "no_banned_ips": "暂无已屏蔽的 IP。"
+            }
+        };
+
+
+        function applyLanguage(lang) {
+            localStorage.setItem('language', lang);
+            document.documentElement.lang = lang; // Accessibility
+
+            const t = TRANSLATIONS[lang] || TRANSLATIONS['en'];
+
+            // 1. Text Content
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) {
+                    el.innerText = t[key];
+                }
+            });
+
+            // 2. Placeholders
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (t[key]) {
+                    el.placeholder = t[key];
+                }
+            });
+
+            // 3. Special Handling for PTT Button Logic (Dynamic)
+            const pttBtn = document.getElementById('ptt-btn');
+            if (pttBtn && !pttBtn.classList.contains('btn-danger')) {
+                pttBtn.innerText = t['ptt_btn'];
+            }
+        }
+
+        // Init
+        const savedLang = localStorage.getItem('language') || 'en';
+        document.getElementById('lang-selector').value = savedLang;
+        applyLanguage(savedLang);
+
+        // Event Listener
+        document.getElementById('lang-selector').addEventListener('change', (e) => {
+            applyLanguage(e.target.value);
+        });
+
+    </script>
+
+    <!-- Admin Toasts (Hidden by default, shown via JS) -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toast-container" style="z-index: 9999;">
+        <!-- Toasts injected here -->
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.min.js"></script>
+
+    <script>
+        // Admin Security Logic
+        // Note: socket is defined in child templates usually, but checking here if it exists globally or re-using
+        // Safer to check if socket exists or init a listener if we are on a page with socket.
+        // Actually, let's assume socket is available if the page included it.
+        // But base.html doesn't init socket. dashboard.html does.
+        // We need this logic to run on dashboard.
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.socket) {
+                // Handle force logout when access is revoked
+                window.socket.on('force_logout', (data) => {
+                    console.log("Access revoked, redirecting to waiting room...", data);
+                    // Clear auth cookie
+                    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    // Redirect to waiting room
+                    window.location.href = '/waiting_room';
+                });
+
+                // Handle permission change - force page refresh
+                window.socket.on('permission_changed', (data) => {
+                    console.log("Permission changed to:", data.permission);
+                    // Force refresh to apply new permissions
+                    window.location.reload();
+                });
+
+                window.socket.on('join_request', (data) => {
+                    console.log("Admin: Join Request from", data);
+                    const container = document.getElementById('toast-container');
+
+                    const toastId = `toast-${data.sid}`;
+                    const html = `
+                        <div id="${toastId}" class="toast show text-white bg-dark" role="alert" aria-live="assertive" aria-atomic="true">
+                          <div class="toast-header bg-secondary text-white">
+                            <strong class="me-auto">📡 New Connection Request</strong>
+                            <small>Just now</small>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                          </div>
+                          <div class="toast-body">
+                            <p class="mb-1"><strong>Device:</strong> ${data.device_name}</p>
+                            <p class="mb-2 small text-muted">IP: ${data.ip}</p>
+                            <div class="d-grid gap-2 d-md-block">
+                              <button class="btn btn-sm btn-success w-100 mb-1" onclick="approveAuth('${data.sid}', 'trust')">Allow & Trust</button>
+                               <div class="btn-group w-100" role="group">
+                                    <button class="btn btn-sm btn-outline-light" onclick="approveAuth('${data.sid}', 'allow_once')">Once</button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="denyAuth('${data.sid}', 'deny')">Deny</button>
+                               </div>
+                            </div>
+                          </div>
+                        </div>
+                     `;
+
+                    // Create element
+                    const wrap = document.createElement('div');
+                    wrap.innerHTML = html;
+                    container.appendChild(wrap.firstElementChild);
+                });
+            }
+        });
+
+        window.approveAuth = function (sid, type) {
+            socket.emit('admin_decision', { sid: sid, action: type });
+            document.getElementById(`toast-${sid}`).remove();
+        };
+
+        window.denyAuth = function (sid, type) {
+            socket.emit('admin_decision', { sid: sid, action: type });
+            document.getElementById(`toast-${sid}`).remove();
+        };
+    </script>
+
     {% block scripts %}{% endblock %}
 </body>
 

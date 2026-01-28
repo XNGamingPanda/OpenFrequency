@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Requesting Access - OpenFrequency</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* Radar Animation */
+        .radar {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            border: 2px solid #00ff41;
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            box-shadow: 0 0 10px #00ff41, inset 0 0 20px rgba(0, 255, 65, 0.2);
+            background: linear-gradient(0deg, transparent 49%, rgba(0, 255, 65, 0.3) 50%, transparent 51%),
+                linear-gradient(90deg, transparent 49%, rgba(0, 255, 65, 0.3) 50%, transparent 51%);
+            background-size: 100% 100%;
+        }
+
+        .sweep {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, transparent 70%, rgba(0, 255, 65, 0.8));
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background-color: #f00;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 5px #f00;
+        }
+
+        .status-text {
+            color: #00ff41;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .ip-info {
+            font-size: 0.9rem;
+            color: #8b949e;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="radar">
+            <div class="sweep"></div>
+            <div class="dot"></div>
+        </div>
+
+        <h3 class="status-text" id="status">Contacting Tower...</h3>
+        <p class="mb-4">Please wait for the Host to approve your connection.</p>
+
+        <div class="ip-info">
+            UA: <span id="ua-str">Detecting...</span>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const statusEl = document.getElementById('status');
+
+        document.getElementById('ua-str').innerText = navigator.userAgent.substring(0, 50) + "...";
+
+        socket.on('connect', () => {
+            console.log("Connected to Waiting Room");
+            statusEl.innerText = "Requesting Clearance...";
+
+            // Send request to server
+            socket.emit('request_entry', {
+                ua: navigator.userAgent
+            });
+        });
+
+        socket.on('access_granted', (data) => {
+            statusEl.innerText = "Clearance Granted!";
+            statusEl.style.color = "#00ff41";
+
+            // Set cookie
+            document.cookie = `auth_token=${data.token}; path=/; max-age=31536000; samesite=Lax`;
+
+            setTimeout(() => {
+                window.location.href = "/";
+            }, 1000);
+        });
+
+        socket.on('access_denied', () => {
+            statusEl.innerText = "Connection Refused";
+            statusEl.style.color = "red";
+            document.querySelector('.radar').style.borderColor = "red";
+            document.querySelector('.radar').style.boxShadow = "0 0 10px red";
+        });
+
+        socket.on('disconnect', () => {
+            statusEl.innerText = "Signal Lost";
+            statusEl.style.color = "orange";
+        });
+    </script>
+</body>
+
+</html>

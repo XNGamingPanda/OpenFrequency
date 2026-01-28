@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 data-i18n="device_manager_title">Device Management</h4>
+            <a href="/settings" class="btn btn-outline-secondary btn-sm" data-i18n="back_settings">Back to Settings</a>
+        </div>
+
+        <!-- Trusted Devices (Persistent) -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <strong data-i18n="trusted_devices">Trusted Devices (Persistent)</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th data-i18n="ip_address">IP Address</th>
+                                <th data-i18n="permissions">Permissions</th>
+                                <th data-i18n="added_on">Added On</th>
+                                <th data-i18n="actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trusted-list">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted p-3">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Session Devices (Temp) -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-warning text-dark">
+                <strong data-i18n="session_devices">Session Devices (Temporary)</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th data-i18n="ip_address">IP Address</th>
+                                <th data-i18n="permissions">Permissions</th>
+                                <th data-i18n="actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="temp-list">
+                            <tr>
+                                <td colspan="3" class="text-center text-muted p-3">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Banned IPs -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-danger text-white">
+                <strong data-i18n="banned_ips">Blocked IPs</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th data-i18n="ip_address">IP Address</th>
+                                <th data-i18n="actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="banned-list">
+                            <tr>
+                                <td colspan="2" class="text-center text-muted p-3">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tools -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>Tools</strong>
+            </div>
+            <div class="card-body">
+                <a href="/waiting_room" target="_blank" class="btn btn-outline-primary"
+                    data-i18n="preview_radar">Preview Waiting Room (Radar)</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function createPermissionSelect(token, currentPerm, isTemp) {
+        const fullSel = currentPerm === 'full' ? 'selected' : '';
+        const readSel = currentPerm === 'readonly' ? 'selected' : '';
+        return `
+            <select class="form-select form-select-sm" onchange="changePermission('${token}', this.value)" style="width: auto;">
+                <option value="full" ${fullSel}>Full Access</option>
+                <option value="readonly" ${readSel}>Read Only</option>
+            </select>
+        `;
+    }
+
+    async function loadDevices() {
+        try {
+            const resp = await fetch('/get_auth_data');
+            const data = await resp.json();
+
+            // Trusted (Persistent)
+            const tList = document.getElementById('trusted-list');
+            tList.innerHTML = '';
+            const tokens = Object.entries(data.trusted_tokens || {});
+
+            const lang = localStorage.getItem('language') || 'en';
+            const t = TRANSLATIONS[lang] || TRANSLATIONS['en'];
+
+            if (tokens.length === 0) {
+                tList.innerHTML = `<tr><td colspan="4" class="text-center text-muted p-3">${t.no_trusted_devices || 'No trusted devices.'}</td></tr>`;
+            } else {
+                tokens.forEach(([token, info]) => {
+                    const date = new Date(info.created_at * 1000).toLocaleString();
+                    const permSelect = createPermissionSelect(token, info.permissions || 'full', false);
+                    const row = `
+                        <tr>
+                            <td>${info.ip}</td>
+                            <td>${permSelect}</td>
+                            <td>${date}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="revokeToken('${token}')">${t.revoke || 'Revoke'}</button>
+                            </td>
+                        </tr>
+                    `;
+                    tList.innerHTML += row;
+                });
+            }
+
+            // Temp (Session)
+            const tempList = document.getElementById('temp-list');
+            tempList.innerHTML = '';
+            const tempTokens = Object.entries(data.temp_tokens || {});
+
+            if (tempTokens.length === 0) {
+                tempList.innerHTML = `<tr><td colspan="3" class="text-center text-muted p-3">${t.no_session_devices || 'No active session devices.'}</td></tr>`;
+            } else {
+                tempTokens.forEach(([token, info]) => {
+                    const permSelect = createPermissionSelect(token, info.permissions || 'readonly', true);
+                    const row = `
+                        <tr>
+                            <td>${info.ip}</td>
+                            <td>${permSelect}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="revokeToken('${token}')">${t.revoke || 'Revoke'}</button>
+                            </td>
+                        </tr>
+                    `;
+                    tempList.innerHTML += row;
+                });
+            }
+
+            // Banned
+            const bList = document.getElementById('banned-list');
+            bList.innerHTML = '';
+            if (!data.banned_ips || data.banned_ips.length === 0) {
+                bList.innerHTML = `<tr><td colspan="2" class="text-center text-muted p-3">${t.no_banned_ips || 'No banned IPs.'}</td></tr>`;
+            } else {
+                data.banned_ips.forEach(ip => {
+                    const row = `
+                        <tr>
+                            <td>${ip}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-success" onclick="unbanIp('${ip}')" data-i18n="unban">Unban</button>
+                            </td>
+                        </tr>
+                    `;
+                    bList.innerHTML += row;
+                });
+            }
+
+            // Re-apply translations if needed
+            if (window.applyLanguage) applyLanguage(lang);
+
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function changePermission(token, permission) {
+        await fetch('/auth_action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'set_permission', token: token, permission: permission })
+        });
+        console.log(`Permission for ${token.substring(0, 8)}... changed to ${permission}`);
+    }
+
+    async function revokeToken(token) {
+        if (!confirm("Revoke access for this device?")) return;
+        await fetch('/auth_action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'revoke', token: token })
+        });
+        loadDevices();
+    }
+
+    async function unbanIp(ip) {
+        if (!confirm("Unban this IP?")) return;
+        await fetch('/auth_action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'unban', ip: ip })
+        });
+        loadDevices();
+    }
+
+    loadDevices();
+</script>
+{% endblock %}
