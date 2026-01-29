@@ -100,7 +100,11 @@ class LLMClient:
     def handle_request(self, user_text, history=[]):
         """Event handler for 'llm_request'."""
         print(f"LLMClient: Received request: '{user_text}' (History len: {len(history)})")
-        self.generate_response(user_text, history=history)
+        
+        # Run in thread to avoid blocking EventBus
+        import threading
+        t = threading.Thread(target=self.generate_response, args=(user_text, None, False, history))
+        t.start()
 
     def request_proactive_msg(self, reason, context_snapshot):
         """
@@ -129,7 +133,10 @@ class LLMClient:
         Generate the radio message now.
         """
         
-        self.generate_response(trigger_prompt=system_prompt, is_proactive=True)
+        # Run in thread to avoid blocking EventBus/SimBridge
+        import threading
+        t = threading.Thread(target=self.generate_response, args=(None, system_prompt, True))
+        t.start()
 
     def _build_system_prompt(self, user_input, history=[]):
         """Dynamically builds the system prompt from the shared context."""
@@ -241,6 +248,10 @@ class LLMClient:
             system_prompt = trigger_prompt
         else:
             system_prompt = self._build_system_prompt(user_text, history=history)
+        
+        # Get callsign for fallback messages
+        with self.lock:
+            callsign = self.context.get('aircraft', {}).get('callsign', 'Station')
             
         print("--- Generated System Prompt ---")
         print(system_prompt)

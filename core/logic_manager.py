@@ -28,8 +28,46 @@ class LogicManager:
         self.log_file = os.path.join(self.log_dir, f"flight_log_{timestamp}.txt")
         print(f"LogicManager: Logging to {self.log_file}")
         
+        # Restore history from latest log if recent (< 30 mins)
+        try:
+            import glob
+            files = glob.glob(os.path.join(self.log_dir, "flight_log_*.txt"))
+            # Filter out the one we just created? it's handled by finding existing ones before... 
+            # Actually we just bonded self.log_file name but haven't written yet.
+            # But glob finds files ON DISK.
+            
+            # Sort by time
+            files.sort(key=os.path.getmtime)
+            
+            if files:
+                last_log = files[-1]
+                # Check age
+                if time.time() - os.path.getmtime(last_log) < 1800:
+                    print(f"LogicManager: Restoring history from {last_log}...")
+                    with open(last_log, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()[-50:] # Last 50 lines
+                        for line in lines:
+                            line = line.strip()
+                            if not line or line.startswith("---"): continue
+                            
+                            # Expected format: [HH:MM:SS] Sender: Text
+                            # 1. Find end of timestamp
+                            b_idx = line.find("] ")
+                            if b_idx != -1:
+                                # content = "Sender: Text"
+                                content = line[b_idx+2:]
+                                # 2. Find separator between Sender and Text
+                                s_idx = content.find(": ")
+                                if s_idx != -1:
+                                    sender = content[:s_idx]
+                                    text = content[s_idx+2:]
+                                    self.message_history.append({'sender': sender, 'text': text})
+                    print(f"LogicManager: Restored {len(self.message_history)} messages.")
+        except Exception as e:
+            print(f"LogicManager: Failed to restore history: {e}")
+
         with open(self.log_file, "w", encoding="utf-8") as f:
-            f.write(f"--- OpenSky ATC Log Started: {timestamp} ---\n")
+            f.write(f"--- OpenSky ATC Log Started: {timestamp} (Continuation) ---\n")
 
     def set_scheduler(self, scheduler):
         self.scheduler = scheduler
@@ -44,6 +82,7 @@ class LogicManager:
         event_bus.on('atc_broadcast', self.on_atc_broadcast)
         event_bus.on('user_speech_recognized', self.on_user_speech)
         event_bus.on('llm_response_generated', self.on_llm_response)
+        event_bus.on('sim_connection_status', self.on_sim_status)
         
         # Start background task for METAR
         if self.scheduler:
@@ -155,7 +194,12 @@ class LogicManager:
             shared_context['aircraft'].update(ac_data)
             
             # Broadcast to UI
-            self.socketio.emit('telemetry_update', shared_context['aircraft'])
+            # Rate limit logs
+            # print(f"LogicManager: Emit Telemetry: {ac_data['altitude']}ft") 
+            try:
+                self.socketio.emit('telemetry_update', shared_context['aircraft'])
+            except Exception as e:
+                print(f"LogicManager: Emit Error: {e}")
 
             # 1. Frequency/Controller Handoff Check
             current_freq = ac_data.get('com1_freq')
@@ -248,3 +292,8 @@ class LogicManager:
         sender = self._get_current_sender_name()
         self._broadcast_chat(sender, text)
         event_bus.emit('tts_request', text)
+
+    def on_sim_status(self, data):
+        """Handles sim connection status updates."""
+        # data = {'connected': bool, 'msg': str}
+        self.socketio.emit('sim_status', data)

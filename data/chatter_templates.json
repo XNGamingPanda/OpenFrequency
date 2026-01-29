@@ -1,0 +1,74 @@
+{
+    "taxi_request": [
+        "{callsign}, request taxi.",
+        "{callsign}, ready to taxi."
+    ],
+    "taxi_clearance": [
+        "{callsign}, taxi to runway {rwy} via {taxiway}.",
+        "{callsign}, follow the traffic ahead, taxi runway {rwy}.",
+        "{callsign}, taxi holding point {rwy}."
+    ],
+    "pushback_request": [
+        "{callsign}, request pushback.",
+        "{callsign}, ready for pushback."
+    ],
+    "pushback_clearance": [
+        "{callsign}, pushback approved, expect runway {rwy}.",
+        "{callsign}, push and start approved."
+    ],
+    "takeoff_clearance": [
+        "{callsign}, wind {wind}, runway {rwy}, cleared for takeoff.",
+        "{callsign}, cleared for takeoff {rwy}, fly heading {hdg}.",
+        "{callsign}, runway {rwy}, cleared for takeoff."
+    ],
+    "takeoff_readback": [
+        "Cleared for takeoff {rwy}, {callsign}.",
+        "Rolling {rwy}, {callsign}."
+    ],
+    "departure_handoff": [
+        "{callsign}, contact departure on {freq}.",
+        "{callsign}, radar contact, climb and maintain {alt}.",
+        "{callsign}, frequency change approved, good day."
+    ],
+    "departure_readback": [
+        "Switching to {freq}, {callsign}.",
+        "Climbing {alt}, {callsign}.",
+        "Good day, {callsign}."
+    ],
+    "approach_clearance": [
+        "{callsign}, cleared ILS runway {rwy}.",
+        "{callsign}, cleared visual approach runway {rwy}.",
+        "{callsign}, descend and maintain {alt}, expect ILS {rwy}."
+    ],
+    "approach_readback": [
+        "Cleared ILS {rwy}, {callsign}.",
+        "Descending {alt}, {callsign}."
+    ],
+    "landing_clearance": [
+        "{callsign}, wind {wind}, runway {rwy}, cleared to land.",
+        "{callsign}, cleared to land {rwy}.",
+        "{callsign}, traffic on runway, continue approach, cleared to land {rwy}."
+    ],
+    "landing_readback": [
+        "Cleared to land {rwy}, {callsign}.",
+        "Landing {rwy}, {callsign}."
+    ],
+    "vacate_instruction": [
+        "{callsign}, vacate right, contact ground on {freq}.",
+        "{callsign}, exit left when able, contact ground.",
+        "{callsign}, hold short next taxiway, contact ground {freq}."
+    ],
+    "vacate_readback": [
+        "Contact ground, {callsign}.",
+        "Vacating right, {callsign}."
+    ],
+    "generic_acknowledgment": [
+        "Roger, {callsign}.",
+        "{callsign}, roger.",
+        "Copy, {callsign}."
+    ],
+    "traffic_advisory": [
+        "{callsign}, traffic {oclock} o'clock, {distance} miles, {alt_diff}.",
+        "{callsign}, be advised, traffic in your area."
+    ]
+}

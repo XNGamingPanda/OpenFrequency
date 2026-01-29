@@ -28,6 +28,7 @@ class SimBridge:
             self.aq = AircraftRequests(self.sm, _time=2000)
             self.connected = True
             print("SimBridge: Connected to MSFS/FSX successfully!")
+            self.bus.emit('sim_connection_status', {'connected': True, 'msg': 'Connected to Simulator'})
             return True
         except Exception:
             self.connected = False
@@ -42,6 +43,7 @@ class SimBridge:
                     time.sleep(1)
                 else:
                     # Retry every 2 seconds if not connected
+                    self.bus.emit('sim_connection_status', {'connected': False, 'msg': 'Searching for MSFS...'})
                     time.sleep(2)
                     continue
             
@@ -66,12 +68,26 @@ class SimBridge:
                 spd = self.aq.get("AIRSPEED_INDICATED")
                 com1 = self.aq.get("COM_ACTIVE_FREQUENCY:1")
                 
+                # Debug logging every 5 seconds
+                # if not hasattr(self, '_last_debug'): self._last_debug = 0
+                # if time.time() - self._last_debug > 5:
+                #    print(f"SimBridge Debug: Lat={lat}, Lon={lon}, Alt={alt}, Hdg={hdg}, Freq={com1}")
+                #    self._last_debug = time.time()
+                
                 # Check for None (data not ready yet)
                 if lat is None or lon is None:
+                    # Watchdog: If data remains None for too long, force reconnect
+                    if not hasattr(self, '_none_data_start') or self._none_data_start is None: 
+                        self._none_data_start = time.time()
+                    
+                    if time.time() - self._none_data_start > 10:
+                        print("SimBridge: Watchdog triggered - No data for 10s. Forcing reconnect...")
+                        raise ConnectionError("No data received for 10s")
+                        
                     time.sleep(0.1)
                     continue
-
-                # print(f"SimBridge DEBUG: Heading Raw: {hdg}") # Uncomment to debug
+                else:
+                    self._none_data_start = None # Reset watchdog
 
                 with self.lock:
                     self.context['aircraft']['latitude'] = lat
@@ -93,8 +109,16 @@ class SimBridge:
             except Exception as e:
                 print(f"SimBridge Error (Connection Lost?): {e}")
                 self.connected = False
+                try: 
+                    if self.sm: self.sm.quit()
+                except: pass
                 self.sm = None
                 self.aq = None
+                self._none_data_start = None
+                
+                # Notify UI
+                self.bus.emit('sim_connection_status', {'connected': False, 'msg': 'Connection Lost (Retrying...)'})
+                
                 time.sleep(2)
         
         print("SimBridge: Thread stopped.")

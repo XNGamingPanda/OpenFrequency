@@ -115,6 +115,7 @@
                     <div class="mb-2">
                         <label class="form-label small mb-0" data-i18n="stt_language">STT Language</label>
                         <select class="form-select form-select-sm" id="conf-stt-language">
+                            <option value="auto" data-i18n="stt_auto">Auto Detect</option>
                             <option value="en">English</option>
                             <option value="zh">Chinese (中文)</option>
                         </select>
@@ -303,17 +304,28 @@
                 security: { mode: document.getElementById('conf-security-mode').value }
             };
 
+            console.log("Saving config:", newConfig);
+
             // Save Main Config (Includes Security)
-            await fetch('/save_settings', {
+            const response = await fetch('/save_settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newConfig)
             });
 
+            const result = await response.json();
+            console.log("Save response:", response.status, result);
+
+            if (!response.ok) {
+                alert("Error: " + (result.message || response.statusText));
+                return;
+            }
+
             alert("Settings Saved!");
             loadConfig();
         } catch (e) {
-            alert("Error saving settings!");
+            console.error("Save error:", e);
+            alert("Error saving settings: " + e.message);
         }
     }
 

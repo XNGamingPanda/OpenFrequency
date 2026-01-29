@@ -65,7 +65,9 @@
 
 {% block scripts %}
 <script>
-    const socket = io();
+    // Reuse global socket from base.html to prevent double connection
+    const socket = window.socket || io();
+
     const logContainer = document.getElementById('log-container');
     const altitudeEl = document.getElementById('data-altitude');
     const airspeedEl = document.getElementById('data-airspeed');
@@ -93,14 +95,30 @@
     // --- SocketIO Event Handlers ---
 
     socket.on('connect', () => {
-        document.getElementById('status-badge').className = 'badge bg-success';
-        document.getElementById('status-badge').innerText = 'Connected';
+        const el = document.getElementById('status-badge');
+        el.className = 'badge bg-warning'; // Warning until sim connects
+        el.innerText = 'Server Connected';
     });
 
     socket.on('disconnect', () => {
-        document.getElementById('status-badge').className = 'badge bg-danger';
-        document.getElementById('status-badge').innerText = 'Disconnected';
+        const el = document.getElementById('status-badge');
+        el.className = 'badge bg-danger';
+        el.innerText = 'Disconnected';
     });
+
+    socket.on('sim_status', (data) => {
+        const el = document.getElementById('status-badge');
+        if (data.connected) {
+            el.className = 'badge bg-success';
+            el.innerText = 'Sim Connected';
+        } else {
+            el.className = 'badge bg-secondary';
+            el.innerText = 'Searching Sim...';
+        }
+    });
+
+    // Request initial status
+    socket.emit('request_sim_status');
 
     socket.on('chat_log', (data) => {
         const div = document.createElement('div');

@@ -9,10 +9,31 @@ class STTLocal:
         self.config = config
         self.bus = bus
         self.model_path = config.get('audio', {}).get('stt_model_path', './models/sherpa-onnx-whisper-small')
+        self.current_language = config.get('audio', {}).get('stt_language', 'auto')
+        self.recognizer = None
         
         print(f"STTLocal: Initializing Sherpa-ONNX Whisper...")
         print(f"STTLocal: Model Path: {self.model_path}")
         
+        self._init_recognizer()
+        
+        # Listen for config changes
+        self.bus.on('config_updated', self._on_config_updated)
+    
+    def _on_config_updated(self, new_config):
+        """Reload recognizer if language setting changed."""
+        new_lang = new_config.get('audio', {}).get('stt_language', 'auto')
+        new_model = new_config.get('audio', {}).get('stt_model_path', self.model_path)
+        
+        if new_lang != self.current_language or new_model != self.model_path:
+            print(f"STTLocal: Language changed from '{self.current_language}' to '{new_lang}'. Reloading...")
+            self.current_language = new_lang
+            self.model_path = new_model
+            self.config = new_config
+            self._init_recognizer()
+    
+    def _init_recognizer(self):
+        """Initialize or reinitialize the Sherpa recognizer."""
         try:
             tokens = os.path.join(self.model_path, "small-tokens.txt")
             encoder = os.path.join(self.model_path, "small-encoder.int8.onnx")
@@ -25,7 +46,10 @@ class STTLocal:
                  encoder = os.path.join(self.model_path, "encoder.int8.onnx") 
                  decoder = os.path.join(self.model_path, "decoder.int8.onnx")
             
-            stt_lang = self.config.get('audio', {}).get('stt_language', 'en')
+            # 'auto' means let Whisper detect language (pass empty string or None)
+            stt_lang = self.current_language if self.current_language != 'auto' else ''
+            
+            print(f"STTLocal: Using language: '{stt_lang}' (auto={self.current_language == 'auto'})")
             
             # Use factory method from_whisper directly as per 1.12.23 API behavior
             self.recognizer = sherpa_onnx.OfflineRecognizer.from_whisper(
@@ -55,25 +79,10 @@ class STTLocal:
         
         # Save received blob to a temporary file
         try:
-            # Create a temp file
-            # We assume the client sends a format ffmpeg/soundfile can handle (e.g. valid wav/webm headers)
-            # If webm, we might need ffmpeg to convert to wav for sherpa/soundfile?
-            # Sherpa accepts wave filename, or samples.
-            # Soundfile can read many formats.
-            
             with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
                 tmp.write(audio_data)
                 tmp_path = tmp.name
             
-            # Use soundfile to read it (SimConnect/PyAudio/etc might send raw PCM, but here it's likely webm from browser)
-            # Sherpa needs float array + sample rate
-            # BUT: soundfile might not support webm directly on Windows without external libs?
-            # Let's try. If not, we might need a quick ffmpeg conversion.
-            # Usually soundfile supports WAV/FLAC/OGG. WebM might be tricky.
-            # If browser sends WebM (Opus), we definitely need conversion.
-            
-            # Let's use simple ffmpeg command to convert to wav if soundfile fails?
-            # Or just use ffmpeg unconditionally to be safe.
             wav_path = tmp_path + ".wav"
             
             # Simple conversion using system ffmpeg (assumed in path)
@@ -83,8 +92,6 @@ class STTLocal:
                 s = self.recognizer.create_stream()
                 
                 # Use soundfile to read the WAV
-                # sherpa-onnx accept_waveform expects (sample_rate, samples)
-                # samples should be float32
                 audio, sample_rate = sf.read(wav_path, dtype='float32')
                 
                 s.accept_waveform(sample_rate, audio)

@@ -199,21 +199,32 @@
 
     socket.on('connect', () => {
         const el = document.getElementById('status-badge');
-        el.className = 'badge bg-success';
-
-        // i18n dynamic text update
+        el.className = 'badge bg-warning'; // Warning until Sim connects
         const lang = localStorage.getItem('language') || 'en';
-        el.innerText = (lang === 'zh') ? "已连接" : "Connected";
-        el.setAttribute('data-i18n', 'connected_status');
+        el.innerText = (lang === 'zh') ? "服务器已连接" : "Server Connected";
     });
 
     socket.on('disconnect', () => {
         const el = document.getElementById('status-badge');
         el.className = 'badge bg-danger';
         const lang = localStorage.getItem('language') || 'en';
-        el.innerText = (lang === 'zh') ? "已断开" : "Disconnected";
-        el.setAttribute('data-i18n', 'disconnected_status');
+        el.innerText = (lang === 'zh') ? "服务器断开" : "Server Disconnected";
     });
+
+    socket.on('sim_status', (data) => {
+        const el = document.getElementById('status-badge');
+        const lang = localStorage.getItem('language') || 'en';
+        if (data.connected) {
+            el.className = 'badge bg-success';
+            el.innerText = (lang === 'zh') ? "飞行模拟器已连接" : "Sim Connected";
+        } else {
+            el.className = 'badge bg-secondary';
+            el.innerText = (lang === 'zh') ? "寻找模拟器..." : "Searching Sim...";
+        }
+    });
+
+    // Request initial status (fix for refresh race condition)
+    socket.emit('request_sim_status');
 
     socket.on('chat_log', (data) => {
         const div = document.createElement('div');
@@ -235,6 +246,32 @@
             const audioUrl = URL.createObjectURL(audioBlob);
             new Audio(audioUrl).play().catch(e => console.error(e));
         } catch (e) { console.error(e); }
+    });
+
+    // Background Chatter Audio (lower volume)
+    let chatterVolume = 0.4;  // Background chatter volume (0-1)
+    socket.on('chatter_audio', (data) => {
+        try {
+            const audioData = atob(data.data);
+            const audioBytes = new Uint8Array(audioData.length);
+            for (let i = 0; i < audioData.length; i++) {
+                audioBytes[i] = audioData.charCodeAt(i);
+            }
+            const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.volume = chatterVolume;  // Lower volume for background
+            audio.play().catch(e => console.error(e));
+        } catch (e) { console.error(e); }
+    });
+
+    // Ducking: reduce chatter volume when player is speaking
+    socket.on('duck_audio', (data) => {
+        if (data.active) {
+            chatterVolume = 0.1;  // Duck to 10%
+        } else {
+            chatterVolume = 0.4;  // Restore to 40%
+        }
     });
 
     // PTT Recording

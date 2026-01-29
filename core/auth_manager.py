@@ -223,9 +223,12 @@ class AuthManager:
                 self.save()
 
     def set_mode(self, mode):
+        """Update security mode. Does NOT auto-save - caller is responsible for persistence."""
         if mode not in ['open', 'doorbell', 'lockdown']:
             return False
         with self.lock:
             self.data['mode'] = mode
-            self.save()
+            # Note: Do NOT call save() here. 
+            # save_settings in app.py already writes the full config.
+            # Calling save() here would overwrite with stale cached data.
         return True

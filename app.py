@@ -18,6 +18,8 @@ from core.stt_local import STTLocal
 from core.llm_client import LLMClient
 from core.tts_engine import TTSEngine
 from core.auth_manager import AuthManager
+from core.traffic_manager import TrafficStateManager
+from core.chatter_generator import ChatterGenerator
 from flask import Flask, render_template, request, jsonify, redirect, make_response
 from flask_socketio import SocketIO, join_room, leave_room, emit
 
@@ -36,7 +38,8 @@ else:
     print("System: No local FFmpeg found, relying on system PATH.")
 
 # Load config
-CONFIG_PATH = 'config.json'
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
+print(f"CONFIG_PATH resolved to: {CONFIG_PATH}")
 config = {}
 def load_config():
     global config
@@ -168,6 +171,8 @@ def update_recursive(d, u):
 def save_settings():
     global config
     
+    print("save_settings: Request received", flush=True)
+    
     # Permission check: Only ADMIN or TRUSTED can modify settings
     client_ip = request.remote_addr
     token = request.cookies.get('auth_token')
@@ -178,6 +183,7 @@ def save_settings():
         return jsonify({"status": "error", "message": "Permission denied. Read-only users cannot modify settings."}), 403
     
     new_config = request.json
+    print(f"save_settings: Received config: {new_config}", flush=True)
     
     # Security: If API key is the mask, don't update it
     if 'connection' in new_config and 'api_key' in new_config['connection']:
@@ -188,8 +194,10 @@ def save_settings():
     # Recursively update the config
     config = update_recursive(config, new_config)
     
+    print(f"save_settings: Writing to {CONFIG_PATH}...", flush=True)
     with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
+    print(f"save_settings: Written successfully.", flush=True)
     
     # Sync runtime context
     with context_lock:
@@ -294,13 +302,26 @@ def handle_connect():
     else:
         print(f"SocketIO: Client connected (Status: {status})")
 
-    socketio.emit('status_update', {'status': 'connected', 'msg': 'System Ready'})
+    socketio.emit('status_update', {'status': 'connected', 'msg': 'System Ready'}, room=request.sid)
     
+    # Sync SimConnect Status
+    if 'sim_bridge' in globals():
+        is_connected = sim_bridge.connected
+        msg = 'Connected to Simulator' if is_connected else 'Searching for Simulator...'
+        socketio.emit('sim_status', {'connected': is_connected, 'msg': msg}, room=request.sid)
+
     # Send history
     if 'logic_manager' in globals() and hasattr(logic_manager, 'message_history'):
         history = logic_manager.message_history
         for msg in history:
             socketio.emit('chat_log', msg, room=request.sid) # Send only to new client
+
+@socketio.on('request_sim_status')
+def handle_request_sim_status():
+    if 'sim_bridge' in globals():
+        is_connected = sim_bridge.connected
+        msg = 'Connected to Simulator' if is_connected else 'Searching for Simulator...'
+        socketio.emit('sim_status', {'connected': is_connected, 'msg': msg}, room=request.sid)
 
 @socketio.on('voice_data')
 def handle_voice_data(blob):
@@ -488,7 +509,8 @@ def handle_admin_decision(data):
 
 if __name__ == '__main__':
     print("--- Initializing OpenSky-ATC v2.0 ---")
-    
+    print(f"Debug: WERKZEUG_RUN_MAIN = {os.environ.get('WERKZEUG_RUN_MAIN')}")
+
     # 1. Initialize all core modules
     print("Initializing modules...")
     logic_manager = LogicManager(config, socketio)
@@ -497,23 +519,30 @@ if __name__ == '__main__':
     stt_module = STTLocal(config, event_bus)
     llm_client = LLMClient(config, shared_context, context_lock, event_bus)
     tts_engine = TTSEngine(config, socketio)
+    traffic_manager = TrafficStateManager(config, sim_bridge)
+    chatter_generator = ChatterGenerator(config, tts_engine)
     # audio_listener = AudioListener(config, stt_module.transcribe) # For server-side mic
     
     # 2. Start all background threads
-    print("Starting background services...")
-    logic_manager.start()
-    sim_bridge.start()
-    nav_manager.start()
-    # audio_listener.start()
-    
+    # CRITICAL: Only start services in the worker process (reloader child), not the parent.
+    # Otherwise SimConnect will be initialized twice and fail/freeze.
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        print("Starting background services (Worker Process)...")
+        logic_manager.start()
+        sim_bridge.start()
+        nav_manager.start()
+        traffic_manager.start()
+        # audio_listener.start()
+
+        # 4. Initialize and start the scheduler
+        scheduler = BackgroundScheduler()
+        scheduler.start()
+        
+        # Pass scheduler to LogicManager
+        logic_manager.set_scheduler(scheduler)
+    else:
+        print("System: Parent process started. Waiting for reloader to spawn worker...")
+
     # 3. Start the Web Server
     print("Starting Web Server on http://0.0.0.0:5000")
-    
-    # 4. Initialize and start the scheduler
-    scheduler = BackgroundScheduler()
-    scheduler.start()
-    
-    # Pass scheduler to LogicManager
-    logic_manager.set_scheduler(scheduler)
-
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)
