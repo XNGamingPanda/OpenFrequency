@@ -20,37 +20,75 @@
 
     <!-- Left Column: Gauges + Map -->
     <div class="col-lg-7 d-flex flex-column h-100">
-        <!-- Gauges -->
+        <!-- Gauges Row -->
         <div class="row text-center mb-3">
-            <div class="col-4">
-                <div class="card shadow-sm">
+            <div class="col-3">
+                <div class="card shadow-sm gauge-card">
                     <div class="card-body py-2">
                         <small class="text-muted" data-i18n="altitude">ALTITUDE</small>
                         <h4 id="data-altitude" class="card-title mb-0">0 FT</h4>
                     </div>
                 </div>
             </div>
-            <div class="col-4">
-                <div class="card shadow-sm">
+            <div class="col-3">
+                <div class="card shadow-sm gauge-card">
                     <div class="card-body py-2">
                         <small class="text-muted" data-i18n="airspeed">AIRSPEED</small>
                         <h4 id="data-airspeed" class="card-title mb-0">0 KTS</h4>
                     </div>
                 </div>
             </div>
-            <div class="col-4">
-                <div class="card shadow-sm">
+            <div class="col-3">
+                <div class="card shadow-sm gauge-card">
                     <div class="card-body py-2">
                         <small class="text-muted" data-i18n="heading">HEADING</small>
                         <h4 id="data-heading" class="card-title mb-0">0°</h4>
                     </div>
                 </div>
             </div>
+            <div class="col-3">
+                <div class="card shadow-sm gauge-card">
+                    <div class="card-body py-2">
+                        <small class="text-muted">VS</small>
+                        <h4 id="data-vs" class="card-title mb-0 text-info">0 FPM</h4>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- Map -->
-        <div id="map" class="flex-grow-1 rounded shadow-sm mb-3"
-            style="min-height: 400px; height: calc(100vh - 250px);"></div>
+        <!-- Visuals Tabs -->
+        <ul class="nav nav-tabs mb-2" id="visualTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="map-tab" data-bs-toggle="tab" data-bs-target="#map-pane"
+                    type="button" role="tab" data-i18n="tab_map">Map</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="radar-tab" data-bs-toggle="tab" data-bs-target="#radar-pane" type="button"
+                    role="tab" data-i18n="tab_radar">Radar (Traffic)</button>
+            </li>
+        </ul>
+
+        <div class="tab-content flex-grow-1 border rounded shadow-sm bg-white"
+            style="min-height: 400px; height: calc(100vh - 300px);">
+            <!-- Map Pane -->
+            <div class="tab-pane fade show active h-100 w-100" id="map-pane" role="tabpanel">
+                <div id="map" class="h-100 w-100"></div>
+                <!-- 左下角地图工具区 / Left-bottom Map Toolbar (Clear Trail Only) -->
+                <div class="control-stack position-absolute" style="bottom: 20px; left: 20px; z-index: 1000;">
+                    <button id="btn-clear-track" class="btn btn-sm btn-warning" title="清除航迹 / Clear Track"
+                        data-i18n="clear_track_btn">
+                        🗑️ <span data-i18n="clear_track_btn">Clear Trail</span>
+                    </button>
+                </div>
+            </div>
+            <!-- Radar Pane -->
+            <div class="tab-pane fade h-100 w-100 position-relative bg-dark" id="radar-pane" role="tabpanel">
+                <canvas id="radarCanvas" class="w-100 h-100"></canvas>
+                <div class="position-absolute top-0 end-0 p-2 text-success small monospace">
+                    RANGE: <span id="radar-range">10</span> NM
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Right Column: Chat + PTT -->
@@ -83,6 +121,34 @@
         </div>
 
         {% if can_interact %}
+        <!-- 通讯频道选择器 / Radio Channel Selector -->
+        <div class="btn-group w-100 mb-2" role="group" aria-label="Radio channel selector">
+            <input type="radio" class="btn-check" name="radio-channel" id="radio-atc" value="atc" checked>
+            <label class="btn btn-outline-primary" for="radio-atc" data-i18n="radio_atc">📡 ATC</label>
+
+            <input type="radio" class="btn-check" name="radio-channel" id="radio-crew" value="crew">
+            <label class="btn btn-outline-pink" for="radio-crew" style="border-color: #e83e8c; color: #e83e8c;"
+                data-i18n="radio_crew">👥 Crew</label>
+        </div>
+
+        <!-- 乘务组通话按钮 / Cabin Crew Button (仅在Crew模式显示) -->
+        <div id="crew-controls" class="d-none mt-2">
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-success btn-sm flex-grow-1" onclick="sendCabinIntercom('status')"
+                    data-i18n="cabin_status">Status</button>
+                <button class="btn btn-outline-primary btn-sm flex-grow-1" onclick="sendCabinIntercom('chat')"
+                    data-i18n="cabin_chat">Chat</button>
+            </div>
+            <div class="d-flex gap-2 mt-2 border-top pt-2">
+                <button class="btn btn-outline-warning btn-sm" onclick="sendCabinIntercom('boarding')"
+                    data-i18n="btn_boarding">🛫 Boarding</button>
+                <button class="btn btn-outline-warning btn-sm" onclick="sendCabinIntercom('deboarding')"
+                    data-i18n="btn_deboarding">🛬 Deboarding</button>
+                <button class="btn btn-outline-danger btn-sm" onclick="sendCabinIntercom('stop_ambience')"
+                    data-i18n="btn_stop_sound">🔇 Stop</button>
+            </div>
+        </div>
+
         <button id="ptt-btn" class="btn btn-primary btn-lg w-100 py-3 fw-bold shadow-sm mb-3" data-i18n="ptt_btn">PUSH
             TO TALK</button>
         {% endif %}
@@ -95,10 +161,116 @@
     // socket is defined in base.html as window.socket
     const socket = window.socket;
 
+    // Global language setting
+    const lang = localStorage.getItem('language') || 'en';
+
     const logContainer = document.getElementById('log-container');
     const altitudeEl = document.getElementById('data-altitude');
     const airspeedEl = document.getElementById('data-airspeed');
     const headingEl = document.getElementById('data-heading');
+    const vsEl = document.getElementById('data-vs');
+
+    // Radar Logic
+    const radarCanvas = document.getElementById('radarCanvas');
+    let trafficData = []; // [{callsign, lat, lon, alt, hdg, spd, vs, ...}]
+    let ownship = { lat: 0, lon: 0, hdg: 0, alt: 0 };
+    let radarRange = 10; // NM
+
+    function initRadar() {
+        if (!radarCanvas) return;
+
+        // Resize observer to handle tab switches
+        const resizeObserver = new ResizeObserver(() => {
+            radarCanvas.width = radarCanvas.offsetWidth;
+            radarCanvas.height = radarCanvas.offsetHeight;
+        });
+        resizeObserver.observe(radarCanvas.parentElement);
+
+        drawRadar();
+    }
+
+    // Haversine distance/bearing
+    function getRelPos(lat1, lon1, lat2, lon2) {
+        const R = 3440.065; // NM
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const d = R * c;
+
+        const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
+        const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+            Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
+        let brng = Math.atan2(y, x) * 180 / Math.PI;
+        return { dist: d, brng: (brng + 360) % 360 };
+    }
+
+    function drawRadar() {
+        if (!radarCanvas) return;
+        const ctx = radarCanvas.getContext('2d');
+        const w = radarCanvas.width;
+        const h = radarCanvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const scale = Math.min(w, h) / 2 / radarRange; // px per NM
+
+        // Clear
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, w, h);
+
+        // Draw Rings
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let r = 2.5; r <= radarRange; r += 2.5) {
+            ctx.arc(cx, cy, r * scale, 0, 2 * Math.PI);
+        }
+        ctx.stroke();
+
+        // Draw Crosshair
+        ctx.beginPath();
+        ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy);
+        ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10);
+        ctx.stroke();
+
+        // Draw Traffic
+        ctx.font = '10px monospace';
+        trafficData.forEach(ac => {
+            if (!ownship.lat) return;
+
+            const rel = getRelPos(ownship.lat, ownship.lon, ac.lat, ac.lon);
+            if (rel.dist > radarRange) return;
+
+            // Calculate screen pos (Heading up)
+            // If heading up, ownship heading is 0 deg (Up)
+            // Target relative bearing = true_bearing - ownship_heading
+            const relBrng = (rel.brng - ownship.hdg + 360) % 360;
+            const rad = (relBrng - 90) * Math.PI / 180; // canvas 0 is right (East)
+
+            const x = cx + Math.cos(rad) * rel.dist * scale;
+            const y = cy + Math.sin(rad) * rel.dist * scale;
+
+            // Icon
+            ctx.fillStyle = ac.state === 'AIRBORNE' ? '#0f0' : '#ff0';
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Label
+            ctx.fillStyle = '#fff';
+            // Vertical separation
+            const altDiff = (ac.alt - ownship.alt) / 100; // in 100s of ft
+            const altStr = (altDiff > 0 ? '+' : '') + Math.round(altDiff);
+            ctx.fillText(`${ac.callsign} ${altStr}`, x + 5, y);
+        });
+
+        requestAnimationFrame(drawRadar);
+    }
+
+    // Init Radar on load
+    initRadar();
 
     const pttBtn = document.getElementById('ptt-btn');
     const textInput = document.getElementById('text-input');
@@ -169,29 +341,276 @@
         attribution: '© OpenStreetMap'
     }).addTo(map);
     let aircraftMarker;
-    const flightPathNodes = [];
-    const flightPathPolyline = L.polyline([], { color: 'red', weight: 3 }).addTo(map);
+
+    // Issue 2: Altitude-colored track segments
+    let flightPathNodes = [];  // [[lat, lng], ...]
+    const flightPathSegments = [];  // L.polyline objects for each segment
+    var flightPathAlts = [];
+    let flightModeIFR = true;  // IFR by default (max 40000ft), VFR max 15000ft
+    let lastValidPosition = null;  // For teleport detection
+
+    // Color palette: 蓝(地面) → 绿 → 橙 → 黄 → 红 → 紫
+    function getAltitudeColor(alt) {
+        const maxAlt = flightModeIFR ? 40000 : 15000;
+        const ratio = Math.min(alt / maxAlt, 1.0);
+
+        // Ground: Blue gradient (< 500ft AGL)
+        if (alt < 500) {
+            // Interpolate from dark blue to light blue
+            const t = alt / 500;
+            return interpolateColor('#1e3a5f', '#3b82f6', t);
+        }
+
+        // Altitude bands: 绿 → 橙 → 黄 → 红 → 紫
+        const colors = ['#22c55e', '#f97316', '#eab308', '#ef4444', '#a855f7'];
+        const index = Math.min(Math.floor(ratio * (colors.length - 1)), colors.length - 2);
+        const t = (ratio * (colors.length - 1)) - index;
+        return interpolateColor(colors[index], colors[index + 1], t);
+    }
+
+    // Helper: Interpolate between two hex colors
+    function interpolateColor(c1, c2, t) {
+        const hex = (c) => parseInt(c.slice(1), 16);
+        const r1 = (hex(c1) >> 16) & 255, g1 = (hex(c1) >> 8) & 255, b1 = hex(c1) & 255;
+        const r2 = (hex(c2) >> 16) & 255, g2 = (hex(c2) >> 8) & 255, b2 = hex(c2) & 255;
+        const r = Math.round(r1 + (r2 - r1) * t);
+        const g = Math.round(g1 + (g2 - g1) * t);
+        const b = Math.round(b1 + (b2 - b1) * t);
+        return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+    }
+
+    // Add IFR/VFR selector and altitude legend to map
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function (map) {
+        const div = L.DomUtil.create('div', 'altitude-legend');
+        div.style.cssText = 'background:rgba(0,0,0,0.7);padding:8px 12px;border-radius:6px;color:#fff;font-size:11px;line-height:1.6;';
+        div.innerHTML = `
+            <div style="font-weight:bold;margin-bottom:4px;">高度 / Altitude</div>
+            <div style="margin-bottom:6px;">
+                <select id="flightModeSelect" style="width:100%;padding:2px;border-radius:3px;font-size:10px;">
+                    <option value="IFR" selected>IFR (0-40,000ft)</option>
+                    <option value="VFR">VFR (0-15,000ft)</option>
+                </select>
+            </div>
+            <div><span style="display:inline-block;width:12px;height:12px;background:linear-gradient(to right,#1e3a5f,#3b82f6);margin-right:6px;border-radius:2px;"></span>地面 &lt;500ft</div>
+            <div><span style="display:inline-block;width:12px;height:12px;background:#22c55e;margin-right:6px;border-radius:2px;"></span>低空</div>
+            <div><span style="display:inline-block;width:12px;height:12px;background:#f97316;margin-right:6px;border-radius:2px;"></span>中低空</div>
+            <div><span style="display:inline-block;width:12px;height:12px;background:#eab308;margin-right:6px;border-radius:2px;"></span>中空</div>
+            <div><span style="display:inline-block;width:12px;height:12px;background:#ef4444;margin-right:6px;border-radius:2px;"></span>高空</div>
+            <div><span style="display:inline-block;width:12px;height:12px;background:#a855f7;margin-right:6px;border-radius:2px;"></span>超高空</div>
+        `;
+        return div;
+    };
+    legend.addTo(map);
+
+    // IFR/VFR mode change handler
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.id === 'flightModeSelect') {
+            flightModeIFR = e.target.value === 'IFR';
+            console.log('Flight mode changed to:', flightModeIFR ? 'IFR' : 'VFR');
+        }
+    });
+
+    // Fix Map resize issue in tab
+    document.getElementById('map-tab').addEventListener('shown.bs.tab', function () {
+        map.invalidateSize();
+    });
 
     socket.on('telemetry_update', (data) => {
         if (altitudeEl) altitudeEl.innerText = Math.round(data.altitude || 0);
         if (airspeedEl) airspeedEl.innerText = Math.round(data.airspeed || 0);
         if (headingEl) headingEl.innerText = Math.round(data.heading || 0);
 
+        // Update Ownship for Radar
+        ownship.lat = data.latitude;
+        ownship.lon = data.longitude;
+        ownship.hdg = data.heading;
+        ownship.alt = data.altitude;
+
+        // VS (Vertical Speed) with FPM formatting and color
+        if (vsEl) {
+            const vs = Math.round(data.vertical_speed || 0);
+            vsEl.innerText = `${vs >= 0 ? '+' : ''}${vs} FPM`;
+            // Color coding: green for climb, red for descent, neutral otherwise
+            if (vs > 100) {
+                vsEl.classList.remove('text-danger', 'text-muted');
+                vsEl.classList.add('text-success');
+            } else if (vs < -100) {
+                vsEl.classList.remove('text-success', 'text-muted');
+                vsEl.classList.add('text-danger');
+            } else {
+                vsEl.classList.remove('text-success', 'text-danger');
+                vsEl.classList.add('text-muted');
+            }
+        }
+
         if (data.latitude && data.longitude) {
             const latLng = [data.latitude, data.longitude];
+            const alt = data.altitude || 0;
+
             if (!aircraftMarker) {
+                // Create Ownship Marker
                 aircraftMarker = L.marker(latLng).addTo(map);
                 map.setView(latLng, 13);
             } else {
                 aircraftMarker.setLatLng(latLng);
             }
-            // Flight path logic...
+
+            // Issue 2: Altitude-colored track segment with teleport filtering
+            // Teleport detection: skip segments > 5nm (9260m)
+            const teleportThreshold = 9260; // 5nm in meters
+            let shouldDrawSegment = true;
+
+            if (lastValidPosition) {
+                const distFromLast = map.distance(lastValidPosition, latLng);
+                if (distFromLast > teleportThreshold) {
+                    console.log(`瞬移检测：跳过 ${(distFromLast / 1852).toFixed(1)}nm 的线段`);
+                    shouldDrawSegment = false;
+                    // Still update position but don't draw line
+                }
+            }
+
+            // Only draw if minimum distance met (50m) and no teleport
             if (flightPathNodes.length === 0 || map.distance(flightPathNodes[flightPathNodes.length - 1], latLng) > 50) {
+                if (shouldDrawSegment && flightPathNodes.length > 0) {
+                    // Create gradient-colored segment
+                    const lastNode = flightPathNodes[flightPathNodes.length - 1];
+                    const color = getAltitudeColor(alt);
+                    const segment = L.polyline([lastNode, latLng], { color: color, weight: 3 }).addTo(map);
+                    flightPathSegments.push(segment);
+                }
+
                 flightPathNodes.push(latLng);
-                flightPathPolyline.setLatLngs(flightPathNodes);
+                flightPathAlts.push(alt);
+                lastValidPosition = latLng;
+
+                // Persist path history (debounce)
+                if (flightPathNodes.length % 5 === 0) {
+                    localStorage.setItem('flight_path', JSON.stringify({ nodes: flightPathNodes, alts: flightPathAlts }));
+                }
             }
         }
     });
+
+    // Traffic Update Listener
+    socket.on('traffic_update', (data) => {
+        trafficData = data;
+    });
+
+    // Landing Review Listener (Show parsed roast in chat)
+    socket.on('landing_review', (data) => {
+        if (!logContainer) return;
+
+        const div = document.createElement('div');
+        div.className = 'mb-2 p-2 bg-warning bg-opacity-10 border border-warning rounded';
+        div.innerHTML = `
+            <div class="d-flex justify-content-between">
+                <strong>👨‍✈️ Flight Instructor</strong>
+                <span class="badge bg-${getGradeColor(data.score)}">${data.score}</span>
+            </div>
+            <p class="mb-0 mt-1 fst-italic">"${data.comment}"</p>
+            <div class="mt-1 small text-muted">
+                G-Force: ${data.g_force.toFixed(2)}G | Bounces: ${data.bounces}
+            </div>
+        `;
+        logContainer.appendChild(div);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    });
+
+    function getGradeColor(grade) {
+        if (grade === 'S' || grade === 'A') return 'success';
+        if (grade === 'B' || grade === 'C') return 'warning';
+        return 'danger';
+    }
+
+    // Emergency Alert Listener
+    socket.on('emergency_alert', (data) => {
+        // data: {type: 'engine_fire', message: '...'}
+        const div = document.createElement('div');
+        div.className = 'mb-2 p-2 bg-danger text-white border border-light rounded fw-bold text-center shake-anim';
+        div.innerHTML = `🚨 ${data.message} 🚨`;
+        logContainer.appendChild(div);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    });
+
+    // Warning Sound Listener
+    socket.on('play_warning_sound', (data) => {
+        try {
+            const audio = new Audio(`/static/sounds/${data.sound}`);
+            audio.volume = 1.0;
+            audio.play().catch(e => console.warn("Audio play blocked", e));
+        } catch (e) { console.error(e); }
+    });
+
+    let currentAmbience = null;
+    socket.on('play_ambience', (data) => {
+        if (currentAmbience) {
+            currentAmbience.pause();
+            currentAmbience = null;
+        }
+        const audio = new Audio('/static/sounds/' + data.sound);
+        audio.loop = data.loop || false;
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log("Ambience play failed:", e));
+        currentAmbience = audio;
+    });
+
+    socket.on('stop_ambience', () => {
+        if (currentAmbience) {
+            currentAmbience.pause();
+            currentAmbience = null;
+        }
+    });
+
+    // Load persisted flight path
+    function loadFlightPath() {
+        const saved = localStorage.getItem('flight_path');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                if (data.nodes && data.nodes.length > 0) {
+                    console.log("Restoring flight path:", data.nodes.length, "points");
+                    flightPathNodes = data.nodes;
+                    flightPathAlts = data.alts || []; // Compatibility
+
+                    // Reconstruct path on map
+                    for (let i = 0; i < flightPathNodes.length - 1; i++) {
+                        const start = flightPathNodes[i];
+                        const end = flightPathNodes[i + 1];
+                        const alt = flightPathAlts[i + 1] || 0;
+                        const color = getAltitudeColor(alt);
+                        L.polyline([start, end], { color: color, weight: 3 }).addTo(map);
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to load flight path history:", e);
+                localStorage.removeItem('flight_path');
+            }
+        }
+    }
+    // Call load on init
+    loadFlightPath();
+
+    // --- Clear Flight Trail (Fix #1, #6) ---
+    function clearMapTrail() {
+        // Clear the polylines from the map
+        map.eachLayer(layer => {
+            if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
+                map.removeLayer(layer);
+            }
+        });
+        // Clear stored data
+        flightPathNodes = [];
+        flightPathAlts = [];
+        localStorage.removeItem('flight_path');
+        console.log("Flight trail cleared.");
+    }
+
+    // Bind Clear Track button
+    const btnClearTrack = document.getElementById('btn-clear-track');
+    if (btnClearTrack) {
+        btnClearTrack.addEventListener('click', clearMapTrail);
+    }
 
     // --- Audio & socket logic same as before ---
     let mediaRecorder;
@@ -226,9 +645,37 @@
     // Request initial status (fix for refresh race condition)
     socket.emit('request_sim_status');
 
+    // 管制角色颜色映射 / Controller Role Color Mapping
+    const roleColorMap = {
+        'Ground': { bg: '#8B4513', text: 'white' },    // 褐色
+        'Tower': { bg: '#28a745', text: 'white' },     // 绿色
+        'Departure': { bg: '#007bff', text: 'white' }, // 蓝色
+        'Center': { bg: '#6f42c1', text: 'white' },    // 紫色
+        'Approach': { bg: '#fd7e14', text: 'white' },  // 橙色
+        'Emergency': { bg: '#dc3545', text: 'white' }, // 红色
+        'ATIS': { bg: '#6c757d', text: 'white' },      // 灰色
+        'Cabin': { bg: '#e83e8c', text: 'white' },     // 粉色
+        'SYSTEM': { bg: '#343a40', text: 'white' },    // 深灰
+        'Pilot': { bg: '#17a2b8', text: 'white' }      // 青色
+    };
+
+    function getRoleColor(sender) {
+        // 精确匹配
+        if (roleColorMap[sender]) return roleColorMap[sender];
+        // 模糊匹配 (如 "ZBAA Ground" -> Ground)
+        for (const role in roleColorMap) {
+            if (sender.includes(role)) return roleColorMap[role];
+        }
+        // 默认 ATC 颜色
+        return { bg: '#28a745', text: 'white' };
+    }
+
     socket.on('chat_log', (data) => {
         const div = document.createElement('div');
-        div.className = `mb-2 p-2 rounded ${data.sender === 'Pilot' ? 'bg-primary text-white text-end' : 'bg-success text-white text-start'}`;
+        const colors = getRoleColor(data.sender);
+        const align = data.sender === 'Pilot' ? 'text-end' : 'text-start';
+        div.className = `mb-2 p-2 rounded ${align}`;
+        div.style.cssText = `background-color: ${colors.bg}; color: ${colors.text};`;
         div.innerHTML = `<strong>${data.sender}:</strong> ${data.text}`;
         logContainer.appendChild(div);
         logContainer.scrollTop = logContainer.scrollHeight;
@@ -323,6 +770,82 @@
         if (document.activeElement.tagName === 'INPUT') return;
         if (e.code === 'Space' && pttBtn) { e.preventDefault(); stopRecording(); }
     });
+
+    // === 乘务组按钮事件 / Cabin Crew Buttons ===
+    const btnCabinStatus = document.getElementById('btn-cabin-status');
+    const btnCabinChat = document.getElementById('btn-cabin-chat');
+
+    if (btnCabinStatus) {
+        btnCabinStatus.addEventListener('click', () => {
+            console.log('Cabin Status requested');
+            socket.emit('cabin_intercom', { action: 'status' });
+        });
+    }
+
+    if (btnCabinChat) {
+        btnCabinChat.addEventListener('click', () => {
+            const message = prompt(lang === 'zh' ? '输入给机组的消息:' : 'Message to cabin crew:');
+            if (message && message.trim()) {
+                socket.emit('cabin_chat', { message: message.trim() });
+            }
+        });
+    }
+
+    // NOTE: Clear Track button handler moved to clearMapTrail() function above
+
+    // === 通讯频道切换器 / Radio Channel Selector ===
+    const radioAtc = document.getElementById('radio-atc');
+    const radioCrew = document.getElementById('radio-crew');
+    const crewControls = document.getElementById('crew-controls');
+    let currentChannel = 'atc'; // 'atc' or 'crew'
+
+    if (radioAtc && radioCrew) {
+        radioAtc.addEventListener('change', () => {
+            currentChannel = 'atc';
+            if (crewControls) crewControls.style.display = 'none';
+            // Emit intercom toggle to backend
+            socket.emit('toggle_intercom', { target: 'ATC' });
+            console.log('Radio channel: ATC');
+        });
+
+        radioCrew.addEventListener('change', () => {
+            currentChannel = 'crew';
+            if (crewControls) crewControls.style.display = 'block';
+            // Emit intercom toggle to backend
+            socket.emit('toggle_intercom', { target: 'CABIN' });
+            console.log('Radio channel: Crew');
+        });
+    }
+
+    // Listen for emergency intercom mode (red border warning - for EMERGENCIES ONLY)
+    socket.on('emergency_intercom', (data) => {
+        if (data.active) {
+            document.body.classList.add('cabin-emergency');
+        } else {
+            document.body.classList.remove('cabin-emergency');
+        }
+    });
+
+    // 修改消息发送逻辑，根据频道发送到不同目标
+    // 使用第269行已声明的 textInput 和 btnSendText 变量
+    if (btnSendText && textInput) {
+        // 覆盖原有 onclick，添加基于频道的新逻辑
+        btnSendText.onclick = () => {
+            const text = textInput.value.trim();
+            if (!text) return;
+
+            if (currentChannel === 'atc') {
+                socket.emit('user_text', { text: text, channel: 'atc' });
+            } else {
+                socket.emit('crew_message', { text: text, target: 'all' }); // all = FO + Purser
+            }
+            textInput.value = '';
+        };
+
+        textInput.onkeypress = (e) => {
+            if (e.key === 'Enter') btnSendText.click();
+        };
+    }
 
 </script>
 {% endblock %}

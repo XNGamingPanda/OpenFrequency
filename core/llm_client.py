@@ -19,12 +19,16 @@ class LLMClient:
             "taboos": "Do NOT give ground taxi instructions. Do NOT clear for takeoff/landing (handoff to Tower)."
         },
         "Center": {
-            "duties": "Enroute cruise, High altitude routing, Handoffs.",
+            "duties": "Enroute cruise, High altitude routing, Handoffs. When aircraft leaves your airspace, provide handoff frequency.",
             "taboos": "Do NOT give precision approach clearances. Do NOT give ground instructions."
         },
         "Unicom": {
             "duties": "Advisory only. State weather/traffic if asked.",
             "taboos": "Do NOT give CLEARANCES. You are NOT a controller."
+        },
+        "Emergency": {
+            "duties": "Emergency assistance on 121.5MHz. Help with navigation, nearest airport, emergency procedures. Provide nearby ATC frequencies if requested.",
+            "taboos": "Do NOT panic. Stay calm and professional. Prioritize safety."
         }
     }
 
@@ -99,11 +103,28 @@ class LLMClient:
 
     def handle_request(self, user_text, history=[]):
         """Event handler for 'llm_request'."""
-        print(f"LLMClient: Received request: '{user_text}' (History len: {len(history)})")
+        # Handle dictionary input (text + metadata + callback)
+        callback_event = None
+        metadata = None
+        
+        if isinstance(user_text, dict):
+            payload = user_text
+            user_text = payload.get('text', '')
+            callback_event = payload.get('callback_event')
+            metadata = payload.get('metadata')
+            # history might be in payload too, override if so
+            if 'history' in payload:
+                history = payload['history']
+        
+        print(f"LLMClient: Received request: '{user_text[:50]}...' (Callback: {callback_event})")
         
         # Run in thread to avoid blocking EventBus
         import threading
-        t = threading.Thread(target=self.generate_response, args=(user_text, None, False, history))
+        t = threading.Thread(
+            target=self.generate_response, 
+            args=(user_text, None, False, history),
+            kwargs={'callback_event': callback_event, 'metadata': metadata}
+        )
         t.start()
 
     def request_proactive_msg(self, reason, context_snapshot):
@@ -140,45 +161,104 @@ class LLMClient:
 
     def _build_system_prompt(self, user_input, history=[]):
         """Dynamically builds the system prompt from the shared context."""
+        import random
+        
         with self.lock:
             context_copy = copy.deepcopy(self.context)
 
         role = context_copy['atc_state']['current_controller']
         callsign = context_copy['aircraft']['callsign']
         qnh = context_copy['environment']['qnh']
+        nearest_airport = context_copy['environment'].get('nearest_airport', 'N/A')
+        current_alt = context_copy['aircraft'].get('altitude', 0)
         
-        # Flight Plan Info
+        # Flight Plan Info (condensed - only show essentials, not full route)
         fp = context_copy.get('flight_plan', {})
         fp_text = ""
         if fp.get('destination') != "N/A":
+            # Extract just the SID if present in route
+            route = fp.get('route', 'N/A')
+            sid = route.split()[0] if route and route != 'N/A' else 'N/A'
             fp_text = f"""
         Flight Plan:
         - Origin: {fp.get('origin', 'N/A')}
         - Destination: {fp.get('destination', 'N/A')}
-        - Route: {fp.get('route', 'N/A')}
+        - SID/Departure: {sid}
         - Cruise: {fp.get('cruise_alt', 'N/A')} FT
         """
         
         # Weather
         metar = context_copy['environment'].get('metar', 'N/A')
-
-        # Format History
-        # Filter out the very last message if it matches user_input to avoid redundancy?
-        # Only keep messages that are NOT the current input.
-        # history is list of {'sender':..., 'text':...}
-        history_text = ""
-        if history:
-            history_text = "Recent Conversation Log:\n"
-            for msg in history:
-                # Skip if it looks like the current input (simple check)
-                if msg['text'] == user_input and msg['sender'] == 'Pilot':
-                    continue
-                history_text += f"{msg['sender']}: {msg['text']}\n"
+        
+        # === 频率数据库 (如无配置则随机生成) ===
+        freq_db = self.config.get('frequencies', {})
+        if not freq_db:
+            # 随机生成常用频率
+            freq_db = {
+                'Ground': f"121.{random.randint(70, 95)}",
+                'Tower': f"118.{random.randint(10, 95)}",
+                'Departure': f"119.{random.randint(10, 95)}",
+                'Approach': f"124.{random.randint(10, 95)}",
+                'Center': f"132.{random.randint(10, 95)}",
+                'ATIS': f"127.{random.randint(10, 95)}"
+            }
+        
+        freq_text = f"""
+        HANDOFF FREQUENCY DATABASE (Use when handing off pilot):
+        - Ground: {freq_db.get('Ground', '121.9')}
+        - Tower: {freq_db.get('Tower', '118.1')}
+        - Departure: {freq_db.get('Departure', '119.1')}
+        - Approach: {freq_db.get('Approach', '124.65')}
+        - Center: {freq_db.get('Center', '132.45')}
+        - ATIS: {freq_db.get('ATIS', '127.25')}
+        
+        HANDOFF RULES:
+        - When handing off, ALWAYS provide the next controller AND frequency.
+        - Example: "Contact Departure on 119.1, goodbye."
+        - If pilot ascending > 1500ft after takeoff: Suggest handoff to Departure.
+        - If pilot descending < 5000ft on approach: Suggest handoff to Approach.
+        - If pilot at cruise > FL180: Suggest handoff to Center.
+        """
+        
+        # 应急频率增强
+        emergency_help = ""
+        if "Emergency" in role:
+            emergency_help = f"""
+        EMERGENCY ASSISTANCE RULES:
+        - You are on 121.5 MHz Emergency frequency.
+        - Provide calm, professional assistance.
+        - If pilot asks for nearest airport: Suggest "{nearest_airport}" with Tower frequency {freq_db.get('Tower', '118.1')}.
+        - If pilot asks for ATC help: Provide appropriate frequency from the database above.
+        - Give vectors to nearest runway if possible.
+        """
+        
+        # NOTE: History is now passed separately as messages, not embedded here
+        # This saves token costs by using proper role-based messaging
+        
+        # Language-specific prompt injection
+        stt_lang = self.config.get('audio', {}).get('stt_language', 'auto')
+        
+        if stt_lang == 'ja':
+            # Japanese mode: Full Japanese ATC experience
+            language_instruction = """
+        6. LANGUAGE: Reply in JAPANESE (日本語) ONLY.
+           - Use standard Japanese aviation phraseology.
+           - Example: "JAL123, 離陸を許可します。滑走路34L。"
+        """
+        else:
+            # Default: Chinese/English bilingual
+            language_instruction = """
+        3. Reply in the SAME LANGUAGE as the user (Chinese/English).
+           - Chinese: "国航1024, 地面风310, 8节..."
+           - English: "CCA1024, Wind 310 at 8 knots..."
+        """
         
         prompt = f"""
         You are an advanced ATC AI.
         Role: {role} (Responsible for: Clearing, Ground Ops, Tower Control, or Approach/Center based on freq).
         User Callsign: {callsign}.
+        Current Airport: {nearest_airport}
+        Current Altitude: {current_alt} ft
         
         DISPLAYED ROLE: {role}
         
@@ -191,22 +271,23 @@ class LLMClient:
         
         {fp_text}
         
-        {history_text}
+        {freq_text}
+        
+        {emergency_help}
         
         CRITICAL RULES:
         1. Address the pilot by callsign '{callsign}' at the START of your message. Do NOT repeat it at the end.
         2. USE REAL WEATHER data from the METAR above.
-        3. Reply in the SAME LANGUAGE as the user (Chinese/English).
-           - Chinese: "国航1024, 地面风310, 8节..."
-           - English: "CCA1024, Wind 310 at 8 knots..."
-        4. IF frequency = Ground/Clearance, give IFR clearance if requested.
+        {language_instruction}
+        4. IFR CLEARANCE RULE: When giving IFR clearance, ONLY say:
+           - "Cleared to [DESTINATION] via [SID] departure, runway [RWY]. Squawk [CODE]."
+           - Do NOT read out the full route waypoints. The SID name is enough.
         5. Output JSON: {{"text": "...", "action": "NONE"}}
         6. READBACK HANDLING: If the pilot's readback is CORRECT, you do NOT need to say "Readback correct" every time. 
            - You may return an empty string "" for text to remain silent (simulate 'click' acknowledgment).
            - Or just reply with the callsign "{callsign}" to acknowledge.
            - ONLY correct them if the readback is WRONG.
-        
-        User said: "{user_input}"
+        7. PROACTIVE HANDOFFS: If pilot is in wrong airspace for your role, proactively suggest handoff with frequency.
         """
         return prompt.strip()
 
@@ -239,7 +320,7 @@ class LLMClient:
             # otherwise return the raw output but log it.
             return response_text, None
 
-    def generate_response(self, user_text=None, trigger_prompt=None, is_proactive=False, history=[]):
+    def generate_response(self, user_text=None, trigger_prompt=None, is_proactive=False, history=[], callback_event=None, metadata=None):
         if not self.client and not self.openai_client:
             print("LLMClient Error: Client not initialized.")
             return
@@ -259,12 +340,36 @@ class LLMClient:
         
         print(f"LLMClient: Sending request to {self.model}...")
         
+        response_text = ""
         try:
             if self.client:
+                # Google GenAI - Build proper contents with history
+                # Format: system prompt as first content, then history as user/model turns
+                contents = []
+                
+                # System instruction
+                contents.append(types.Content(
+                    role="user",
+                    parts=[types.Part(text=system_prompt)]
+                ))
+                
+                # Add history as proper turns (saves tokens vs embedding in prompt)
+                for msg in history:
+                    role = "user" if msg.get('sender') == 'Pilot' else "model"
+                    contents.append(types.Content(
+                        role=role,
+                        parts=[types.Part(text=msg.get('text', ''))]
+                    ))
+                
+                # Add current user input
+                if user_text and not is_proactive:
+                    contents.append(types.Content(
+                        role="user",
+                        parts=[types.Part(text=f"User said: {user_text}")]
+                    ))
+                
                 # Conditional config based on model
                 gen_config_args = {}
-                
-                # Google GenAI's Gemma models currently don't support JSON mode enforcement
                 if "gemma" not in self.model.lower():
                     gen_config_args["response_mime_type"] = "application/json"
                 else:
@@ -272,23 +377,39 @@ class LLMClient:
 
                 response = self.client.models.generate_content(
                     model=self.model,
-                    contents=system_prompt,
+                    contents=contents,
                     config=types.GenerateContentConfig(**gen_config_args)
                 )
                 response_text = response.text
                 
             elif self.openai_client:
-                # OpenAI / Compatible API Call
+                # OpenAI / Compatible API Call - Use proper messages array
+                messages = [{"role": "system", "content": system_prompt}]
+                
+                # Add history as proper user/assistant turns
+                for msg in history:
+                    role = "user" if msg.get('sender') == 'Pilot' else "assistant"
+                    messages.append({"role": role, "content": msg.get('text', '')})
+                
+                # Add current user input
+                if user_text and not is_proactive:
+                    messages.append({"role": "user", "content": user_text})
+                
                 response = self.openai_client.chat.completions.create(
                     model=self.model,
-                    messages=[
-                        {"role": "system", "content": system_prompt}
-                    ],
+                    messages=messages,
                     response_format={"type": "json_object"} if "json" in self.model.lower() or "gpt" in self.model.lower() else None
                 )
                 response_text = response.choices[0].message.content
 
             print(f"LLM Raw Response: {response_text}")
+            
+            # If callback event is specified (e.g. for landing review), emit raw response to callback
+            if callback_event:
+                print(f"LLMClient: Emitting to callback '{callback_event}' instead of global broadcast.")
+                self.bus.emit(callback_event, response_text, metadata or {})
+                return
+
             text, action = self._parse_llm_response(response_text)
             
         except Exception as e:
@@ -310,6 +431,11 @@ class LLMClient:
                     pass
                 text = f"{callsign}, system error, standby."
                 action = "NONE"
+                
+                # For callback on error, still emit something
+                if callback_event:
+                    self.bus.emit(callback_event, "{}", metadata or {})
+                    return
 
         print(f"LLMClient: Emitting response - Text: '{text[:50]}...', Action: {action}")
         self.bus.emit('llm_response_generated', text, action)

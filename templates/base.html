@@ -15,6 +15,68 @@
         // Global Socket Init
         window.socket = io();
     </script>
+    <style>
+        /* Dark Mode Styles */
+        body.dark-mode {
+            background-color: #1a1a2e !important;
+            color: #e0e0e0 !important;
+        }
+
+        body.dark-mode .navbar {
+            background-color: #16213e !important;
+            border-bottom-color: #0f3460 !important;
+        }
+
+        body.dark-mode .navbar-brand,
+        body.dark-mode .nav-link {
+            color: #e0e0e0 !important;
+        }
+
+        body.dark-mode .card {
+            background-color: #16213e !important;
+            border-color: #0f3460 !important;
+            color: #e0e0e0 !important;
+        }
+
+        body.dark-mode .card-header {
+            background-color: #0f3460 !important;
+            border-color: #0f3460 !important;
+        }
+
+        body.dark-mode .form-control,
+        body.dark-mode .form-select {
+            background-color: #16213e !important;
+            border-color: #0f3460 !important;
+            color: #e0e0e0 !important;
+        }
+
+        body.dark-mode .text-muted {
+            color: #94a3b8 !important;
+        }
+
+        body.dark-mode .bg-light {
+            background-color: #1a1a2e !important;
+        }
+
+        body.dark-mode .gauge-card {
+            background-color: #0f3460 !important;
+        }
+
+        /* Dark Mode Comms Log Container */
+        body.dark-mode #log-container {
+            background-color: #1a1a2e !important;
+        }
+
+        body.dark-mode .card-footer {
+            background-color: #16213e !important;
+            border-color: #0f3460 !important;
+        }
+
+        /* Light Mode Gauge Card */
+        body:not(.dark-mode) .gauge-card {
+            background-color: #f1f5f9 !important;
+        }
+    </style>
 </head>
 
 <body class="bg-light text-dark">
@@ -27,6 +89,7 @@
                 <select id="lang-selector" class="form-select form-select-sm" style="width: auto;">
                     <option value="en">English</option>
                     <option value="zh">中文</option>
+                    <option value="ja">日本語</option>
                 </select>
             </div>
         </div>
@@ -104,7 +167,28 @@
                 "readonly_notice": "Read-only mode - You can only view",
                 "no_trusted_devices": "No trusted devices.",
                 "no_session_devices": "No active session devices.",
-                "no_banned_ips": "No banned IPs."
+                "no_banned_ips": "No banned IPs.",
+                "ui_settings": "🎨 UI Settings",
+                "dark_mode": "Dark Mode",
+                "save_config": "Save Configuration",
+                "tab_map": "Map",
+                "tab_radar": "Radar (Traffic)",
+                "career_btn": "🎖️ Career",
+                "clear_track_btn": "🗑️ Clear",
+                "cabin_status_btn": "👩‍✈️ Crew Status",
+                "cabin_chat_btn": "💬 Cockpit Intercom",
+                "radio_atc": "📡 ATC",
+                "radio_crew": "👥 Crew",
+                "first_officer": "First Officer",
+                "purser": "Purser",
+                "emergency_level": "Emergency Probability",
+                "level_none": "None (Safe)",
+                "level_low": "Low (Realistic)",
+                "level_medium": "Medium (Frequent)",
+                "level_high": "High (Mayday!)",
+                "btn_boarding": "🛫 Boarding",
+                "btn_deboarding": "🛬 Deboarding",
+                "btn_stop_sound": "🔇 Stop Sound"
             },
             "zh": {
                 "system_config": "系统设置",
@@ -171,7 +255,116 @@
                 "readonly_notice": "只读模式 - 仅可观看",
                 "no_trusted_devices": "暂无已信任设备。",
                 "no_session_devices": "暂无活跃的临时设备。",
-                "no_banned_ips": "暂无已屏蔽的 IP。"
+                "no_banned_ips": "暂无已屏蔽的 IP。",
+                "ui_settings": "🎨 界面设置",
+                "dark_mode": "深色模式",
+                "save_config": "保存设置",
+                "tab_map": "地图",
+                "tab_radar": "雷达 (交通)",
+                "career_btn": "🎖️ 生涯模式",
+                "clear_track_btn": "🗑️ 清除",
+                "cabin_status_btn": "👩‍✈️ 机组状态",
+                "cabin_chat_btn": "💬 驾驶舱对讲",
+                "radio_atc": "📡 管制",
+                "radio_crew": "👥 机组",
+                "first_officer": "副驾驶",
+                "purser": "乘务长",
+                "emergency_level": "特情概率",
+                "level_none": "无 (安全)",
+                "level_low": "低 (真实)",
+                "level_medium": "中 (频繁)",
+                "level_high": "高 (Mayday!)",
+                "btn_boarding": "🛫 登机",
+                "btn_deboarding": "🛬 下机",
+                "btn_stop_sound": "🔇 停止音效"
+            },
+            "ja": {
+                "system_config": "システム設定",
+                "test_audio": "🔊 音声テスト",
+                "pilot_profile": "パイロットプロフィール",
+                "callsign": "コールサイン",
+                "simbrief_username": "SimBrief ユーザー名",
+                "import": "インポート",
+                "simbrief_hint": "ユーザー名を入力してOFPを取得",
+                "ai_connection": "AI接続設定",
+                "provider": "プロバイダー",
+                "api_key": "APIキー",
+                "api_key_hint": "既存のキーは非表示です。変更しない場合は******のままにしてください。",
+                "model_name": "モデル名",
+                "base_url": "ベースURL (ローカル/Ollama)",
+                "audio_controls": "音声・操作設定",
+                "joystick_ptt": "ジョイスティック PTT",
+                "unbound": "未設定",
+                "bind_btn": "クリックしてボタンを割り当て",
+                "radio_static": "無線ノイズエフェクト",
+                "traffic_density": "トラフィック密度",
+                "density_low": "低（静かな午後）",
+                "density_medium": "中（標準）",
+                "density_high": "高（繁忙空港）",
+                "stt_model_path": "STT モデルパス",
+                "stt_language": "音声認識言語",
+                "stt_auto": "自動検出",
+                "save_settings": "設定を保存",
+                "reload": "リロード",
+                "back_dashboard": "ダッシュボードに戻る",
+                "settings_btn": "⚙️ 設定",
+                "altitude": "高度 (ALT)",
+                "airspeed": "対気速度 (SPD)",
+                "heading": "機首方位 (HDG)",
+                "comms_log": "通信ログ",
+                "connecting": "接続中...",
+                "connected_status": "接続済み",
+                "disconnected_status": "切断",
+                "send_btn": "送信",
+                "type_message_placeholder": "メッセージを入力...",
+                "ptt_btn": "プッシュ・トゥ・トーク (PTT)",
+                "security_settings": "セキュリティ設定",
+                "access_mode": "アクセスモード",
+                "security_hint": "ネットワーク経由でのアクセス許可を設定",
+                "mode_doorbell": "🟡 ドアベル（承認制）",
+                "mode_open": "🟢 オープン（全員許可）",
+                "mode_lockdown": "🔴 ロックダウン（全員拒否）",
+                "manage_devices_btn": "デバイス管理",
+                "device_manager_title": "デバイス管理",
+                "back_settings": "設定に戻る",
+                "trusted_devices": "信頼済みデバイス",
+                "banned_ips": "ブロック済みIP",
+                "device_info": "デバイス情報",
+                "ip_address": "IPアドレス",
+                "added_on": "追加日時",
+                "actions": "操作",
+                "revoke": "取り消し",
+                "unban": "解除",
+                "preview_radar": "待機室プレビュー",
+                "session_devices": "セッションデバイス（一時的）",
+                "permissions": "権限",
+                "perm_full": "フルアクセス",
+                "perm_readonly": "読み取り専用",
+                "readonly_notice": "読み取り専用モード - 閲覧のみ可能",
+                "no_trusted_devices": "信頼済みデバイスはありません。",
+                "no_session_devices": "アクティブなセッションデバイスはありません。",
+                "no_banned_ips": "ブロック済みIPはありません。",
+                "ui_settings": "🎨 UI設定",
+                "dark_mode": "ダークモード",
+                "save_config": "設定を保存",
+                "tab_map": "地図",
+                "tab_radar": "レーダー (交通)",
+                "career_btn": "🎖️ キャリア",
+                "clear_track_btn": "🗑️ クリア",
+                "cabin_status_btn": "👩‍✈️ クルーステータス",
+                "cabin_chat_btn": "💬 コックピットインターコム",
+                "radio_atc": "📡 ATC",
+                "radio_crew": "👥 クルー",
+                "first_officer": "副操縦士",
+                "purser": "チーフパーサー",
+                "emergency_level": "緊急事態発生率",
+                "level_none": "なし (安全)",
+                "level_low": "低 (リアル)",
+                "level_medium": "中 (頻繁)",
+                "level_high": "高 (メーデー!)",
+                "btn_boarding": "🛫 搭乗",
+                "btn_deboarding": "🛬 降機",
+                "btn_stop_sound": "🔇 音停止"
             }
         };
 
@@ -297,6 +490,71 @@
             socket.emit('admin_decision', { sid: sid, action: type });
             document.getElementById(`toast-${sid}`).remove();
         };
+
+        // Toggle function for settings page
+        window.toggleDarkMode = function (enabled) {
+            document.body.classList.toggle('dark-mode', enabled);
+            localStorage.setItem('dark_mode', enabled ? '1' : '0');
+        };
+
+        // Immediate dark mode from localStorage (prevents flash)
+        if (localStorage.getItem('dark_mode') === '1') {
+            document.body.classList.add('dark-mode');
+        }
+
+        // Setup socket listeners after a short delay to ensure socket is initialized
+        function setupSocketListeners() {
+            if (!window.socket) {
+                // Retry after 100ms if socket not ready yet
+                setTimeout(setupSocketListeners, 100);
+                return;
+            }
+
+            console.log("Setting up socket listeners for toasts...");
+
+            // Flight Report Toast notification
+            window.socket.on('flight_report_ready', (data) => {
+                console.log("Flight Report Ready:", data);
+                const container = document.getElementById('toast-container');
+                if (!container) return;
+
+                const toastId = `toast-flight-report-${Date.now()}`;
+                const html = `
+                    <div id="${toastId}" class="toast show text-white bg-info" role="alert" aria-live="assertive" aria-atomic="true">
+                      <div class="toast-header bg-info text-white">
+                        <strong class="me-auto">🎉 航程结束 / Flight Complete</strong>
+                        <small>Just now</small>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                      </div>
+                      <div class="toast-body">
+                        <p class="mb-2">${data.message || 'Flight report generated!'}</p>
+                        <a href="${data.report_url || '#'}" target="_blank" class="btn btn-light btn-sm w-100">📊 View Report / 查看详单</a>
+                      </div>
+                    </div>
+                `;
+                const wrap = document.createElement('div');
+                wrap.innerHTML = html;
+                container.appendChild(wrap.firstElementChild);
+
+                // Auto-dismiss after 15 seconds
+                setTimeout(() => {
+                    const toastEl = document.getElementById(toastId);
+                    if (toastEl) toastEl.remove();
+                }, 15000);
+            });
+
+            // Dark Mode sync from server config
+            window.socket.on('config_sync', (cfg) => {
+                const darkMode = cfg?.ui?.dark_mode || false;
+                document.body.classList.toggle('dark-mode', darkMode);
+                localStorage.setItem('dark_mode', darkMode ? '1' : '0');
+            });
+        }
+
+        // Start socket listener setup after DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(setupSocketListeners, 200);
+        });
     </script>
 
     {% block scripts %}{% endblock %}

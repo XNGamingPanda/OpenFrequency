@@ -1,13 +1,30 @@
+# Core
 Flask==3.0.0
 Flask-SocketIO==5.3.6
 python-socketio==5.11.0
-SimConnect==0.4.52
+eventlet==0.33.3
 
-edge-tts==6.1.9
+# Simulator Connectors
+SimConnect
+# xpc  # Uncomment for X-Plane support (pip install XPlaneConnect)
+psutil>=5.9.0
+
+# LLM & Speech
+edge-tts>=6.1.9
 google-genai
 openai
-requests==2.31.0
 sherpa-onnx
 soundfile
-# Optional but recommended for production server
-eventlet==0.33.3
+
+# Head Tracking (Optional)
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+
+# Utilities
+requests>=2.31.0
+pyautogui>=0.9.54
+apscheduler>=3.10.0
+matplotlib>=3.8.0
+pandas>=2.0.0
+Pillow>=10.0.0
+pygame>=2.5.0

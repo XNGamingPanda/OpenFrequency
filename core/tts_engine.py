@@ -72,7 +72,17 @@ class TTSEngine:
         event_bus.on('ptt_active', self._on_ptt_active)
         event_bus.on('ptt_released', self._on_ptt_released)
         
+        self.runtime_voice_override = None
         print("TTSEngine: Initialized with chatter support.")
+
+    def set_voice_override(self, voice_id):
+        """Sets a specific voice to use for all ATC, overriding region logic."""
+        if voice_id == "Auto" or not voice_id:
+            self.runtime_voice_override = None
+            print("TTSEngine: Voice override cleared (Auto).")
+        else:
+            self.runtime_voice_override = voice_id
+            print(f"TTSEngine: Voice override set to '{voice_id}'.")
 
     def _guess_icao_prefix(self, lat, lon):
         """
@@ -86,7 +96,7 @@ class TTSEngine:
             return 'K'
         # Europe (E, L, U)
         if 36 <= lat <= 70 and -10 <= lon <= 40:
-             return 'E'
+            return 'E'
         # Japan (R)
         if 30 <= lat <= 46 and 128 <= lon <= 146:
             return 'R'
@@ -98,7 +108,34 @@ class TTSEngine:
         Selects Edge-TTS voice based on ICAO code prefix AND controller name.
         Different controllers get different voices from the same region's pool.
         """
-        if not icao_code or icao_code == 'N/A':
+        # 1. Runtime Override (Debug Kit)
+        if self.runtime_voice_override:
+            return self.runtime_voice_override
+
+        # 2. Language-based forcing (stt_language=ja forces Japanese voices)
+        stt_lang = self.config.get('audio', {}).get('stt_language', 'auto')
+        if stt_lang == 'ja':
+            # Japanese mode: All voices are Japanese
+            pool = self.VOICE_POOLS['R']  # Japan voice pool
+            if controller_name:
+                hash_val = int(hashlib.md5(controller_name.encode()).hexdigest(), 16)
+                voice_index = hash_val % len(pool)
+            else:
+                voice_index = 0
+            return pool[voice_index]
+        
+        # 3. Config-based Accent override (Legacy/Static)
+        accent_override = self.config.get('debug', {}).get('accent_override', 'Auto')
+        if accent_override and accent_override != 'Auto':
+            # Map override values to ICAO prefixes
+            override_map = {
+                'China': 'Z',
+                'USA': 'K', 
+                'Japan': 'R',
+                'UK': 'E'
+            }
+            prefix = override_map.get(accent_override, 'K')
+        elif not icao_code or icao_code == 'N/A':
             prefix = 'default'
         else:
             prefix = icao_code[0].upper()
@@ -116,7 +153,6 @@ class TTSEngine:
             voice_index = 0
         
         selected_voice = pool[voice_index]
-        # print(f"TTSEngine: Controller '{controller_name}' -> Voice '{selected_voice}'")
         return selected_voice
 
     def speak(self, text):

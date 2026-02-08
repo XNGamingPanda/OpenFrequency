@@ -61,6 +61,39 @@
         {% endif %}
     </div>
 </div>
+</div>
+
+<!-- Cabin Intercom Button -->
+<div class="row mb-3">
+    <div class="col-12">
+        <button type="button" class="btn btn-info w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#cabinModal">
+            👩‍✈️ CABIN INTERCOM
+        </button>
+    </div>
+</div>
+
+<!-- Cabin Modal -->
+<div class="modal fade" id="cabinModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cabin Intercom</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body d-grid gap-2">
+                <button class="btn btn-outline-primary p-3" onclick="callPurser('call_purser')">
+                    🔔 Call Purser
+                </button>
+                <button class="btn btn-outline-success p-3" onclick="callPurser('prepare_cabin')">
+                    🛫 Prepare Cabin (Gate/Takeoff)
+                </button>
+                <button class="btn btn-outline-danger p-3" onclick="callPurser('emergency')">
+                    ⚠️ EMERGENCY (Brace)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -77,6 +110,15 @@
     function testAudio() {
         console.log("Requesting Test Audio...");
         socket.emit('test_tts_trigger');
+    }
+
+    function callPurser(action) {
+        console.log("Calling Purser:", action);
+        socket.emit('cabin_intercom', { action: action });
+        // Close modal
+        const modalEl = document.getElementById('cabinModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
     }
 
     // Force audio context unlock on first interaction
@@ -121,8 +163,19 @@
     socket.emit('request_sim_status');
 
     socket.on('chat_log', (data) => {
+        // 管制角色颜色映射
+        const roleColorMap = {
+            'Ground': '#8B4513', 'Tower': '#28a745', 'Departure': '#007bff',
+            'Center': '#6f42c1', 'Approach': '#fd7e14', 'Emergency': '#dc3545',
+            'ATIS': '#6c757d', 'Cabin': '#e83e8c', 'SYSTEM': '#343a40', 'Pilot': '#17a2b8'
+        };
+        let bgColor = '#28a745';
+        for (const role in roleColorMap) {
+            if (data.sender.includes(role)) { bgColor = roleColorMap[role]; break; }
+        }
         const div = document.createElement('div');
-        div.className = `mb-2 p-2 rounded ${data.sender === 'Pilot' ? 'bg-primary text-white text-end' : 'bg-success text-white text-start'}`;
+        div.className = `mb-2 p-2 rounded ${data.sender === 'Pilot' ? 'text-end' : 'text-start'}`;
+        div.style.cssText = `background-color: ${bgColor}; color: white;`;
         div.innerHTML = `<strong>${data.sender}:</strong> ${data.text}`;
         logContainer.appendChild(div);
         logContainer.scrollTop = logContainer.scrollHeight;

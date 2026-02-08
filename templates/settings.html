@@ -109,6 +109,16 @@
                     </div>
 
                     <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="emergency_level">Emergency Probability</label>
+                        <select class="form-select form-select-sm" id="conf-emergency-level">
+                            <option value="none" data-i18n="level_none">None (Safe)</option>
+                            <option value="low" data-i18n="level_low">Low (Realistic)</option>
+                            <option value="medium" data-i18n="level_medium">Medium (Frequent)</option>
+                            <option value="high" data-i18n="level_high">High (Mayday!)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
                         <label class="form-label small mb-0" data-i18n="stt_model_path">STT Model Path</label>
                         <input type="text" class="form-control form-control-sm" id="conf-stt-path">
                     </div>
@@ -118,7 +128,19 @@
                             <option value="auto" data-i18n="stt_auto">Auto Detect</option>
                             <option value="en">English</option>
                             <option value="zh">Chinese (中文)</option>
+                            <option value="ja">Japanese (日本語)</option>
                         </select>
+                    </div>
+
+                    <!-- UI Settings -->
+                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="ui_settings">🎨 UI Settings</h6>
+                    <div class="mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="conf-dark-mode"
+                                onchange="window.toggleDarkMode(this.checked)">
+                            <label class="form-check-label small" for="conf-dark-mode" data-i18n="dark_mode">Dark
+                                Mode</label>
+                        </div>
                     </div>
                 </form>
 
@@ -264,6 +286,20 @@
                 document.getElementById('conf-security-mode').value = 'doorbell';
             }
 
+            // Emergency Level
+            if (data.emergency && data.emergency.level) {
+                document.getElementById('conf-emergency-level').value = data.emergency.level;
+            } else {
+                document.getElementById('conf-emergency-level').value = 'low';
+            }
+
+            // Dark Mode state
+            const darkModeCheckbox = document.getElementById('conf-dark-mode');
+            if (darkModeCheckbox) {
+                const isDark = localStorage.getItem('dark_mode') === '1' || (data.ui && data.ui.dark_mode);
+                darkModeCheckbox.checked = isDark;
+            }
+
             toggleBaseUrl();
 
             // Restore PTT binding from storage if exists
@@ -301,7 +337,12 @@
                     stt_language: document.getElementById('conf-stt-language').value
                 },
                 immersion: { busy_level: document.getElementById('conf-busy-level').value },
-                security: { mode: document.getElementById('conf-security-mode').value }
+                security: { mode: document.getElementById('conf-security-mode').value },
+                emergency: {
+                    level: document.getElementById('conf-emergency-level').value,
+                    enabled: true
+                },
+                ui: { dark_mode: document.getElementById('conf-dark-mode')?.checked || false }
             };
 
             console.log("Saving config:", newConfig);

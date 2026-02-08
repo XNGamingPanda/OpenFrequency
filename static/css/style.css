@@ -1,6 +1,8 @@
-html, body {
+html,
+body {
     height: 100%;
 }
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     display: flex;
@@ -24,26 +26,26 @@ body {
     .card {
         margin-bottom: 1rem;
     }
-    
+
     .card-body {
         padding: 0.75rem;
     }
-    
+
     .btn-lg {
         padding: 0.75rem 1rem;
         font-size: 1rem;
     }
-    
+
     /* Stack columns on mobile */
-    .row > [class*='col-'] {
+    .row>[class*='col-'] {
         margin-bottom: 0.5rem;
     }
-    
+
     /* Smaller text on mobile */
     h4 {
         font-size: 1.1rem;
     }
-    
+
     small {
         font-size: 0.75rem;
     }
@@ -69,4 +71,117 @@ body {
 
 .flex-grow-1 {
     flex-grow: 1 !important;
+}
+
+/* === Crew Member Selection Highlight (Fix #4) === */
+.crew-member.selected {
+    border: 2px solid #ff4444 !important;
+    background-color: rgba(255, 0, 0, 0.15) !important;
+    box-shadow: 0 0 8px rgba(255, 68, 68, 0.5);
+}
+
+.crew-member {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.crew-member:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* === CSS Variables for Dark Mode (Fix #9) === */
+:root {
+    --card-bg-color: #ffffff;
+    --card-text-color: #212529;
+    --violation-card-bg: #fff3cd;
+    --violation-card-border: #ffc107;
+}
+
+[data-bs-theme="dark"],
+:root[data-theme="dark"] {
+    --card-bg-color: #2a2a2a;
+    --card-text-color: #e0e0e0;
+    --violation-card-bg: #3d3d00;
+    --violation-card-border: #665500;
+}
+
+/* Violation Card Styling */
+.violation-card {
+    background-color: var(--violation-card-bg) !important;
+    border-color: var(--violation-card-border) !important;
+    color: var(--card-text-color);
+}
+
+/* Career Cards Dark Mode */
+.career-card {
+    background-color: var(--card-bg-color);
+    color: var(--card-text-color);
+}
+
+/* Shake animation for emergency alerts */
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-5px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(5px);
+    }
+}
+
+.shake-anim {
+    animation: shake 0.5s ease-in-out;
+}
+
+/* === Cabin Intercom Mode (used only for EMERGENCY crew calls) === */
+/* Normal crew communication does NOT trigger this - only emergency intercom */
+body.cabin-emergency {
+    border: 5px solid #ff4444 !important;
+    box-sizing: border-box;
+}
+
+body.cabin-emergency::before {
+    content: '🚨 EMERGENCY CABIN INTERCOM';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #ff4444;
+    color: white;
+    text-align: center;
+    padding: 4px;
+    font-weight: bold;
+    font-size: 12px;
+    z-index: 9999;
+}
+
+/* Normal crew mode indicator (subtle, no red border) */
+body.crew-mode .radio-channel-indicator {
+    color: #e83e8c;
+}
+
+/* Control Stack Styling */
+.control-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-stack .btn {
+    min-width: 120px;
+    text-align: left;
 }

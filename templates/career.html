@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}生涯模式 - OpenFrequency{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-primary mb-0">
+                <i class="bi bi-trophy-fill me-2"></i>生涯模式 / Career Mode
+            </h2>
+            <p class="text-muted">追踪您的飞行进度，赚取经验和奖励</p>
+        </div>
+    </div>
+
+    <!-- 主要统计卡片 -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-gradient-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-1 text-white-50">等级 / Rank</h6>
+                            <h4 class="card-title mb-0" id="profileRank">加载中...</h4>
+                        </div>
+                        <i class="bi bi-award-fill fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-gradient-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-1 text-white-50">经验值 / XP</h6>
+                            <h4 class="card-title mb-0" id="profileXP">0</h4>
+                        </div>
+                        <i class="bi bi-lightning-fill fs-1 opacity-50"></i>
+                    </div>
+                    <div class="progress mt-2" style="height: 6px;">
+                        <div class="progress-bar bg-light" id="xpProgress" style="width: 0%"></div>
+                    </div>
+                    <small class="text-white-50" id="xpNextRank">下一等级: --</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-gradient-warning text-dark h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-1 text-dark-50">余额 / Money</h6>
+                            <h4 class="card-title mb-0">$<span id="profileMoney">0</span></h4>
+                        </div>
+                        <i class="bi bi-coin fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-gradient-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-subtitle mb-1 text-white-50">飞行时间</h6>
+                            <h4 class="card-title mb-0"><span id="profileFlightTime">0</span>h</h4>
+                        </div>
+                        <i class="bi bi-clock-fill fs-1 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 呼号设置 -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="bi bi-person-badge me-2"></i>飞行员资料
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">呼号 / Callsign</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="callsignInput" placeholder="CCA988">
+                            <button class="btn btn-primary" id="saveCallsignBtn">保存</button>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h5 id="profileFlights">0</h5>
+                            <small class="text-muted">航班数</small>
+                        </div>
+                        <div class="col-4">
+                            <h5 id="profileLandings">0</h5>
+                            <small class="text-muted">着陆数</small>
+                        </div>
+                        <div class="col-4">
+                            <h5 id="profileBestLanding">--</h5>
+                            <small class="text-muted">最佳着陆</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="bi bi-card-checklist me-2"></i>执照 / Licenses
+                </div>
+                <div class="card-body">
+                    <div id="licensesList" class="d-flex flex-wrap gap-2">
+                        <!-- 动态填充 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 违规记录 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-exclamation-triangle me-2"></i>违规记录 / Violations</span>
+                    <span class="badge bg-danger" id="violationCount">0</span>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>类型</th>
+                                <th>详情</th>
+                            </tr>
+                        </thead>
+                        <tbody id="violationsTable">
+                            <tr>
+                                <td colspan="3" class="text-muted text-center">暂无违规记录</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .bg-gradient-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+
+    .bg-gradient-warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .bg-gradient-info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const socket = io();
+
+        // 加载档案
+        function loadProfile() {
+            fetch('/career/profile')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error('Career profile error:', data.error);
+                        return;
+                    }
+                    updateUI(data);
+                })
+                .catch(e => console.error('Failed to load profile:', e));
+        }
+
+        function updateUI(profile) {
+            document.getElementById('profileRank').textContent = profile.rank || 'Unknown';
+            document.getElementById('profileXP').textContent = profile.xp || 0;
+            document.getElementById('profileMoney').textContent = profile.money || 0;
+            document.getElementById('profileFlightTime').textContent = (profile.total_flight_time || 0).toFixed(1);
+            document.getElementById('profileFlights').textContent = profile.flights_completed || 0;
+            document.getElementById('profileLandings').textContent = profile.landings || 0;
+            document.getElementById('callsignInput').value = profile.callsign || '';
+
+            if (profile.best_landing_g) {
+                document.getElementById('profileBestLanding').textContent = profile.best_landing_g.toFixed(2) + 'G';
+            }
+
+            // 执照列表
+            const licList = document.getElementById('licensesList');
+            licList.innerHTML = '';
+            (profile.licenses || []).forEach(lic => {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-primary fs-6';
+                badge.textContent = lic;
+                licList.appendChild(badge);
+            });
+
+            // 违规记录
+            const violations = profile.violations || [];
+            document.getElementById('violationCount').textContent = violations.length;
+            const tbody = document.getElementById('violationsTable');
+            if (violations.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">暂无违规记录 ✓</td></tr>';
+            } else {
+                tbody.innerHTML = violations.slice(-10).reverse().map(v => `
+                <tr>
+                    <td>${new Date(v.timestamp).toLocaleString()}</td>
+                    <td><span class="badge bg-warning text-dark">${v.type}</span></td>
+                    <td>${v.details || '-'}</td>
+                </tr>
+            `).join('');
+            }
+
+            // XP 进度条
+            fetch('/career/progress')
+                .then(r => r.json())
+                .then(prog => {
+                    document.getElementById('xpProgress').style.width = (prog.progress * 100) + '%';
+                    if (prog.next_rank) {
+                        document.getElementById('xpNextRank').textContent = `下一等级: ${prog.next_rank} (${prog.xp_needed} XP)`;
+                    } else {
+                        document.getElementById('xpNextRank').textContent = '🏆 最高等级';
+                    }
+                });
+        }
+
+        // 保存呼号
+        document.getElementById('saveCallsignBtn').addEventListener('click', function () {
+            const callsign = document.getElementById('callsignInput').value.trim().toUpperCase();
+            if (!callsign) return;
+
+            fetch('/career/callsign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ callsign: callsign })
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    alert('呼号已更新: ' + callsign);
+                    loadProfile();
+                }
+            });
+        });
+
+        // 实时事件
+        socket.on('career_event', function (data) {
+            console.log('Career Event:', data);
+            loadProfile();  // 刷新
+
+            // Toast 通知
+            if (data.type === 'violation') {
+                showToast(`⚠️ 违规: ${data.violation} (-${data.xp_penalty} XP)`, 'warning');
+            } else if (data.type === 'landing') {
+                showToast(`🛬 着陆评级: ${data.grade.toUpperCase()} (+${data.xp} XP)`, 'success');
+            }
+        });
+
+        function showToast(message, type) {
+            // 简易 Toast
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} position-fixed bottom-0 end-0 m-3`;
+            toast.style.zIndex = 9999;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+
+        loadProfile();
+    });
+</script>
+{% endblock %}

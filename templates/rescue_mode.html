@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenFrequency - 环境检测</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .error-list {
+            margin: 20px 0;
+        }
+
+        .error-item {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .error-item h3 {
+            color: #ef4444;
+            font-size: 18px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .error-item p {
+            color: #ccc;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .fix-btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: all 0.2s;
+        }
+
+        .fix-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .fix-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #888;
+        }
+
+        .status.success {
+            color: #22c55e;
+        }
+
+        .status.error {
+            color: #ef4444;
+        }
+
+        .refresh-btn {
+            display: block;
+            width: 100%;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🛫</div>
+            <h1>OpenFrequency 环境检测</h1>
+            <p class="subtitle">检测到以下问题需要解决</p>
+        </div>
+
+        <div class="error-list" id="error-list">
+            {% for error in errors %}
+            <div class="error-item" id="error-{{ error.id }}">
+                <h3>⚠️ {{ error.title }}</h3>
+                <p>{{ error.message }}</p>
+                {% if error.fixable %}
+                <button class="fix-btn" onclick="fixError('{{ error.id }}')">
+                    一键修复
+                </button>
+                <div class="status" id="status-{{ error.id }}"></div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <button class="refresh-btn" onclick="location.reload()">
+            🔄 重新检测
+        </button>
+    </div>
+
+    <script>
+        async function fixError(errorId) {
+            const btn = document.querySelector(`#error-${errorId} .fix-btn`);
+            const status = document.getElementById(`status-${errorId}`);
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>正在修复...';
+            status.textContent = '';
+            status.className = 'status';
+
+            try {
+                const response = await fetch('/api/rescue/fix', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ error_id: errorId })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    status.textContent = '✅ ' + result.message;
+                    status.className = 'status success';
+                    btn.textContent = '已修复';
+                } else {
+                    status.textContent = '❌ ' + result.message;
+                    status.className = 'status error';
+                    btn.textContent = '重试';
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                status.textContent = '❌ 网络错误: ' + e.message;
+                status.className = 'status error';
+                btn.textContent = '重试';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+
+</html>

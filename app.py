@@ -20,6 +20,10 @@ from core.tts_engine import TTSEngine
 from core.auth_manager import AuthManager
 from core.traffic_manager import TrafficStateManager
 from core.chatter_generator import ChatterGenerator
+from core.atis_generator import ATISGenerator
+from core.self_check import self_check, download_ffmpeg, download_whisper_model
+from core.career import CareerProfile  # Career Mode
+from core.crew_manager import CrewManager  # Crew Manager (FO + Purser)
 from flask import Flask, render_template, request, jsonify, redirect, make_response
 from flask_socketio import SocketIO, join_room, leave_room, emit
 
@@ -55,6 +59,12 @@ def load_config():
     print(f"System: Callsign initialized to {shared_context['aircraft']['callsign']}")
 
 load_config()
+
+# --- Career Mode Profile ---
+career_profile = CareerProfile()
+from core.career.evaluator import CareerEvaluator
+career_evaluator = CareerEvaluator(config, career_profile, socketio)
+career_evaluator.start()
 
 # --- Auth Manager (uses config) ---
 auth_manager = AuthManager(config, CONFIG_PATH)
@@ -109,6 +119,13 @@ def index():
     perm = auth_manager.get_permission_level(client_ip, token)
     can_interact = perm in ['ADMIN', 'FULL']  # Can send voice/text
     
+    # Check for mode parameter (from main menu)
+    mode = request.args.get('mode')
+    
+    # 0. Main Menu (no mode selected)
+    if not mode and not request.args.get('view'):
+        return render_template('main_menu.html')
+    
     # 1. Manual Override
     view_mode = request.args.get('view')
     if view_mode == 'mobile':
@@ -127,6 +144,21 @@ def index():
         print(f"Device detected as Desktop: {user_agent}")
         return render_template('dashboard.html', can_interact=can_interact, permission=perm)
 
+@app.route('/dashboard')
+def dashboard():
+    """Direct dashboard access (for Free Flight mode)."""
+    client_ip = request.remote_addr
+    token = request.cookies.get('auth_token')
+    perm = auth_manager.get_permission_level(client_ip, token)
+    can_interact = perm in ['ADMIN', 'FULL']
+    
+    # Set flight mode
+    mode = request.args.get('mode', 'free')
+    # Emit mode to frontend
+    socketio.emit('flight_mode', {'mode': mode})
+    
+    return render_template('dashboard.html', can_interact=can_interact, permission=perm, flight_mode=mode)
+
 @app.route('/get_my_permission')
 def get_my_permission():
     """Returns current user's permission level."""
@@ -135,6 +167,26 @@ def get_my_permission():
     perm = auth_manager.get_permission_level(client_ip, token)
     can_interact = perm in ['ADMIN', 'FULL']
     return jsonify({"permission": perm, "can_interact": can_interact})
+
+@app.route('/api/session_mode')
+def get_session_mode():
+    """Returns current flight session mode."""
+    with context_lock:
+        mode = shared_context.get('session_mode', None)
+    return jsonify({"mode": mode})
+
+@app.route('/api/locales/<locale>')
+def get_locale(locale):
+    """Serve locale files for frontend translation."""
+    import os
+    # Strip .json extension if present
+    if locale.endswith('.json'):
+        locale = locale[:-5]
+    locale_path = os.path.join('data', 'locales', f'{locale}.json')
+    if os.path.exists(locale_path):
+        with open(locale_path, 'r', encoding='utf-8') as f:
+            return f.read(), 200, {'Content-Type': 'application/json'}
+    return jsonify({"error": "Locale not found", "path": locale_path}), 404
 
 @app.route('/settings')
 def settings_page():
@@ -147,6 +199,126 @@ def settings_page():
         return redirect('/')  # Redirect readonly users to dashboard
     
     return render_template('settings.html')
+
+# --- Career Mode Routes ---
+@app.route('/career')
+def career_page():
+    # Set career mode session
+    mode = request.args.get('mode', 'career')
+    return render_template('career_dashboard.html', flight_mode=mode)
+
+@app.route('/career/profile')
+def career_profile_api():
+    return jsonify(career_profile.get_profile())
+
+@app.route('/career/jobs')
+def career_jobs_api():
+    """Get available jobs from the job generator."""
+    from core.career.job_generator import JobGenerator
+    job_gen = JobGenerator(career_profile)
+    # Use ZBAA as default current airport (can be improved to detect from sim)
+    jobs = job_gen.generate_jobs('ZBAA', count=8)
+    # Cache jobs for later accept
+    with context_lock:
+        shared_context['cached_jobs'] = {j['id']: j for j in jobs}
+    return jsonify(jobs)
+
+@app.route('/career/accept_job', methods=['POST'])
+def career_accept_job():
+    """Accept a job and lock in the callsign."""
+    from core.career.job_generator import JobGenerator
+    data = request.get_json()
+    job_id = data.get('job_id')
+    
+    if not job_id:
+        return jsonify({'success': False, 'error': 'No job ID provided'}), 400
+    
+    # Get job from cache
+    with context_lock:
+        cached_jobs = shared_context.get('cached_jobs', {})
+        job = cached_jobs.get(job_id)
+    
+    if job:
+        job_gen = JobGenerator(career_profile)
+        job_gen.accept_job(job)
+        # Override callsign in shared context
+        with context_lock:
+            shared_context['callsign_override'] = job['callsign']
+            shared_context['active_job'] = job
+        return jsonify({'success': True, 'callsign': job['callsign'], 'job': job})
+    else:
+        return jsonify({'success': False, 'error': 'Job not found - please refresh job list'}), 404
+
+@app.route('/career/licenses')
+def career_licenses_api():
+    """Get available licenses and requirements."""
+    licenses = [
+        {'id': 'PPL', 'name': 'Private Pilot License', 'price': 5000, 'required_xp': 500, 'required_hours': 10},
+        {'id': 'CPL', 'name': 'Commercial Pilot License', 'price': 15000, 'required_xp': 2000, 'required_hours': 50},
+        {'id': 'ATPL', 'name': 'Airline Transport Pilot License', 'price': 50000, 'required_xp': 10000, 'required_hours': 200},
+    ]
+    profile = career_profile.get_profile()
+    owned = profile.get('licenses', ['P0'])
+    for lic in licenses:
+        lic['owned'] = lic['id'] in owned
+        lic['can_buy'] = profile.get('money', 0) >= lic['price'] and profile.get('xp', 0) >= lic['required_xp']
+    return jsonify(licenses)
+
+@app.route('/career/buy_license', methods=['POST'])
+def career_buy_license():
+    """Purchase a license (deduct money, add to profile)."""
+    data = request.get_json()
+    license_id = data.get('license_id')
+    
+    licenses_data = {
+        'PPL': {'price': 5000, 'required_xp': 500},
+        'CPL': {'price': 15000, 'required_xp': 2000},
+        'ATPL': {'price': 50000, 'required_xp': 10000},
+    }
+    
+    if license_id not in licenses_data:
+        return jsonify({'success': False, 'error': 'Invalid license'}), 400
+    
+    profile = career_profile.get_profile()
+    lic = licenses_data[license_id]
+    
+    if profile.get('money', 0) < lic['price']:
+        return jsonify({'success': False, 'error': 'Insufficient funds'}), 400
+    if profile.get('xp', 0) < lic['required_xp']:
+        return jsonify({'success': False, 'error': 'Insufficient experience'}), 400
+    
+    # Deduct money and add license
+    career_profile.add_money(-lic['price'])
+    if 'licenses' not in profile:
+        profile['licenses'] = ['P0']
+    profile['licenses'].append(license_id)
+    career_profile.save_profile()
+    
+    return jsonify({'success': True, 'license': license_id, 'new_balance': career_profile.get_profile().get('money', 0)})
+
+@app.route('/career/transactions')
+def career_transactions_api():
+    """Get bank transaction history."""
+    profile = career_profile.get_profile()
+    transactions = profile.get('transactions', [])
+    return jsonify(transactions[-20:][::-1])  # Last 20 transactions, newest first
+
+@app.route('/career/progress')
+def career_progress_api():
+    return jsonify(career_profile.get_next_rank_progress())
+
+@app.route('/career/callsign', methods=['POST'])
+def career_callsign():
+    data = request.json
+    callsign = data.get('callsign', '').strip().upper()
+    if callsign:
+        career_profile.update_callsign(callsign)
+        # Also update shared context
+        with context_lock:
+            shared_context['aircraft']['callsign'] = callsign
+        return jsonify({"success": True, "callsign": callsign})
+    return jsonify({"success": False, "error": "Invalid callsign"}), 400
+
 
 @app.route('/get_config')
 def get_config_route():
@@ -507,34 +679,181 @@ def handle_admin_decision(data):
     socketio.emit('auth_data_changed', {}, room='admin_room')
 
 
-if __name__ == '__main__':
-    print("--- Initializing OpenSky-ATC v2.0 ---")
-    print(f"Debug: WERKZEUG_RUN_MAIN = {os.environ.get('WERKZEUG_RUN_MAIN')}")
+# --- Rescue Mode Routes ---
+@app.route('/rescue')
+def rescue_page():
+    """Show rescue mode page with environment errors."""
+    ok, errors = self_check()
+    if ok:
+        return redirect('/')
+    return render_template('rescue_mode.html', errors=errors)
 
+@app.route('/api/rescue/fix', methods=['POST'])
+def rescue_fix():
+    """Handle one-click fix requests."""
+    data = request.get_json()
+    error_id = data.get('error_id', '')
+    
+    if error_id == 'ffmpeg':
+        success, msg = download_ffmpeg()
+        return jsonify({'success': success, 'message': msg})
+    elif error_id == 'whisper':
+        success, msg = download_whisper_model()
+        return jsonify({'success': success, 'message': msg})
+    
+    return jsonify({'success': False, 'message': 'Unknown error type'})
+
+
+# --- Flight Report Routes ---
+@app.route('/report/latest')
+def report_latest():
+    """Serve the latest flight report."""
+    import glob
+    reports = glob.glob('data/reports/report_*.html')
+    if reports:
+        latest = max(reports, key=os.path.getctime)
+        with open(latest, 'r', encoding='utf-8') as f:
+            return f.read()
+    return "No flight report available yet.", 404
+
+@app.route('/report/img/<filename>')
+@app.route('/reports/<path:filename>')
+def serve_report(filename):
+    """Serve generated flight reports."""
+    from flask import send_from_directory
+    # Ensure we look in the correct absolute path
+    report_dir = os.path.join(os.getcwd(), 'data', 'reports')
+    return send_from_directory(report_dir, filename)
+
+def report_image(filename):
+    """Serve report images."""
+    from flask import send_from_directory
+    return send_from_directory('data/reports/img', filename)
+
+
+if __name__ == '__main__':
+    print("--- Initializing OpenSky-ATC v2.5 ---")
+    print(f"Debug: WERKZEUG_RUN_MAIN = {os.environ.get('WERKZEUG_RUN_MAIN')}")
+    
+    # 0. Environment Self-Check (only in worker process)
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        ok, errors = self_check()
+        if not ok:
+            print("⚠️ Environment check failed! Starting in rescue mode...")
+            for e in errors:
+                print(f"  - {e['title']}: {e['message']}")
+            print("Open http://0.0.0.0:5000/rescue for repair options.")
+    
     # 1. Initialize all core modules
     print("Initializing modules...")
+    
+    # Import new modules
+    from core.black_box import BlackBox
+    from core.flight_analyzer import FlightAnalyzer
+    # from core.flight_report import FlightReport  # Deprecated in favor of BlackBox v2
+    from core.head_tracker import HeadTracker
+    from core.emergency_director import EmergencyDirector
+    
     logic_manager = LogicManager(config, socketio)
     sim_bridge = SimBridge(config, shared_context, context_lock, event_bus)
     nav_manager = NavManager(config, shared_context, context_lock, event_bus)
     stt_module = STTLocal(config, event_bus)
     llm_client = LLMClient(config, shared_context, context_lock, event_bus)
     tts_engine = TTSEngine(config, socketio)
-    traffic_manager = TrafficStateManager(config, sim_bridge)
+    traffic_manager = TrafficStateManager(config, sim_bridge, socketio)
     chatter_generator = ChatterGenerator(config, tts_engine)
-    # audio_listener = AudioListener(config, stt_module.transcribe) # For server-side mic
+    black_box = BlackBox(config)
+    flight_analyzer = FlightAnalyzer(config, socketio)
+    # flight_report = FlightReport(config, socketio, black_box) # Disabled
+    head_tracker = HeadTracker(config, socketio)
+    emergency_director = EmergencyDirector(config, socketio)
     
+    # --- Crew Manager (Replaces CabinCrew and old Purser) ---
+    
+    # --- CabinCrew LLM Module ---
+    crew_manager = CrewManager(config, llm_client, socketio)
+    
+    # --- ATC Handoff State Machine ---
+    from core.atc_handoff import ATCHandoffManager
+    atc_handoff = ATCHandoffManager(config, socketio)
+
+    @socketio.on('set_flight_mode')
+    def handle_flight_mode(data):
+        """Toggle Career Mode/Free Flight."""
+        # data = {'mode': 'career' | 'free'}
+        mode = data.get('mode', 'free')
+        enabled = (mode == 'career')
+        career_evaluator.set_mode(enabled)
+        # Store in shared context for session state
+        with context_lock:
+            shared_context['session_mode'] = mode
+        # Notify all clients
+        socketio.emit('game_mode_changed', {'mode': mode})
+
+    @socketio.on('toggle_intercom')
+    def handle_toggle_intercom(data):
+        """Toggle PTT target between ATC and Cabin crew."""
+        # data = {'target': 'ATC' | 'CABIN'}
+        target = data.get('target', 'ATC')
+        logic_manager.intercom_target = target
+        print(f"LogicManager: Intercom target set to {target}")
+        # Notify clients to update UI (red border for cabin mode)
+        socketio.emit('intercom_mode_changed', {'target': target})
+
+    @socketio.on('cabin_intercom')
+    def handle_cabin_intercom(data):
+        """Handle intercom requests from UI."""
+        # data = {'action': 'call_purser' | 'prepare_cabin' | 'emergency' | 'status' | 'chat'}
+        action = data.get('action')
+        if action:
+            event_bus.emit('cabin_intercom', action)
+            # Also trigger CrewManager module
+            if action in ['status', 'chat', 'boarding', 'deboarding', 'stop_ambience']:
+                event_bus.emit('cabin_crew_request', action)
+    
+    @socketio.on('cabin_chat')
+    def handle_cabin_chat(data):
+        """Handle cabin crew chat messages."""
+        message = data.get('message', '')
+        if message:
+            event_bus.emit('user_cabin_message', message)
+    
+    @socketio.on('crew_message')
+    def handle_crew_message(data):
+        """Handle pilot to crew messages (from channel selector)."""
+        # data = {'text': str, 'target': 'fo' | 'purser' | 'all'}
+        event_bus.emit('crew_message', data)
+
+    # Feature 2.4: Debug Kit Runtime Updates
+    @socketio.on('update_debug_config')
+    def handle_debug_config(data):
+        """Handle runtime debug changes."""
+        # data = {'infinite_pattern': bool, 'voice_override': str}
+        print(f"Debug: Runtime config update -> {data}")
+        
+        if 'infinite_pattern' in data:
+            logic_manager.infinite_pattern = data['infinite_pattern']
+            # Restart/Stop scheduler job if needed? 
+            # LogicManager checks the flag in the loop, so just updating flag is enough.
+            
+        if 'accent_override' in data:
+            voice = data['accent_override']
+            tts_engine.set_voice_override(voice)
+
+    # 2. Start all background threads
+
     # 2. Start all background threads
     # CRITICAL: Only start services in the worker process (reloader child), not the parent.
-    # Otherwise SimConnect will be initialized twice and fail/freeze.
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         print("Starting background services (Worker Process)...")
         logic_manager.start()
         sim_bridge.start()
         nav_manager.start()
         traffic_manager.start()
-        # audio_listener.start()
+        head_tracker.start()
+        emergency_director.start()
 
-        # 4. Initialize and start the scheduler
+        # Initialize and start the scheduler
         scheduler = BackgroundScheduler()
         scheduler.start()
         

@@ -36,16 +36,31 @@ temp_audio/
 *.webm
 *.wav
 *.mp3
-build_release.py
-test_llm.py
+*.png
+RELEASE_NOTES.md
+
+# Data & Output
+data/
+recordings/
+reports/
+screenshots/
 
 # Binaries & Large Files
 ffmpeg/
 models/
+sherpa-onnx-whisper*/
 *.exe
 *.bin
 *.dll
+*.onnx
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+.DS_Store

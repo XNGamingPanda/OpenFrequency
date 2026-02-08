@@ -13,11 +13,13 @@
                     <legend>User Profile</legend>
                     <div class="mb-3">
                         <label for="callsign" class="form-label">Callsign</label>
-                        <input type="text" class="form-control" id="callsign" name="user_profile.callsign" value="{{ config.user_profile.callsign }}">
+                        <input type="text" class="form-control" id="callsign" name="user_profile.callsign"
+                            value="{{ config.user_profile.callsign }}">
                     </div>
-                     <div class="mb-3">
+                    <div class="mb-3">
                         <label for="tail_number" class="form-label">Tail Number</label>
-                        <input type="text" class="form-control" id="tail_number" name="user_profile.tail_number" value="{{ config.user_profile.tail_number }}">
+                        <input type="text" class="form-control" id="tail_number" name="user_profile.tail_number"
+                            value="{{ config.user_profile.tail_number }}">
                     </div>
                 </fieldset>
 
@@ -27,17 +29,21 @@
                     <div class="mb-3">
                         <label for="llm_provider" class="form-label">LLM Provider</label>
                         <select class="form-select" id="llm_provider" name="connection.llm_provider">
-                            <option value="gemini" {% if config.connection.llm_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
-                            <option value="openai" {% if config.connection.llm_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+                            <option value="gemini" {% if config.connection.llm_provider=='gemini' %}selected{% endif %}>
+                                Google Gemini</option>
+                            <option value="openai" {% if config.connection.llm_provider=='openai' %}selected{% endif %}>
+                                OpenAI</option>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="api_key" class="form-label">API Key</label>
-                        <input type="password" class="form-control" id="api_key" name="connection.api_key" value="{{ config.connection.api_key }}">
+                        <input type="password" class="form-control" id="api_key" name="connection.api_key"
+                            value="{{ config.connection.api_key }}">
                     </div>
-                     <div class="mb-3">
+                    <div class="mb-3">
                         <label for="model" class="form-label">Model</label>
-                        <input type="text" class="form-control" id="model" name="connection.model" value="{{ config.connection.model }}">
+                        <input type="text" class="form-control" id="model" name="connection.model"
+                            value="{{ config.connection.model }}">
                     </div>
                 </fieldset>
 
@@ -45,16 +51,111 @@
                 <fieldset class="mb-4">
                     <legend>Immersion</legend>
                     <div class="form-check form-switch mb-2">
-                      <input class="form-check-input" type="checkbox" role="switch" id="enable_standby_simulation" name="immersion.enable_standby_simulation" {% if config.immersion.enable_standby_simulation %}checked{% endif %}>
-                      <label class="form-check-label" for="enable_standby_simulation">Enable "Standby" Simulation</label>
+                        <input class="form-check-input" type="checkbox" role="switch" id="enable_standby_simulation"
+                            name="immersion.enable_standby_simulation" {% if config.immersion.enable_standby_simulation
+                            %}checked{% endif %}>
+                        <label class="form-check-label" for="enable_standby_simulation">Enable "Standby"
+                            Simulation</label>
                     </div>
                     <div class="form-check form-switch mb-2">
-                      <input class="form-check-input" type="checkbox" role="switch" id="auto_atis_update" name="immersion.auto_atis_update" {% if config.immersion.auto_atis_update %}checked{% endif %}>
-                      <label class="form-check-label" for="auto_atis_update">Auto ATIS Update</label>
+                        <input class="form-check-input" type="checkbox" role="switch" id="auto_atis_update"
+                            name="immersion.auto_atis_update" {% if config.immersion.auto_atis_update %}checked{% endif
+                            %}>
+                        <label class="form-check-label" for="auto_atis_update">Auto ATIS Update</label>
                     </div>
                 </fieldset>
-                
-                <button type="submit" class="btn btn-primary">Save Configuration</button>
+
+                <!-- Head Tracking Settings -->
+                <fieldset class="mb-4">
+                    <legend>🎯 视觉头部追踪</legend>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="head_tracking_enabled"
+                            name="head_tracking.enabled" {% if config.head_tracking and config.head_tracking.enabled
+                            %}checked{% endif %}>
+                        <label class="form-check-label" for="head_tracking_enabled">启用头部追踪 (需要摄像头)</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="head_tracking_sensitivity" class="form-label">灵敏度 (1-15)</label>
+                        <input type="range" class="form-range" id="head_tracking_sensitivity"
+                            name="head_tracking.sensitivity" min="1" max="15"
+                            value="{{ config.head_tracking.sensitivity if config.head_tracking else 9 }}">
+                        <small class="text-muted">头部转10° = 游戏内转 <span id="sensitivity-display">90</span>°</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="camera_index" class="form-label">摄像头编号</label>
+                        <input type="number" class="form-control" id="camera_index" name="head_tracking.camera_index"
+                            min="0" max="5"
+                            value="{{ config.head_tracking.camera_index if config.head_tracking else 0 }}">
+                    </div>
+                </fieldset>
+
+                <!-- Emergency Scenarios -->
+                <fieldset class="mb-4">
+                    <legend>🚨 特情模式</legend>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="emergency_enabled"
+                            name="emergency.enabled" {% if config.emergency and config.emergency.enabled %}checked{%
+                            endif %}>
+                        <label class="form-check-label" for="emergency_enabled">启用随机特情 (发动机故障/起落架卡住等)</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="emergency_interval" class="form-label">检查间隔 (秒)</label>
+                        <input type="number" class="form-control" id="emergency_interval"
+                            name="emergency.check_interval" min="30" max="300"
+                            value="{{ config.emergency.check_interval if config.emergency else 60 }}">
+                    </div>
+                    <div class="alert alert-warning small">
+                        ⚠️ 特情将随机触发，包括发动机火警、液压故障等。建议仅在训练时启用。
+                    </div>
+                </fieldset>
+
+                <!-- UI Settings -->
+                <fieldset class="mb-4">
+                    <legend data-i18n="ui_settings">🎨 界面设置</legend>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="dark_mode" name="ui.dark_mode"
+                            {% if config.ui and config.ui.dark_mode %}checked{% endif %}
+                            onchange="window.toggleDarkMode(this.checked)">
+                        <label class="form-check-label" for="dark_mode" data-i18n="dark_mode">深色模式</label>
+                    </div>
+                </fieldset>
+
+                <!-- Debug Kit -->
+                <fieldset class="mb-4">
+                    <legend>🛠️ Debug Kit</legend>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="infinite_pattern"
+                            name="debug.infinite_pattern" {% if config.debug and config.debug.infinite_pattern
+                            %}checked{% endif %} onchange="updateDebugConfig('infinite_pattern', this.checked)">
+                        <label class="form-check-label" for="infinite_pattern">Infinite Pattern Mode
+                            (Auto-Cycle)</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="accent_override" class="form-label">Force ATC Voice</label>
+                        <select class="form-select" id="accent_override" name="debug.accent_override"
+                            onchange="updateDebugConfig('accent_override', this.value)">
+                            <option value="Auto" {% if not config.debug or config.debug.accent_override=='Auto'
+                                %}selected{% endif %}>Auto (Region Based)</option>
+                            <option value="en-US-JennyNeural" {% if config.debug and
+                                config.debug.accent_override=='en-US-JennyNeural' %}selected{% endif %}>US Female
+                                (Jenny)</option>
+                            <option value="en-US-GuyNeural" {% if config.debug and
+                                config.debug.accent_override=='en-US-GuyNeural' %}selected{% endif %}>US Male (Guy)
+                            </option>
+                            <option value="en-GB-SoniaNeural" {% if config.debug and
+                                config.debug.accent_override=='en-GB-SoniaNeural' %}selected{% endif %}>UK Female
+                                (Sonia)</option>
+                            <option value="en-GB-RyanNeural" {% if config.debug and
+                                config.debug.accent_override=='en-GB-RyanNeural' %}selected{% endif %}>UK Male (Ryan)
+                            </option>
+                            <option value="zh-CN-XiaoxiaoNeural" {% if config.debug and
+                                config.debug.accent_override=='zh-CN-XiaoxiaoNeural' %}selected{% endif %}>Chinese
+                                Female (Xiaoxiao)</option>
+                        </select>
+                    </div>
+                </fieldset>
+
+                <button type="submit" class="btn btn-primary" data-i18n="save_config">Save Configuration</button>
             </form>
         </div>
 
@@ -62,7 +163,8 @@
         <div class="col-lg-5">
             <h2>Project Outline</h2>
             <hr>
-            <div id="readme-canvas" class="p-3 border rounded" style="height: 80vh; overflow-y: auto; background-color: #f8f9fa;">
+            <div id="readme-canvas" class="p-3 border rounded"
+                style="height: 80vh; overflow-y: auto; background-color: #f8f9fa;">
                 {{ readme_html|safe }}
             </div>
         </div>
@@ -71,86 +173,94 @@
 
 <!-- Toast container for notifications -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
-  <div id="save-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="toast-header">
-      <strong class="me-auto">OpenSky-ATC</strong>
-      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+    <div id="save-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto">OpenSky-ATC</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            Settings saved successfully!
+        </div>
     </div>
-    <div class="toast-body">
-      Settings saved successfully!
-    </div>
-  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.getElementById('settings-form').addEventListener('submit', function(e) {
-    e.preventDefault();
+    document.getElementById('settings-form').addEventListener('submit', function (e) {
+        e.preventDefault();
 
-    const formData = new FormData(this);
-    const config = {
-        user_profile: {},
-        connection: {},
-        immersion: {},
-        phraseology: {},
-        navdata: {},
-        audio: {}
-    };
+        const formData = new FormData(this);
+        const config = {
+            user_profile: {},
+            connection: {},
+            immersion: {},
+            phraseology: {},
+            navdata: {},
+            audio: {}
+        };
 
-    // Helper to set nested properties
-    function set(obj, path, value) {
-        const keys = path.split('.');
-        let current = obj;
-        for (let i = 0; i < keys.length - 1; i++) {
-            current = current[keys[i]];
+        // Helper to set nested properties
+        function set(obj, path, value) {
+            const keys = path.split('.');
+            let current = obj;
+            for (let i = 0; i < keys.length - 1; i++) {
+                current = current[keys[i]];
+            }
+            current[keys[keys.length - 1]] = value;
         }
-        current[keys[keys.length - 1]] = value;
-    }
 
-    for (const [key, value] of formData.entries()) {
-        // Handle checkboxes which don't send a value when unchecked
-        const el = document.querySelector(`[name="${key}"]`);
-        if (el.type === 'checkbox') {
-             set(config, key, el.checked);
-        } else {
-             set(config, key, value);
-        }
-    }
-    
-    // Handle any checkboxes that might be unchecked
-    document.querySelectorAll('input[type=checkbox]').forEach(cb => {
-        if (!cb.checked) {
-            if (!formData.has(cb.name)) {
-                 set(config, cb.name, false);
+        for (const [key, value] of formData.entries()) {
+            // Handle checkboxes which don't send a value when unchecked
+            const el = document.querySelector(`[name="${key}"]`);
+            if (el.type === 'checkbox') {
+                set(config, key, el.checked);
+            } else {
+                set(config, key, value);
             }
         }
-    });
+
+        // Handle any checkboxes that might be unchecked
+        document.querySelectorAll('input[type=checkbox]').forEach(cb => {
+            if (!cb.checked) {
+                if (!formData.has(cb.name)) {
+                    set(config, cb.name, false);
+                }
+            }
+        });
 
 
-    fetch('/save_settings', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(config)
-    })
-    .then(response => response.json())
-    .then(data => {
-        const toastEl = document.getElementById('save-toast');
-        const toastBody = toastEl.querySelector('.toast-body');
-        if (data.status === 'success') {
-            toastBody.textContent = 'Settings saved successfully!';
-            toastEl.classList.remove('bg-danger');
-            toastEl.classList.add('bg-success');
-        } else {
-            toastBody.textContent = 'Error saving settings.';
-            toastEl.classList.remove('bg-success');
-            toastEl.classList.add('bg-danger');
-        }
-        const toast = new bootstrap.Toast(toastEl);
-        toast.show();
+        fetch('/save_settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(config)
+        })
+            .then(response => response.json())
+            .then(data => {
+                const toastEl = document.getElementById('save-toast');
+                const toastBody = toastEl.querySelector('.toast-body');
+                if (data.status === 'success') {
+                    toastBody.textContent = 'Settings saved successfully!';
+                    toastEl.classList.remove('bg-danger');
+                    toastEl.classList.add('bg-success');
+                } else {
+                    toastBody.textContent = 'Error saving settings.';
+                    toastEl.classList.remove('bg-success');
+                    toastEl.classList.add('bg-danger');
+                }
+                const toast = new bootstrap.Toast(toastEl);
+                toast.show();
+            });
     });
-});
+
+    const socket = io();
+    function updateDebugConfig(key, value) {
+        console.log(`Debug Update: ${key} = ${value}`);
+        const data = {};
+        data[key] = value;
+        socket.emit('update_debug_config', data);
+    }
 </script>
 {% endblock %}
