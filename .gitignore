@@ -36,7 +36,7 @@ temp_audio/
 *.webm
 *.wav
 *.mp3
-*.png
+
 RELEASE_NOTES.md
 
 # Data & Output
@@ -53,6 +53,7 @@ sherpa-onnx-whisper*/
 *.bin
 *.dll
 *.onnx
+*.zip
 
 # IDE
 .vscode/
@@ -60,6 +61,7 @@ sherpa-onnx-whisper*/
 *.swp
 *.swo
 *~
+.git
 
 # OS
 Thumbs.db

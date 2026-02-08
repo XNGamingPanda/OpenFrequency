@@ -1,7 +1,7 @@
 import subprocess
 import os
 
-zip_name = "OpenFrequency_v2.5_Beta.zip"
+zip_name = "OpenFrequency_v3.0_Alpha.zip"
 
 def create_release_zip():
     # 7z exclusion list
@@ -13,7 +13,8 @@ def create_release_zip():
         '-x!.gitignore',
         '-xr!.git',
         '-x!*.log',
-        # Exclude directories
+        '-x!*.zip',
+        # Exclude directories and personal data
         '-xr!logs',
         '-xr!venv',
         '-xr!.venv',
@@ -21,6 +22,7 @@ def create_release_zip():
         '-xr!.vscode',
         '-xr!temp_audio',
         '-xr!brain',
+        '-xr!data/career/profile.json', # Exclude personal career profile
         # Self exclusion
         f'-x!{zip_name}'
     ]
