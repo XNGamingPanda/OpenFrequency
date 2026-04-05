@@ -3,6 +3,7 @@ import time
 import copy
 import math
 import random
+from core.sim_provider_factory import SimProviderFactory
 
 class SimBridge:
     def __init__(self, config, context, lock, bus):
@@ -15,6 +16,8 @@ class SimBridge:
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self.sm = None
         self.aq = None
+        self.provider = None
+        self.provider_type = self._resolve_provider_type()
         
         # Mock mode for debugging without MSFS
         debug_cfg = config.get('debug', {})
@@ -26,11 +29,108 @@ class SimBridge:
         else:
             print("SimBridge: Initialized.")
 
+    def _resolve_provider_type(self):
+        sim_config = self.config.get('simulator', {})
+        provider = sim_config.get('provider', 'auto')
+        if provider == 'auto':
+            detected = SimProviderFactory.detect_simulator()
+            return detected or 'msfs'
+        return provider
+
     def start(self):
         self._thread.start()
 
     def stop(self):
         self._stop_event.set()
+
+    def _get_simulator_label(self):
+        labels = {
+            'msfs': 'MSFS',
+            'p3d': 'P3D',
+            'xplane': 'X-Plane',
+            'fsx': 'FSX'
+        }
+        return labels.get(self.provider_type, 'Simulator')
+
+    def set_com1_frequency(self, frequency_mhz):
+        """Best-effort COM1 tuning for supported sims and mock mode."""
+        try:
+            frequency_mhz = round(float(frequency_mhz), 3)
+        except Exception:
+            return False
+
+        if self.mock_mode:
+            self.mock_data['com1_freq'] = frequency_mhz
+            with self.lock:
+                self.context['aircraft']['com1_freq'] = frequency_mhz
+            print(f"SimBridge: Mock COM1 tuned to {frequency_mhz:.3f}")
+            return True
+
+        if self.provider_type == 'xplane':
+            if not self.provider or not self.provider.is_connected():
+                return False
+            try:
+                self.provider.set_com1_frequency(frequency_mhz)
+                with self.lock:
+                    self.context['aircraft']['com1_freq'] = frequency_mhz
+                print(f"SimBridge: X-Plane COM1 tuned to {frequency_mhz:.3f}")
+                return True
+            except Exception as e:
+                print(f"SimBridge: Failed to tune X-Plane COM1 - {e}")
+                return False
+
+        if not self.sm:
+            return False
+
+        try:
+            from SimConnect import AircraftEvents
+            ae = AircraftEvents(self.sm)
+            freq_khz = int(frequency_mhz * 1000)
+            ae.find('COM_RADIO_SET_HZ').trigger(freq_khz * 1000)
+            print(f"SimBridge: COM1 tuned to {frequency_mhz:.3f}")
+            return True
+        except Exception as e:
+            print(f"SimBridge: Failed to tune COM1 - {e}")
+            return False
+
+    def trigger_failure_event(self, event_name):
+        """Best-effort failure injection for supported simulators."""
+        if self.mock_mode:
+            print(f"SimBridge: Mock failure event {event_name}")
+            return True
+
+        provider_type = self.provider_type
+
+        if provider_type == 'xplane':
+            try:
+                if not self.provider or not self.provider.is_connected():
+                    self.provider = SimProviderFactory.create(self.config)
+                    if not self.provider.connect():
+                        return False
+                self.provider.trigger_event(event_name)
+                print(f"SimBridge: Injected X-Plane failure {event_name}")
+                return True
+            except Exception as e:
+                print(f"SimBridge: Failed to inject X-Plane failure {event_name} - {e}")
+                return False
+
+        if provider_type == 'p3d':
+            if not self.sm:
+                return False
+            try:
+                from SimConnect import AircraftEvents
+                ae = AircraftEvents(self.sm)
+                event = ae.find(event_name)
+                if event:
+                    event.trigger()
+                    print(f"SimBridge: Injected P3D failure {event_name}")
+                    return True
+            except Exception as e:
+                print(f"SimBridge: Failed to inject P3D failure {event_name} - {e}")
+            return False
+
+        print(f"SimBridge: Failure injection skipped for unsupported provider {provider_type}")
+        return False
 
     def _connect(self):
         if self.mock_mode:
@@ -38,6 +138,21 @@ class SimBridge:
             print("SimBridge: Mock connection established")
             self.bus.emit('sim_connection_status', {'connected': True, 'msg': 'Mock Mode Active'})
             return True
+
+        if self.provider_type == 'xplane':
+            try:
+                self.provider = SimProviderFactory.create(self.config)
+                if not self.provider.connect():
+                    self.connected = False
+                    return False
+                self.connected = True
+                print("SimBridge: Connected to X-Plane successfully!")
+                self.bus.emit('sim_connection_status', {'connected': True, 'msg': 'Connected to X-Plane'})
+                return True
+            except Exception as e:
+                print(f"SimBridge: X-Plane connection failed - {e}")
+                self.connected = False
+                return False
             
         try:
             from SimConnect import SimConnect, AircraftRequests
@@ -150,14 +265,14 @@ class SimBridge:
         if self.mock_mode:
             print("SimBridge: Running in MOCK MODE")
         else:
-            print("SimBridge: Attempting to connect to MSFS...")
+            print(f"SimBridge: Attempting to connect to {self._get_simulator_label()}...")
         
         while not self._stop_event.is_set():
             if not self.connected:
                 if self._connect():
                     time.sleep(1)
                 else:
-                    self.bus.emit('sim_connection_status', {'connected': False, 'msg': 'Searching for MSFS...'})
+                    self.bus.emit('sim_connection_status', {'connected': False, 'msg': f"Searching for {self._get_simulator_label()}..."})
                     time.sleep(2)
                     continue
             
@@ -166,6 +281,40 @@ class SimBridge:
                 if self.mock_mode:
                     data = self._get_mock_telemetry()
                     context_update = data
+                elif self.provider_type == 'xplane':
+                    if not self.provider or not self.provider.is_connected():
+                        raise ConnectionError("X-Plane provider is not connected")
+
+                    pos = self.provider.get_position()
+                    attitude = self.provider.get_attitude()
+                    engine = self.provider.get_engine_data()
+
+                    with self.lock:
+                        previous = copy.deepcopy(self.context['aircraft'])
+
+                    context_update = {
+                        'latitude': pos.get('latitude', previous.get('latitude', 40.08)),
+                        'longitude': pos.get('longitude', previous.get('longitude', 116.58)),
+                        'altitude': pos.get('altitude', previous.get('altitude', 0)),
+                        'heading': attitude.get('heading', previous.get('heading', 0)),
+                        'airspeed': self.provider.get_airspeed(),
+                        'com1_freq': previous.get('com1_freq', 118.1),
+                        'g_force': previous.get('g_force', 1.0),
+                        'on_ground': previous.get('on_ground', False),
+                        'throttle': previous.get('throttle', 0),
+                        'flaps': self.provider.get_flaps_position(),
+                        'n1': engine.get('n1', previous.get('n1', 0)),
+                        'egt': engine.get('egt', previous.get('egt', 0)),
+                        'vs': self.provider.get_vertical_speed(),
+                        'pitch': attitude.get('pitch', previous.get('pitch', 0)),
+                        'bank': attitude.get('bank', previous.get('bank', 0)),
+                        'wind_dir': previous.get('wind_dir', 0),
+                        'wind_spd': previous.get('wind_spd', 0),
+                        'fuel_flow': engine.get('fuel_flow', previous.get('fuel_flow', 0)),
+                        'parking_brake': previous.get('parking_brake', False),
+                        'combustion': previous.get('combustion', True),
+                        'gear': 1 if self.provider.get_gear_status() else 0
+                    }
                 else:
                     # === REAL SIMCONNECT ===
                     if self.aq is None:
@@ -233,8 +382,15 @@ class SimBridge:
                 time.sleep(0.1) # 10Hz update rate
                 
             except Exception as e:
+                print(f"SimBridge: Telemetry loop error ({self._get_simulator_label()}) - {e}")
                 self.connected = False
                 self.bus.emit('sim_connection_status', {'connected': False, 'msg': 'Connection Lost'})
+                if self.provider:
+                    try:
+                        self.provider.disconnect()
+                    except Exception:
+                        pass
+                    self.provider = None
                 time.sleep(2)
         
         print("SimBridge: Thread stopped.")

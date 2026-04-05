@@ -30,6 +30,32 @@
                         <div id="simbrief-status" class="form-text x-small text-muted" data-i18n="simbrief_hint">Enter
                             username to fetch latest OFP.</div>
                     </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="flight_plan">Flight Plan</label>
+                        <div class="row g-2">
+                            <div class="col-sm-4">
+                                <label class="form-label small mb-1 mt-1" for="conf-fp-origin" data-i18n="flight_plan_origin">Origin ICAO</label>
+                                <input type="text" class="form-control form-control-sm" id="conf-fp-origin">
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label small mb-1 mt-1" for="conf-fp-destination" data-i18n="flight_plan_destination">Destination ICAO</label>
+                                <input type="text" class="form-control form-control-sm" id="conf-fp-destination">
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label small mb-1 mt-1" for="conf-fp-alternate" data-i18n="flight_plan_alternate">Alternate ICAO</label>
+                                <input type="text" class="form-control form-control-sm" id="conf-fp-alternate">
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label small mb-1 mt-1" for="conf-fp-cruise" data-i18n="flight_plan_cruise">Cruise Alt FT</label>
+                                <input type="number" class="form-control form-control-sm" id="conf-fp-cruise">
+                            </div>
+                            <div class="col-sm-8">
+                                <label class="form-label small mb-1 mt-1" for="conf-fp-route" data-i18n="flight_plan_route">Route / SID / Airway</label>
+                                <input type="text" class="form-control form-control-sm" id="conf-fp-route">
+                            </div>
+                        </div>
+                        <div class="form-text x-small text-muted" data-i18n="flight_plan_hint">Import from SimBrief or edit manually, then click Save Settings.</div>
+                    </div>
 
                     <!-- Connection Settings -->
                     <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="ai_connection">AI Connection</h6>
@@ -44,7 +70,7 @@
                         <label class="form-label small mb-0" data-i18n="api_key">API Key</label>
                         <input type="password" class="form-control form-control-sm" id="conf-api-key"
                             placeholder="Enter API Key">
-                        <div class="form-text x-small" data-i18n="api_key_hint">Existing key is hidden. Leave as ******
+                        <div class="form-text x-small text-muted" data-i18n="api_key_hint">Existing key is hidden. Leave as ******
                             to keep current.</div>
                     </div>
                     <div class="mb-2">
@@ -55,6 +81,31 @@
                         <label class="form-label small mb-0" data-i18n="base_url">Base URL (Local/Ollama)</label>
                         <input type="text" class="form-control form-control-sm" id="conf-base-url"
                             placeholder="http://localhost:11434/v1">
+                    </div>
+
+                    <!-- Simulator Settings -->
+                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="simulator_settings">Simulator</h6>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="simulator_provider">Simulator Provider</label>
+                        <select class="form-select form-select-sm" id="conf-sim-provider">
+                            <option value="auto">Auto Detect</option>
+                            <option value="msfs">MSFS / SimConnect</option>
+                            <option value="xplane">X-Plane / Local Web API</option>
+                            <option value="p3d">Prepar3D</option>
+                            <option value="fsx">FSX</option>
+                        </select>
+                    </div>
+                    <div id="xplane-config-group">
+                        <div class="row g-2">
+                            <div class="col-sm-8">
+                                <label class="form-label small mb-0" data-i18n="xplane_host">X-Plane Host</label>
+                                <input type="text" class="form-control form-control-sm" id="conf-xplane-host" placeholder="127.0.0.1">
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label small mb-0" data-i18n="xplane_port">X-Plane Web API Port</label>
+                                <input type="number" class="form-control form-control-sm" id="conf-xplane-port" placeholder="8086">
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Audio Settings -->
@@ -271,10 +322,18 @@
 
             document.getElementById('conf-callsign').value = data.user_profile?.callsign || 'N/A';
             document.getElementById('conf-simbrief-user').value = data.simbrief?.username || '';
+            document.getElementById('conf-fp-origin').value = data.flight_plan?.origin || '';
+            document.getElementById('conf-fp-destination').value = data.flight_plan?.destination || '';
+            document.getElementById('conf-fp-alternate').value = data.flight_plan?.alternate || '';
+            document.getElementById('conf-fp-cruise').value = data.flight_plan?.cruise_alt || '';
+            document.getElementById('conf-fp-route').value = data.flight_plan?.route || '';
             document.getElementById('conf-provider').value = data.connection?.provider || 'gemini';
             document.getElementById('conf-api-key').value = data.connection?.api_key || '';
             document.getElementById('conf-model').value = data.connection?.model || '';
             document.getElementById('conf-base-url').value = data.connection?.base_url || '';
+            document.getElementById('conf-sim-provider').value = data.simulator?.provider || 'auto';
+            document.getElementById('conf-xplane-host').value = data.simulator?.xplane_host || '127.0.0.1';
+            document.getElementById('conf-xplane-port').value = data.simulator?.xplane_web_port || data.simulator?.xplane_port || 8086;
             document.getElementById('conf-radio-effect').checked = data.audio.radio_effect;
             document.getElementById('conf-stt-path').value = data.audio.stt_model_path || '';
             document.getElementById('conf-stt-language').value = data.audio.stt_language || 'en';
@@ -301,6 +360,7 @@
             }
 
             toggleBaseUrl();
+            toggleSimulatorFields();
 
             // Restore PTT binding from storage if exists
             const savedBind = localStorage.getItem('ptt_binding');
@@ -325,11 +385,23 @@
             const newConfig = {
                 user_profile: { callsign: document.getElementById('conf-callsign').value },
                 simbrief: { username: document.getElementById('conf-simbrief-user').value },
+                flight_plan: {
+                    origin: document.getElementById('conf-fp-origin').value.trim().toUpperCase(),
+                    destination: document.getElementById('conf-fp-destination').value.trim().toUpperCase(),
+                    alternate: document.getElementById('conf-fp-alternate').value.trim().toUpperCase(),
+                    cruise_alt: parseInt(document.getElementById('conf-fp-cruise').value || '0', 10),
+                    route: document.getElementById('conf-fp-route').value.trim()
+                },
                 connection: {
                     provider: document.getElementById('conf-provider').value,
                     api_key: document.getElementById('conf-api-key').value,
                     model: document.getElementById('conf-model').value,
                     base_url: document.getElementById('conf-base-url').value
+                },
+                simulator: {
+                    provider: document.getElementById('conf-sim-provider').value,
+                    xplane_host: document.getElementById('conf-xplane-host').value.trim() || '127.0.0.1',
+                    xplane_web_port: parseInt(document.getElementById('conf-xplane-port').value || '8086', 10)
                 },
                 audio: {
                     radio_effect: document.getElementById('conf-radio-effect').checked,
@@ -371,7 +443,6 @@
     }
 
     async function importSimBrief() {
-        // ... (Similar to dashboard logic) ...
         const username = document.getElementById('conf-simbrief-user').value;
         if (!username) return alert("Enter username");
 
@@ -383,17 +454,39 @@
             });
             const result = await resp.json();
             if (result.status === 'success') {
-                alert("Imported: " + result.data.origin + " -> " + result.data.destination);
+                document.getElementById('conf-fp-origin').value = result.data.origin || '';
+                document.getElementById('conf-fp-destination').value = result.data.destination || '';
+                document.getElementById('conf-fp-alternate').value = result.data.alternate || '';
+                document.getElementById('conf-fp-cruise').value = result.data.cruise_alt || '';
+                document.getElementById('conf-fp-route').value = result.data.route || '';
+                if (result.callsign) {
+                    document.getElementById('conf-callsign').value = result.callsign;
+                }
+                const routeText = "Imported: " + result.data.origin + " -> " + result.data.destination;
+                const planText = result.data.route && result.data.route !== 'N/A' ? (" | Route: " + result.data.route) : "";
+                const callsignText = result.callsign ? (" | Callsign: " + result.callsign) : "";
+                document.getElementById('simbrief-status').textContent = routeText + planText + callsignText;
+                alert(routeText + planText + callsignText);
             } else {
+                document.getElementById('simbrief-status').textContent = "Error: " + result.message;
                 alert("Error: " + result.message);
             }
-        } catch (e) { alert("Network Error"); }
+        } catch (e) {
+            document.getElementById('simbrief-status').textContent = "Network Error";
+            alert("Network Error");
+        }
     }
 
     document.getElementById('conf-provider').addEventListener('change', toggleBaseUrl);
+    document.getElementById('conf-sim-provider').addEventListener('change', toggleSimulatorFields);
     function toggleBaseUrl() {
         const val = document.getElementById('conf-provider').value;
         document.getElementById('base-url-group').style.display = (val === 'openai_compatible') ? 'block' : 'none';
+    }
+
+    function toggleSimulatorFields() {
+        const val = document.getElementById('conf-sim-provider').value;
+        document.getElementById('xplane-config-group').style.display = (val === 'xplane') ? 'block' : 'none';
     }
 
     function testAudio() {

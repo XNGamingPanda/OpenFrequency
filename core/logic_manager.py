@@ -9,15 +9,19 @@ class LogicManager:
     The central coordinator. Does not own other modules.
     It subscribes to events on the EventBus and emits data to the UI via SocketIO.
     """
-    def __init__(self, config, socketio):
+    def __init__(self, config, socketio, airport_frequency_service=None):
         self.config = config
         self.socketio = socketio
+        self.airport_frequency_service = airport_frequency_service
         self.workload_sim = WorkloadSimulator(config)
         self.scheduler = None
         self.last_freq = 0.0
         self.message_history = [] # Buffer for chat log
         self.previous_controller_history = []  # Issue 5: Retain context from previous controller
         self.previous_controller_name = None
+        self.channel_histories = {}
+        self.channel_controllers = {}
+        self.active_channel_key = ""
         
         # Intercom target: 'ATC' (default) or 'CABIN'
         self.intercom_target = 'ATC'
@@ -63,6 +67,9 @@ class LogicManager:
         event_bus.on('user_speech_recognized', self.on_user_speech)
         event_bus.on('llm_response_generated', self.on_llm_response)
         event_bus.on('sim_connection_status', self.on_sim_status)
+        event_bus.on('flight_plan_loaded', self.on_flight_plan_loaded)
+        event_bus.on('metar_fetch_request', self._handle_metar_fetch_request)
+        event_bus.on('external_chat_log', self._handle_external_chat_log)
         
         # Start Infinite Pattern Loop if enabled
         if self.infinite_pattern and self.scheduler:
@@ -183,12 +190,18 @@ class LogicManager:
                         # Actually, let's just make the AI aware of it.
                         
                     print(f"LogicManager: METAR updated: {raw_text}")
+                    event_bus.emit('metar_updated', icao, raw_text, metar_obj)
                     return raw_text
             else:
                 print(f"LogicManager: Fetch failed {resp.status_code}")
         except Exception as e:
             print(f"LogicManager: METAR fetch error: {e}")
         return None
+
+    def _handle_metar_fetch_request(self, icao):
+        if not icao or icao == 'N/A':
+            return
+        self._fetch_metar(icao)
 
     def _update_metar(self):
         """Called periodically to update weather."""
@@ -229,6 +242,154 @@ class LogicManager:
         except Exception as e:
             print(f"LogicManager: Logging failed: {e}")
 
+    def _handle_external_chat_log(self, sender, text):
+        self._broadcast_chat(sender, text)
+
+    def on_flight_plan_loaded(self, flight_plan):
+        self._refresh_nearby_airports(force=True)
+
+    def _refresh_nearby_airports(self, force=False):
+        if not self.airport_frequency_service:
+            return []
+
+        with context_lock:
+            aircraft = dict(shared_context.get('aircraft', {}))
+            flight_plan = dict(shared_context.get('flight_plan', {}))
+            existing = shared_context.get('environment', {}).get('nearby_airports', [])
+
+        lat = aircraft.get('latitude')
+        lon = aircraft.get('longitude')
+        sqlite_path = self.config.get('navdata', {}).get('sqlite_path', '')
+
+        airports = self.airport_frequency_service.get_nearby_airports(lat, lon, sqlite_path)
+
+        # Fallback if nav DB is unavailable: include current flight plan airports if frequency data exists.
+        if not airports:
+            fallback_idents = []
+            for key in ('origin', 'destination', 'alternate'):
+                ident = (flight_plan.get(key) or '').strip().upper()
+                if ident and ident not in fallback_idents:
+                    fallback_idents.append(ident)
+
+            for ident in fallback_idents:
+                freqs = self.airport_frequency_service.get_airport_frequencies(ident)
+                if freqs:
+                    airports.append({
+                        "ident": ident,
+                        "name": ident,
+                        "lat": None,
+                        "lon": None,
+                        "distance_nm": None,
+                        "frequencies": freqs
+                    })
+
+        if force or airports != existing:
+            with context_lock:
+                shared_context['environment']['nearby_airports'] = airports
+                if airports:
+                    shared_context['environment']['current_airport'] = airports[0]['ident']
+            self.socketio.emit('nearby_frequencies_update', {'airports': airports})
+
+        return airports
+
+    def _format_channel_key(self, airport_ident, frequency_mhz, role):
+        airport_ident = (airport_ident or 'AREA').strip().upper()
+        role = (role or 'ATC').strip()
+        return f"{airport_ident}:{float(frequency_mhz):.3f}:{role}"
+
+    def _find_frequency_entry(self, frequency_mhz):
+        airports = self._refresh_nearby_airports()
+        if not airports:
+            with context_lock:
+                airports = list(shared_context.get('environment', {}).get('nearby_airports', []))
+
+        try:
+            frequency_mhz = round(float(frequency_mhz), 3)
+        except Exception:
+            return None
+
+        best_match = None
+        best_delta = 999.0
+        for airport in airports:
+            for entry in airport.get('frequencies', []):
+                delta = abs(float(entry.get('frequency_mhz', 0.0)) - frequency_mhz)
+                if delta < best_delta and delta <= 0.01:
+                    best_delta = delta
+                    best_match = {
+                        "airport_ident": airport.get('ident'),
+                        "airport_name": airport.get('name'),
+                        "distance_nm": airport.get('distance_nm'),
+                        "frequency_mhz": float(entry.get('frequency_mhz')),
+                        "label": entry.get('label', ''),
+                        "role": entry.get('role', 'ATC'),
+                        "description": entry.get('description', '')
+                    }
+        return best_match
+
+    def _restore_channel_history(self, channel_key):
+        restored = list(self.channel_histories.get(channel_key, []))
+        self.message_history = restored
+        self.socketio.emit('chat_history_replace', {
+            'channel_key': channel_key,
+            'messages': restored
+        })
+
+    def switch_frequency_context(self, frequency_mhz, source='sim'):
+        freq_entry = self._find_frequency_entry(frequency_mhz)
+        current_controller = None
+
+        with context_lock:
+            if self.active_channel_key:
+                self.channel_histories[self.active_channel_key] = list(self.message_history)
+                self.channel_controllers[self.active_channel_key] = shared_context['atc_state'].get('current_controller', 'ATC')
+
+            if freq_entry:
+                role = freq_entry['role']
+                airport_ident = freq_entry['airport_ident']
+                label = freq_entry['label']
+                final_role = role if role in ["Center", "Emergency", "Unicom"] else f"{airport_ident} {role}"
+                channel_key = self._format_channel_key(airport_ident, frequency_mhz, role)
+                shared_context['environment']['current_airport'] = airport_ident
+                shared_context['atc_state']['current_controller'] = final_role
+                shared_context['atc_state']['current_frequency_label'] = label
+                shared_context['atc_state']['current_frequency_role'] = role
+                shared_context['atc_state']['current_channel_key'] = channel_key
+            else:
+                role = self._determine_controller(frequency_mhz, shared_context['aircraft'].get('altitude', 0))
+                airport_ident = shared_context['environment'].get('nearest_airport', 'AREA')
+                final_role = role if role in ["Center", "Emergency", "Unicom"] else f"{airport_ident} {role}"
+                channel_key = self._format_channel_key(airport_ident, frequency_mhz, role)
+                shared_context['atc_state']['current_controller'] = final_role
+                shared_context['atc_state']['current_frequency_label'] = f"{final_role} {float(frequency_mhz):.3f}"
+                shared_context['atc_state']['current_frequency_role'] = role
+                shared_context['atc_state']['current_channel_key'] = channel_key
+
+            shared_context['atc_state']['current_frequency'] = round(float(frequency_mhz), 3)
+            current_controller = shared_context['atc_state']['current_controller']
+            self.active_channel_key = channel_key
+
+        self._restore_channel_history(self.active_channel_key)
+        self.previous_controller_name = self.channel_controllers.get(self.active_channel_key, current_controller)
+        self.socketio.emit('radio_context_changed', {
+            'frequency': round(float(frequency_mhz), 3),
+            'controller': current_controller,
+            'channel_key': self.active_channel_key,
+            'source': source
+        })
+
+        self._broadcast_chat("SYSTEM", f"Tuned: {float(frequency_mhz):.3f} ({current_controller})")
+        if "ATIS" in current_controller:
+            self._broadcast_chat("SYSTEM", "--- ATIS Broadcast ---")
+            airport_ident = freq_entry['airport_ident'] if freq_entry else None
+            if airport_ident:
+                event_bus.emit('atis_playback_request', airport_ident)
+        elif not self.message_history:
+            if "Emergency" in current_controller:
+                self._broadcast_chat("SYSTEM", "--- Emergency Frequency 121.5 ---")
+            elif "Unicom" not in current_controller:
+                self._broadcast_chat("SYSTEM", "--- Switchboard: New Controller ---")
+                event_bus.emit('proactive_atc_request', "pilot_tuned_new_frequency", shared_context)
+
     def _determine_controller(self, freq, altitude=None):
         """Frequency map with emergency, ATIS, and altitude awareness."""
         f = float(freq)
@@ -246,13 +407,15 @@ class LogicManager:
             return "Ground"
         elif 118.0 <= f <= 118.95:
             return "Tower"
+        elif 118.95 < f < 119.0:
+            return "Clearance Delivery"
         elif 122.8 == f:
             return "Unicom"
         elif 119.0 <= f <= 136.0:
             # Issue 1: Altitude-based determination
             if altitude and altitude > 18000:
                 return "Center"
-            return "Approach/Departure"
+            return "Approach"
         return "Center"
 
     def _get_current_sender_name(self):
@@ -284,6 +447,7 @@ class LogicManager:
         spd = ac_data.get('speed')
         
         if lat is not None and lon is not None:
+            self._refresh_nearby_airports()
             should_log = True
             is_teleport = False
             
@@ -324,45 +488,7 @@ class LogicManager:
             current_freq = ac_data.get('com1_freq')
             current_alt = ac_data.get('altitude', 0)
             if current_freq and current_freq != self.last_freq:
-                new_controller = self._determine_controller(current_freq, current_alt)
-                
-                if new_controller != shared_context['atc_state']['current_controller']:
-                    # Try to get location context
-                    icao = shared_context['environment'].get('nearest_airport', 'N/A')
-                    if icao == 'N/A' or len(icao) != 4:
-                        icao = shared_context['flight_plan'].get('origin', '')
-                    
-                    final_role = new_controller
-                    if icao and len(icao) == 4 and new_controller not in ["Center", "Control", "Emergency", "ATIS"]:
-                        final_role = f"{icao} {new_controller}"
-                    
-                    # Issue 5: Save previous context before clearing
-                    if self.message_history:
-                        self.previous_controller_name = shared_context['atc_state'].get('current_controller', 'Previous ATC')
-                        self.previous_controller_history = list(self.message_history)[-10:]  # Keep last 10
-                    
-                    shared_context['atc_state']['current_controller'] = final_role
-                    
-                    # Clear current history but keep previous controller reference
-                    self.message_history.clear()
-                    print(f"LogicManager: Context switched. Previous controller: {self.previous_controller_name}")
-                    
-                    msg = f"Tuned: {current_freq} ({final_role})"
-                    self._broadcast_chat("SYSTEM", msg)
-                    
-                    # Issue 7: Handle ATIS specially
-                    if new_controller == "ATIS":
-                        self._broadcast_chat("SYSTEM", "--- ATIS Broadcast ---")
-                        event_bus.emit('atis_playback_request', icao)
-                    elif new_controller == "Emergency":
-                        self._broadcast_chat("SYSTEM", "--- Emergency Frequency 121.5 ---")
-                    else:
-                        self._broadcast_chat("SYSTEM", "--- Switchboard: New Controller ---")
-                        # PROACTIVE TRIGGER
-                        if new_controller != "Unicom":
-                            print(f"LogicManager: Triggering Proactive Greeting for {new_controller}")
-                            event_bus.emit('proactive_atc_request', "pilot_tuned_new_frequency", shared_context)
-
+                self.switch_frequency_context(current_freq, source='sim')
                 self.last_freq = current_freq
 
             # === 主动移交触发逻辑 ===

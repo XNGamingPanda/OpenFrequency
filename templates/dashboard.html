@@ -3,6 +3,18 @@
 {% block container_class %}container-fluid p-3 h-100{% endblock %}
 
 {% block content %}
+<style>
+    #radio-crew+label {
+        border-color: #dc3545 !important;
+        color: #dc3545 !important;
+    }
+
+    #radio-crew:checked+label {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        color: #fff !important;
+    }
+</style>
 <div class="row h-100">
     <!-- Header Row (Full Width) -->
     <div class="col-12 mb-3">
@@ -63,8 +75,8 @@
                     type="button" role="tab" data-i18n="tab_map">Map</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="radar-tab" data-bs-toggle="tab" data-bs-target="#radar-pane" type="button"
-                    role="tab" data-i18n="tab_radar">Radar (Traffic)</button>
+                <button class="nav-link" id="radios-tab" data-bs-toggle="tab" data-bs-target="#radios-pane" type="button"
+                    role="tab" data-i18n="tab_nearby_airports">Nearby Airports</button>
             </li>
         </ul>
 
@@ -81,11 +93,17 @@
                     </button>
                 </div>
             </div>
-            <!-- Radar Pane -->
-            <div class="tab-pane fade h-100 w-100 position-relative bg-dark" id="radar-pane" role="tabpanel">
-                <canvas id="radarCanvas" class="w-100 h-100"></canvas>
-                <div class="position-absolute top-0 end-0 p-2 text-success small monospace">
-                    RANGE: <span id="radar-range">10</span> NM
+            <!-- Nearby Frequencies Pane -->
+            <div class="tab-pane fade h-100 w-100 position-relative bg-light" id="radios-pane" role="tabpanel">
+                <div class="p-3 h-100 overflow-auto">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong data-i18n="nearby_airports_title">Nearby Airports & Frequencies</strong>
+                        <span id="active-frequency-badge" class="badge bg-primary">No Active Channel</span>
+                    </div>
+                    <div class="mb-3">
+                        <button id="btn-refresh-airport-data" class="btn btn-sm btn-outline-secondary" type="button" data-i18n="refresh_airport_data">Refresh Airport Data</button>
+                    </div>
+                    <div id="nearby-airports-list" class="d-grid gap-2"></div>
                 </div>
             </div>
         </div>
@@ -127,7 +145,7 @@
             <label class="btn btn-outline-primary" for="radio-atc" data-i18n="radio_atc">📡 ATC</label>
 
             <input type="radio" class="btn-check" name="radio-channel" id="radio-crew" value="crew">
-            <label class="btn btn-outline-pink" for="radio-crew" style="border-color: #e83e8c; color: #e83e8c;"
+            <label class="btn" for="radio-crew"
                 data-i18n="radio_crew">👥 Crew</label>
         </div>
 
@@ -169,12 +187,119 @@
     const airspeedEl = document.getElementById('data-airspeed');
     const headingEl = document.getElementById('data-heading');
     const vsEl = document.getElementById('data-vs');
+    const nearbyAirportsList = document.getElementById('nearby-airports-list');
+    const activeFrequencyBadge = document.getElementById('active-frequency-badge');
+
+    function i18nText(key, fallback) {
+        const currentLang = localStorage.getItem('language') || 'en';
+        return (window.TRANSLATIONS && window.TRANSLATIONS[currentLang] && window.TRANSLATIONS[currentLang][key]) || fallback;
+    }
+
+    function getEmergencyAlertText(data) {
+        const engineNum = data.engine_num || 1;
+        const systemDetail = data.system_detail ? ` (${data.system_detail})` : '';
+        const map = {
+            engine_fire: i18nText('emergency_engine_fire', `ENGINE ${engineNum} FIRE! Declare emergency!`),
+            engine_failure: i18nText('emergency_engine_failure', `ENGINE ${engineNum} FAILURE! Check engine parameters!`),
+            gear_stuck: i18nText('emergency_gear_stuck', 'GEAR MALFUNCTION! Landing gear not responding!'),
+            hydraulic_fail: i18nText('emergency_hydraulic_fail', `HYDRAULIC FAILURE${systemDetail}! Flight controls degraded!`),
+            electrical_fail: i18nText('emergency_electrical_fail', `ELECTRICAL FAILURE${systemDetail}! Systems offline!`),
+            bird_strike: i18nText('emergency_bird_strike', `BIRD STRIKE on Engine ${engineNum}! Inspect engines!`)
+        };
+        return map[data.type] || data.message || i18nText('emergency_generic', 'Emergency detected');
+    }
+
+    socket.on('emergency_alert', (data) => {
+        data.message = getEmergencyAlertText(data);
+    });
 
     // Radar Logic
     const radarCanvas = document.getElementById('radarCanvas');
     let trafficData = []; // [{callsign, lat, lon, alt, hdg, spd, vs, ...}]
     let ownship = { lat: 0, lon: 0, hdg: 0, alt: 0 };
     let radarRange = 10; // NM
+
+    function renderNearbyAirports(airports, activeFrequency, currentController) {
+        if (!nearbyAirportsList) return;
+
+        if (activeFrequencyBadge) {
+            if (activeFrequency) {
+                activeFrequencyBadge.textContent = `${Number(activeFrequency).toFixed(3)} ${currentController || ''}`.trim();
+            } else {
+                activeFrequencyBadge.textContent = i18nText('no_active_channel', 'No Active Channel');
+            }
+        }
+
+        if (!airports || airports.length === 0) {
+            nearbyAirportsList.innerHTML = `<div class="text-muted">${i18nText('no_nearby_frequencies', 'No nearby airport frequencies available.')}</div>`;
+            return;
+        }
+
+        nearbyAirportsList.innerHTML = airports.map(airport => {
+            const distanceText = airport.distance_nm !== null && airport.distance_nm !== undefined
+                ? `${airport.distance_nm} NM`
+                : 'Flight Plan';
+            const freqButtons = (airport.frequencies || []).map(freq => {
+                const mhz = Number(freq.frequency_mhz).toFixed(3);
+                const isActive = Math.abs(Number(freq.frequency_mhz) - Number(activeFrequency || 0)) < 0.005;
+                return `
+                    <button class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline-primary'} tune-frequency-btn"
+                        data-frequency="${mhz}">
+                        ${freq.role || 'ATC'} ${mhz}
+                    </button>
+                `;
+            }).join('');
+
+            return `
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <strong>${airport.ident}</strong>
+                                <span class="text-muted">${airport.name || ''}</span>
+                            </div>
+                            <span class="badge bg-secondary">${distanceText}</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">${freqButtons || '<span class="text-muted">No frequencies</span>'}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        nearbyAirportsList.querySelectorAll('.tune-frequency-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const frequency = parseFloat(btn.getAttribute('data-frequency'));
+                socket.emit('tune_frequency', { frequency });
+            });
+        });
+    }
+
+    async function loadNearbyFrequencies() {
+        try {
+            const resp = await fetch('/api/nearby_frequencies');
+            const data = await resp.json();
+            renderNearbyAirports(data.airports || [], data.active_frequency, data.current_controller);
+        } catch (e) {
+            if (nearbyAirportsList) nearbyAirportsList.innerHTML = `<div class="text-danger">${i18nText('nearby_frequencies_load_failed', 'Failed to load nearby frequencies.')}</div>`;
+        }
+    }
+
+    async function refreshAirportData() {
+        const btn = document.getElementById('btn-refresh-airport-data');
+        if (btn) btn.disabled = true;
+        try {
+            const resp = await fetch('/api/airport_data/refresh', { method: 'POST' });
+            const data = await resp.json();
+            if (!resp.ok || data.status !== 'success') {
+                throw new Error(data.message || 'Refresh failed');
+            }
+            await loadNearbyFrequencies();
+        } catch (e) {
+            alert(i18nText('airport_data_refresh_failed', 'Airport data refresh failed'));
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
 
     function initRadar() {
         if (!radarCanvas) return;
@@ -276,12 +401,21 @@
     const textInput = document.getElementById('text-input');
     const btnSendText = document.getElementById('btn-send-text');
 
+    function getSelectedChannel() {
+        const crewRadio = document.getElementById('radio-crew');
+        return crewRadio && crewRadio.checked ? 'crew' : 'atc';
+    }
+
     // --- Text Input Logic ---
     function sendText() {
         if (!textInput) return;
         const text = textInput.value.trim();
         if (text) {
-            socket.emit('text_input', text);
+            if (getSelectedChannel() === 'crew') {
+                socket.emit('crew_message', { text: text, target: 'all' });
+            } else {
+                socket.emit('text_input', text);
+            }
             textInput.value = '';
         }
     }
@@ -379,6 +513,93 @@
         return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
     }
 
+    const ALTITUDE_COLOR_STOPS = [
+        { ratio: 0.00, color: '#153a8a' },
+        { ratio: 0.08, color: '#38bdf8' },
+        { ratio: 0.22, color: '#22c55e' },
+        { ratio: 0.45, color: '#eab308' },
+        { ratio: 0.68, color: '#f97316' },
+        { ratio: 0.85, color: '#ef4444' },
+        { ratio: 1.00, color: '#a855f7' }
+    ];
+
+    function getAltitudeRangeMax() {
+        return flightModeIFR ? 40000 : 15000;
+    }
+
+    function getAltitudeColor(alt) {
+        const ratio = Math.max(0, Math.min(Number(alt || 0) / getAltitudeRangeMax(), 1.0));
+        for (let i = 0; i < ALTITUDE_COLOR_STOPS.length - 1; i++) {
+            const start = ALTITUDE_COLOR_STOPS[i];
+            const end = ALTITUDE_COLOR_STOPS[i + 1];
+            if (ratio <= end.ratio) {
+                const span = end.ratio - start.ratio || 1;
+                const t = (ratio - start.ratio) / span;
+                return interpolateColor(start.color, end.color, Math.max(0, Math.min(t, 1)));
+            }
+        }
+        return ALTITUDE_COLOR_STOPS[ALTITUDE_COLOR_STOPS.length - 1].color;
+    }
+
+    function createLegendScaleHtml() {
+        const maxAlt = getAltitudeRangeMax();
+        const tickValues = flightModeIFR
+            ? [0, 5000, 10000, 18000, 25000, 32000, 40000]
+            : [0, 1000, 3000, 5000, 8000, 12000, 15000];
+        const gradient = ALTITUDE_COLOR_STOPS
+            .map(stop => `${stop.color} ${Math.round(stop.ratio * 100)}%`)
+            .join(', ');
+        const ticks = tickValues.map(value => {
+            const left = (value / maxAlt) * 100;
+            return `
+                <div style="position:absolute;left:${left}%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.35);"></div>
+                <div style="position:absolute;left:${left}%;top:16px;transform:translateX(-50%);font-size:10px;white-space:nowrap;">
+                    ${value.toLocaleString()} ft
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div style="margin-top:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px;">
+                    <span>0 ft</span>
+                    <span>${maxAlt.toLocaleString()} ft</span>
+                </div>
+                <div style="position:relative;height:34px;">
+                    <div style="height:12px;border-radius:999px;background:linear-gradient(to right, ${gradient});border:1px solid rgba(255,255,255,0.25);"></div>
+                    ${ticks}
+                </div>
+            </div>
+        `;
+    }
+
+    function updateAltitudeLegend() {
+        const legendScale = document.getElementById('altitude-legend-scale');
+        if (legendScale) {
+            legendScale.innerHTML = createLegendScaleHtml();
+        }
+    }
+
+    function redrawFlightPath() {
+        while (flightPathSegments.length > 0) {
+            const segment = flightPathSegments.pop();
+            if (map.hasLayer(segment)) {
+                map.removeLayer(segment);
+            }
+        }
+
+        for (let i = 0; i < flightPathNodes.length - 1; i++) {
+            const start = flightPathNodes[i];
+            const end = flightPathNodes[i + 1];
+            const startAlt = Number(flightPathAlts[i] || 0);
+            const endAlt = Number(flightPathAlts[i + 1] || startAlt);
+            const segmentAlt = (startAlt + endAlt) / 2;
+            const color = getAltitudeColor(segmentAlt);
+            const segment = L.polyline([start, end], { color: color, weight: 3 }).addTo(map);
+            flightPathSegments.push(segment);
+        }
+    }
+
     // Add IFR/VFR selector and altitude legend to map
     const legend = L.control({ position: 'bottomright' });
     legend.onAdd = function (map) {
@@ -403,11 +624,31 @@
     };
     legend.addTo(map);
 
+    function refreshLegendUi() {
+        const legendEl = document.querySelector('.altitude-legend');
+        if (!legendEl) return;
+        legendEl.innerHTML = `
+            <div style="font-weight:bold;margin-bottom:4px;">Altitude</div>
+            <div style="margin-bottom:6px;">
+                <select id="flightModeSelect" style="width:100%;padding:2px;border-radius:3px;font-size:10px;">
+                    <option value="IFR" ${flightModeIFR ? 'selected' : ''}>IFR (0-40,000ft)</option>
+                    <option value="VFR" ${!flightModeIFR ? 'selected' : ''}>VFR (0-15,000ft)</option>
+                </select>
+            </div>
+            <div style="font-size:10px;opacity:0.9;">Track color uses a continuous altitude gradient.</div>
+            <div id="altitude-legend-scale">${createLegendScaleHtml()}</div>
+        `;
+    }
+
+    refreshLegendUi();
+
     // IFR/VFR mode change handler
     document.addEventListener('change', (e) => {
         if (e.target && e.target.id === 'flightModeSelect') {
             flightModeIFR = e.target.value === 'IFR';
             console.log('Flight mode changed to:', flightModeIFR ? 'IFR' : 'VFR');
+            refreshLegendUi();
+            redrawFlightPath();
         }
     });
 
@@ -475,7 +716,8 @@
                 if (shouldDrawSegment && flightPathNodes.length > 0) {
                     // Create gradient-colored segment
                     const lastNode = flightPathNodes[flightPathNodes.length - 1];
-                    const color = getAltitudeColor(alt);
+                    const lastAlt = Number(flightPathAlts[flightPathAlts.length - 1] || alt);
+                    const color = getAltitudeColor((lastAlt + alt) / 2);
                     const segment = L.polyline([lastNode, latLng], { color: color, weight: 3 }).addTo(map);
                     flightPathSegments.push(segment);
                 }
@@ -484,10 +726,7 @@
                 flightPathAlts.push(alt);
                 lastValidPosition = latLng;
 
-                // Persist path history (debounce)
-                if (flightPathNodes.length % 5 === 0) {
-                    localStorage.setItem('flight_path', JSON.stringify({ nodes: flightPathNodes, alts: flightPathAlts }));
-                }
+                localStorage.setItem('flight_path', JSON.stringify({ nodes: flightPathNodes, alts: flightPathAlts }));
             }
         }
     });
@@ -495,6 +734,32 @@
     // Traffic Update Listener
     socket.on('traffic_update', (data) => {
         trafficData = data;
+    });
+
+    socket.on('nearby_frequencies_update', (data) => {
+        loadNearbyFrequencies();
+    });
+
+    socket.on('radio_context_changed', (data) => {
+        if (activeFrequencyBadge) {
+            activeFrequencyBadge.textContent = `${Number(data.frequency).toFixed(3)} ${data.controller || ''}`.trim();
+        }
+        loadNearbyFrequencies();
+    });
+
+    socket.on('chat_history_replace', (data) => {
+        if (!logContainer) return;
+        logContainer.innerHTML = '';
+        (data.messages || []).forEach(msg => {
+            const div = document.createElement('div');
+            const colors = getRoleColor(msg.sender);
+            const align = msg.sender === 'Pilot' ? 'text-end' : 'text-start';
+            div.className = `mb-2 p-2 rounded ${align}`;
+            div.style.cssText = `background-color: ${colors.bg}; color: ${colors.text};`;
+            div.innerHTML = `<strong>${msg.sender}:</strong> ${msg.text}`;
+            logContainer.appendChild(div);
+        });
+        logContainer.scrollTop = logContainer.scrollHeight;
     });
 
     // Landing Review Listener (Show parsed roast in chat)
@@ -574,13 +839,7 @@
                     flightPathAlts = data.alts || []; // Compatibility
 
                     // Reconstruct path on map
-                    for (let i = 0; i < flightPathNodes.length - 1; i++) {
-                        const start = flightPathNodes[i];
-                        const end = flightPathNodes[i + 1];
-                        const alt = flightPathAlts[i + 1] || 0;
-                        const color = getAltitudeColor(alt);
-                        L.polyline([start, end], { color: color, weight: 3 }).addTo(map);
-                    }
+                    redrawFlightPath();
                 }
             } catch (e) {
                 console.error("Failed to load flight path history:", e);
@@ -590,6 +849,14 @@
     }
     // Call load on init
     loadFlightPath();
+    window.addEventListener('beforeunload', () => {
+        localStorage.setItem('flight_path', JSON.stringify({ nodes: flightPathNodes, alts: flightPathAlts }));
+    });
+    loadNearbyFrequencies();
+    const refreshAirportDataBtn = document.getElementById('btn-refresh-airport-data');
+    if (refreshAirportDataBtn) {
+        refreshAirportDataBtn.addEventListener('click', refreshAirportData);
+    }
 
     // --- Clear Flight Trail (Fix #1, #6) ---
     function clearMapTrail() {
@@ -615,30 +882,61 @@
     // --- Audio & socket logic same as before ---
     let mediaRecorder;
     let audioChunks = [];
+    const playbackQueue = [];
+    let isPlaybackActive = false;
+
+    function enqueueAudioPlayback(audioUrl, volume = 1.0) {
+        playbackQueue.push({ audioUrl, volume });
+        if (!isPlaybackActive) {
+            playNextQueuedAudio();
+        }
+    }
+
+    function playNextQueuedAudio() {
+        if (playbackQueue.length === 0) {
+            isPlaybackActive = false;
+            return;
+        }
+
+        isPlaybackActive = true;
+        const { audioUrl, volume } = playbackQueue.shift();
+        const audio = new Audio(audioUrl);
+        audio.volume = volume;
+        audio.addEventListener('ended', () => {
+            URL.revokeObjectURL(audioUrl);
+            playNextQueuedAudio();
+        }, { once: true });
+        audio.addEventListener('error', () => {
+            URL.revokeObjectURL(audioUrl);
+            playNextQueuedAudio();
+        }, { once: true });
+        audio.play().catch(e => {
+            console.error(e);
+            URL.revokeObjectURL(audioUrl);
+            playNextQueuedAudio();
+        });
+    }
 
     socket.on('connect', () => {
         const el = document.getElementById('status-badge');
         el.className = 'badge bg-warning'; // Warning until Sim connects
-        const lang = localStorage.getItem('language') || 'en';
-        el.innerText = (lang === 'zh') ? "服务器已连接" : "Server Connected";
+        el.innerText = i18nText('server_connected', 'Server Connected');
     });
 
     socket.on('disconnect', () => {
         const el = document.getElementById('status-badge');
         el.className = 'badge bg-danger';
-        const lang = localStorage.getItem('language') || 'en';
-        el.innerText = (lang === 'zh') ? "服务器断开" : "Server Disconnected";
+        el.innerText = i18nText('server_disconnected', 'Server Disconnected');
     });
 
     socket.on('sim_status', (data) => {
         const el = document.getElementById('status-badge');
-        const lang = localStorage.getItem('language') || 'en';
         if (data.connected) {
             el.className = 'badge bg-success';
-            el.innerText = (lang === 'zh') ? "飞行模拟器已连接" : "Sim Connected";
+            el.innerText = i18nText('sim_connected', 'Sim Connected');
         } else {
             el.className = 'badge bg-secondary';
-            el.innerText = (lang === 'zh') ? "寻找模拟器..." : "Searching Sim...";
+            el.innerText = i18nText('searching_sim', 'Searching Sim...');
         }
     });
 
@@ -691,7 +989,7 @@
             }
             const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
             const audioUrl = URL.createObjectURL(audioBlob);
-            new Audio(audioUrl).play().catch(e => console.error(e));
+            enqueueAudioPlayback(audioUrl, 1.0);
         } catch (e) { console.error(e); }
     });
 
@@ -706,9 +1004,7 @@
             }
             const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
             const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-            audio.volume = chatterVolume;  // Lower volume for background
-            audio.play().catch(e => console.error(e));
+            enqueueAudioPlayback(audioUrl, chatterVolume);
         } catch (e) { console.error(e); }
     });
 
@@ -802,7 +1098,10 @@
     if (radioAtc && radioCrew) {
         radioAtc.addEventListener('change', () => {
             currentChannel = 'atc';
-            if (crewControls) crewControls.style.display = 'none';
+            if (crewControls) {
+                crewControls.style.display = 'none';
+                crewControls.classList.add('d-none');
+            }
             // Emit intercom toggle to backend
             socket.emit('toggle_intercom', { target: 'ATC' });
             console.log('Radio channel: ATC');
@@ -810,7 +1109,10 @@
 
         radioCrew.addEventListener('change', () => {
             currentChannel = 'crew';
-            if (crewControls) crewControls.style.display = 'block';
+            if (crewControls) {
+                crewControls.style.display = 'block';
+                crewControls.classList.remove('d-none');
+            }
             // Emit intercom toggle to backend
             socket.emit('toggle_intercom', { target: 'CABIN' });
             console.log('Radio channel: Crew');
@@ -830,20 +1132,10 @@
     // 使用第269行已声明的 textInput 和 btnSendText 变量
     if (btnSendText && textInput) {
         // 覆盖原有 onclick，添加基于频道的新逻辑
-        btnSendText.onclick = () => {
-            const text = textInput.value.trim();
-            if (!text) return;
-
-            if (currentChannel === 'atc') {
-                socket.emit('user_text', { text: text, channel: 'atc' });
-            } else {
-                socket.emit('crew_message', { text: text, target: 'all' }); // all = FO + Purser
-            }
-            textInput.value = '';
-        };
+        btnSendText.onclick = sendText;
 
         textInput.onkeypress = (e) => {
-            if (e.key === 'Enter') btnSendText.click();
+            if (e.key === 'Enter') sendText();
         };
     }
 

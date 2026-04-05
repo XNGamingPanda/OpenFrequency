@@ -14,9 +14,21 @@ class LLMClient:
             "duties": "Takeoff/Landing clearances, Runway crossing, Pattern entry.",
             "taboos": "Do NOT give complex taxi instructions to gates. Do NOT vector aircraft far from airport."
         },
+        "Clearance Delivery": {
+            "duties": "IFR clearance delivery, squawk assignment, departure clearance confirmation.",
+            "taboos": "Do NOT issue takeoff or landing clearance. Do NOT provide radar vectors after departure."
+        },
         "Approach/Departure": {
             "duties": "Radar vectors, Altitude assignments, ILS/Visual approach clearance.",
             "taboos": "Do NOT give ground taxi instructions. Do NOT clear for takeoff/landing (handoff to Tower)."
+        },
+        "Approach": {
+            "duties": "Arrival sequencing, vectors, altitude assignments, ILS/visual approach clearance.",
+            "taboos": "Do NOT give taxi instructions. Do NOT issue takeoff clearance."
+        },
+        "Departure": {
+            "duties": "Departure radar vectors, climb instructions, SID transitions, handoff to Center.",
+            "taboos": "Do NOT issue landing clearance. Do NOT issue gate or taxi instructions."
         },
         "Center": {
             "duties": "Enroute cruise, High altitude routing, Handoffs. When aircraft leaves your airspace, provide handoff frequency.",
@@ -189,9 +201,21 @@ class LLMClient:
         
         # Weather
         metar = context_copy['environment'].get('metar', 'N/A')
+        current_frequency = context_copy['atc_state'].get('current_frequency', 0.0)
+        current_frequency_label = context_copy['atc_state'].get('current_frequency_label', 'N/A')
+        nearby_airports = context_copy['environment'].get('nearby_airports', [])
+        current_airport = context_copy['environment'].get('current_airport', nearest_airport)
         
         # === 频率数据库 (如无配置则随机生成) ===
-        freq_db = self.config.get('frequencies', {})
+        freq_db = dict(self.config.get('frequencies', {}))
+        if nearby_airports:
+            for airport in nearby_airports:
+                if airport.get('ident') == current_airport:
+                    for entry in airport.get('frequencies', []):
+                        role_name = entry.get('role')
+                        if role_name and role_name not in freq_db:
+                            freq_db[role_name] = f"{float(entry.get('frequency_mhz', 0.0)):.3f}"
+                    break
         if not freq_db:
             # 随机生成常用频率
             freq_db = {
@@ -200,11 +224,13 @@ class LLMClient:
                 'Departure': f"119.{random.randint(10, 95)}",
                 'Approach': f"124.{random.randint(10, 95)}",
                 'Center': f"132.{random.randint(10, 95)}",
-                'ATIS': f"127.{random.randint(10, 95)}"
+                'ATIS': f"127.{random.randint(10, 95)}",
+                'Clearance Delivery': f"118.{random.randint(95, 99)}"
             }
         
         freq_text = f"""
         HANDOFF FREQUENCY DATABASE (Use when handing off pilot):
+        - Clearance Delivery: {freq_db.get('Clearance Delivery', freq_db.get('Ground', '121.9'))}
         - Ground: {freq_db.get('Ground', '121.9')}
         - Tower: {freq_db.get('Tower', '118.1')}
         - Departure: {freq_db.get('Departure', '119.1')}
@@ -259,6 +285,8 @@ class LLMClient:
         User Callsign: {callsign}.
         Current Airport: {nearest_airport}
         Current Altitude: {current_alt} ft
+        Tuned Frequency: {current_frequency or 'N/A'} MHz
+        Tuned Channel: {current_frequency_label}
         
         DISPLAYED ROLE: {role}
         

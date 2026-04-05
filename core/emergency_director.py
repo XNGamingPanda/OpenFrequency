@@ -6,6 +6,7 @@ import time
 import threading
 import os
 from .context import event_bus
+from .sim_provider_factory import SimProviderFactory
 
 
 class EmergencyDirector:
@@ -76,6 +77,7 @@ class EmergencyDirector:
         self.running = False
         self.thread = None
         self.active_emergency = None
+        self.supported_failure_providers = {'xplane', 'p3d'}
         
         # Sound files for warnings
         self.sound_dir = "static/sounds"
@@ -153,6 +155,8 @@ class EmergencyDirector:
             multiplier = self._get_probability_multiplier()
             if multiplier <= 0:
                 continue
+            if not self._supports_failure_injection():
+                continue
 
             # Roll dice for each emergency type
             for event_type, base_prob in self.base_probabilities.items():
@@ -187,8 +191,8 @@ class EmergencyDirector:
         # Play warning sound
         self._play_warning_sound(event_type)
         
-        # Inject SimConnect event (if applicable)
-        self._inject_simconnect_event(event_type, engine_num, system_detail)
+        # Inject simulator failure only when the current simulator supports it.
+        injected = self._inject_simulator_event(event_type, engine_num, system_detail)
         
         # Inject high-priority LLM prompt
         prompt = self.EMERGENCY_PROMPTS.get(event_type, '')
@@ -205,7 +209,10 @@ class EmergencyDirector:
         message = self._get_alert_message(event_type, engine_num)
         self.socketio.emit('emergency_alert', {
             'type': event_type,
-            'message': message
+            'message': message,
+            'engine_num': engine_num,
+            'system_detail': system_detail,
+            'injected': injected
         })
         
         # Clear active emergency after 5 minutes (allow new one)
@@ -217,8 +224,11 @@ class EmergencyDirector:
         
         threading.Thread(target=clear_emergency, daemon=True).start()
     
-    def _inject_simconnect_event(self, event_type, engine_num=1, system_detail=None):
-        """Inject SimConnect failure event."""
+    def _inject_simulator_event(self, event_type, engine_num=1, system_detail=None):
+        """Inject failure event only on supported simulators."""
+        if not self._supports_failure_injection():
+            return False
+
         # Map engine_num to SimConnect event suffix
         engine_suffix = f'ENGINE{engine_num}' if engine_num else 'ENGINE1'
         simconnect_events = {
@@ -231,16 +241,12 @@ class EmergencyDirector:
         }
         
         event_name = simconnect_events.get(event_type)
-        if event_name:
-            # TODO: SimConnect usually requires specific indices for systems, 
-            # but simple TOGGLE_* events might be generic. 
-            # For deeper system failure, we need more specific SimConnect events or variables.
-            # Currently just toggling main failure as placeholder for specific system.
-            event_bus.emit('simconnect_event', {'event': event_name})
-        
-        event_name = simconnect_events.get(event_type)
-        if event_name:
-            event_bus.emit('simconnect_event', {'event': event_name})
+        if not event_name:
+            return False
+
+        result = {'ok': False}
+        event_bus.emit('simulator_failure_event', {'event': event_name, 'result': result})
+        return bool(result.get('ok'))
     
     def _play_warning_sound(self, event_type):
         """Emit warning sound to frontend."""
@@ -269,6 +275,16 @@ class EmergencyDirector:
         }
         return messages.get(event_type, f'⚠️ Emergency: {event_type}')
     
+    def _supports_failure_injection(self):
+        return self._get_provider_type() in self.supported_failure_providers
+
+    def _get_provider_type(self):
+        sim_config = self.config.get('simulator', {})
+        provider = sim_config.get('provider', 'auto')
+        if provider == 'auto':
+            return SimProviderFactory.detect_simulator() or 'msfs'
+        return provider
+
     def trigger_manual(self, event_type):
         """Manually trigger an emergency (for testing)."""
         if event_type in self.probabilities:

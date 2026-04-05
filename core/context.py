@@ -15,13 +15,19 @@ shared_context = {
     "environment": {
         "qnh": 29.92,
         "zulu_time": "00:00",
-        "nearest_airport": "N/A"
+        "nearest_airport": "N/A",
+        "nearby_airports": [],
+        "current_airport": "N/A"
     },
     "atc_state": {
         "current_controller": "N/A",
         "last_instruction": "",
         "expecting_readback": False,
-        "is_busy": False
+        "is_busy": False,
+        "current_frequency": 0.0,
+        "current_frequency_label": "",
+        "current_frequency_role": "",
+        "current_channel_key": ""
     },
     "navigation": {
         "current_taxi_path": []

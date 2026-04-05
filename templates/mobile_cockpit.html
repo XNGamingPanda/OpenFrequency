@@ -133,6 +133,42 @@
 
     let mediaRecorder;
     let audioChunks = [];
+    const playbackQueue = [];
+    let isPlaybackActive = false;
+
+    function enqueueAudioPlayback(audioUrl, volume = 1.0) {
+        playbackQueue.push({ audioUrl, volume });
+        if (!isPlaybackActive) {
+            playNextQueuedAudio();
+        }
+    }
+
+    function playNextQueuedAudio() {
+        if (playbackQueue.length === 0) {
+            isPlaybackActive = false;
+            return;
+        }
+
+        isPlaybackActive = true;
+        const { audioUrl, volume } = playbackQueue.shift();
+        const audio = new Audio(audioUrl);
+        audio.volume = volume;
+        audio.addEventListener('ended', () => {
+            URL.revokeObjectURL(audioUrl);
+            playNextQueuedAudio();
+        }, { once: true });
+        audio.addEventListener('error', () => {
+            URL.revokeObjectURL(audioUrl);
+            playNextQueuedAudio();
+        }, { once: true });
+        audio.play()
+            .then(() => console.log("Audio playing successfully."))
+            .catch(e => {
+                console.error("Audio playback interrupted/failed:", e);
+                URL.revokeObjectURL(audioUrl);
+                playNextQueuedAudio();
+            });
+    }
 
     // --- SocketIO Event Handlers ---
 
@@ -219,14 +255,7 @@
             console.log("Blob created:", audioBlob);
 
             const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-
-            audio.play()
-                .then(() => console.log("Audio playing successfully."))
-                .catch(e => {
-                    console.error("Audio playback interrupted/failed:", e);
-                    // alert("Audio playback blocked? Click page to unmute.");
-                });
+            enqueueAudioPlayback(audioUrl, 1.0);
         } catch (e) {
             console.error("Error processing audio data:", e);
         }

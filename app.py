@@ -21,6 +21,7 @@ from core.auth_manager import AuthManager
 from core.traffic_manager import TrafficStateManager
 from core.chatter_generator import ChatterGenerator
 from core.atis_generator import ATISGenerator
+from core.airport_frequency_service import AirportFrequencyService
 from core.self_check import self_check, download_ffmpeg, download_whisper_model
 from core.career import CareerProfile  # Career Mode
 from core.crew_manager import CrewManager  # Crew Manager (FO + Purser)
@@ -52,11 +53,92 @@ def load_config():
             config = json.load(f)
     else:
         print("Warning: config.json not found, using defaults.")
-    
-    # Sync context with config
+    _sync_runtime_from_config()
+
+
+def _first_non_empty(*values):
+    """Return the first non-empty scalar value as a stripped string."""
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, (dict, list)):
+            continue
+        text = str(value).strip()
+        if text and text.upper() not in {'N/A', 'NONE', 'NULL'}:
+            return text
+    return ""
+
+
+def _extract_simbrief_callsign(data):
+    """
+    Extract a usable callsign from SimBrief JSON.
+
+    Prefer the explicit ATC callsign if present. Fall back to ICAO airline +
+    flight number, and finally registration/tail number.
+    """
+    general = data.get('general', {}) or {}
+    params = data.get('params', {}) or {}
+    api_params = data.get('api_params', {}) or {}
+    aircraft = data.get('aircraft', {}) or {}
+
+    explicit_callsign = _first_non_empty(
+        general.get('atc_callsign'),
+        general.get('callsign'),
+        params.get('callsign'),
+        api_params.get('callsign')
+    )
+    if explicit_callsign:
+        return explicit_callsign.upper()
+
+    airline = _first_non_empty(
+        general.get('icao_airline'),
+        params.get('airline'),
+        api_params.get('airline')
+    ).upper()
+    flight_number = _first_non_empty(
+        general.get('flight_number'),
+        params.get('fltnum'),
+        api_params.get('fltnum')
+    ).replace(" ", "")
+    if airline and flight_number:
+        return f"{airline}{flight_number}".upper()
+
+    registration = _first_non_empty(
+        general.get('reg'),
+        aircraft.get('reg'),
+        params.get('reg'),
+        api_params.get('reg')
+    )
+    if registration:
+        return registration.upper()
+
+    return ""
+
+
+def _normalize_flight_plan(raw_flight_plan):
+    """Normalize a flight plan payload/config block into the runtime shape."""
+    raw_flight_plan = raw_flight_plan or {}
+    return {
+        "origin": _first_non_empty(raw_flight_plan.get('origin')).upper() or "N/A",
+        "destination": _first_non_empty(raw_flight_plan.get('destination')).upper() or "N/A",
+        "alternate": _first_non_empty(raw_flight_plan.get('alternate')).upper() or "N/A",
+        "route": _first_non_empty(raw_flight_plan.get('route')) or "N/A",
+        "cruise_alt": int(raw_flight_plan.get('cruise_alt', 0) or 0),
+        "flight_number": _first_non_empty(raw_flight_plan.get('flight_number')).upper() or "N/A"
+    }
+
+
+def _sync_runtime_from_config():
+    """Sync selected config state into shared runtime context."""
     with context_lock:
         shared_context['aircraft']['callsign'] = config.get('user_profile', {}).get('callsign', 'N/A')
+        shared_context['flight_plan'] = _normalize_flight_plan(config.get('flight_plan', {}))
+
     print(f"System: Callsign initialized to {shared_context['aircraft']['callsign']}")
+    fp = shared_context['flight_plan']
+    if fp.get('origin') != 'N/A' or fp.get('destination') != 'N/A':
+        print(f"System: Flight plan initialized to {fp['origin']} -> {fp['destination']}")
+        event_bus.emit('flight_plan_loaded', fp)
 
 load_config()
 
@@ -65,6 +147,8 @@ career_profile = CareerProfile()
 from core.career.evaluator import CareerEvaluator
 career_evaluator = CareerEvaluator(config, career_profile, socketio)
 career_evaluator.start()
+airport_frequency_service = AirportFrequencyService(config)
+airport_frequency_service.load()
 
 # --- Auth Manager (uses config) ---
 auth_manager = AuthManager(config, CONFIG_PATH)
@@ -174,6 +258,31 @@ def get_session_mode():
     with context_lock:
         mode = shared_context.get('session_mode', None)
     return jsonify({"mode": mode})
+
+
+@app.route('/api/nearby_frequencies')
+def get_nearby_frequencies():
+    with context_lock:
+        nearby_airports = shared_context.get('environment', {}).get('nearby_airports', [])
+        atc_state = dict(shared_context.get('atc_state', {}))
+    return jsonify({
+        "airports": nearby_airports,
+        "active_frequency": atc_state.get('current_frequency', 0.0),
+        "active_channel_key": atc_state.get('current_channel_key', ''),
+        "current_controller": atc_state.get('current_controller', 'N/A')
+    })
+
+
+@app.route('/api/airport_data/refresh', methods=['POST'])
+def refresh_airport_data():
+    ok = airport_frequency_service.load_cached_or_download(force_update=True)
+    if not ok:
+        return jsonify({"status": "error", "message": "Failed to refresh airport data"}), 500
+
+    if 'logic_manager' in globals():
+        logic_manager._refresh_nearby_airports(force=True)
+
+    return jsonify({"status": "success"})
 
 @app.route('/api/locales/<locale>')
 def get_locale(locale):
@@ -372,10 +481,7 @@ def save_settings():
     print(f"save_settings: Written successfully.", flush=True)
     
     # Sync runtime context
-    with context_lock:
-        if 'user_profile' in config and 'callsign' in config['user_profile']:
-            shared_context['aircraft']['callsign'] = config['user_profile']['callsign']
-            print(f"System: Callsign updated to {shared_context['aircraft']['callsign']}")
+    _sync_runtime_from_config()
             
     # Sync Security Mode
     if 'security' in config and 'mode' in config['security']:
@@ -418,29 +524,39 @@ def import_simbrief():
         route = general.get('route', 'N/A')
         flight_number = general.get('flight_number', 'N/A')
         airline = general.get('icao_airline', 'N/A')
+        callsign = _extract_simbrief_callsign(data)
+        flight_plan = _normalize_flight_plan({
+            "origin": origin,
+            "destination": dest,
+            "alternate": alt_icao,
+            "route": route,
+            "cruise_alt": cruise_alt,
+            "flight_number": f"{airline}{flight_number}"
+        })
         
         # Update Shared Context
         with context_lock:
-            shared_context['flight_plan'] = {
-                "origin": origin,
-                "destination": dest,
-                "alternate": alt_icao,
-                "route": route,
-                "cruise_alt": cruise_alt,
-                "flight_number": f"{airline}{flight_number}"
-            }
-            # Auto-update callsign if user wants? For now just update context flight plan.
-            # We can also update config if we want to save this username
+            shared_context['flight_plan'] = flight_plan
+            if callsign:
+                shared_context['aircraft']['callsign'] = callsign
             config['simbrief']['username'] = username
+            config['simbrief']['last_fetched'] = time.time()
+            config['flight_plan'] = flight_plan
+            if callsign:
+                config.setdefault('user_profile', {})['callsign'] = callsign
         
         # Save username to config implicitly
         with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
 
+        if callsign:
+            print(f"SimBrief Callsign Imported: {callsign}")
         print(f"Flight Plan Imported: {origin} -> {dest} via {route}")
+        event_bus.emit('flight_plan_loaded', flight_plan)
         return jsonify({
             "status": "success", 
-            "data": shared_context['flight_plan']
+            "data": flight_plan,
+            "callsign": callsign or None
         })
 
     except Exception as e:
@@ -512,6 +628,9 @@ def handle_text_input(text):
     Receives text input from the client and treats it as recognized speech.
     """
     print(f"Received text input: {text}")
+    if 'logic_manager' in globals() and getattr(logic_manager, 'intercom_target', 'ATC') == 'CABIN':
+        event_bus.emit('crew_message', {'text': text, 'target': 'all'})
+        return
     event_bus.emit('user_speech_recognized', text)
 
 @socketio.on('test_tts_trigger')
@@ -754,12 +873,13 @@ if __name__ == '__main__':
     from core.head_tracker import HeadTracker
     from core.emergency_director import EmergencyDirector
     
-    logic_manager = LogicManager(config, socketio)
+    logic_manager = LogicManager(config, socketio, airport_frequency_service=airport_frequency_service)
     sim_bridge = SimBridge(config, shared_context, context_lock, event_bus)
     nav_manager = NavManager(config, shared_context, context_lock, event_bus)
     stt_module = STTLocal(config, event_bus)
     llm_client = LLMClient(config, shared_context, context_lock, event_bus)
     tts_engine = TTSEngine(config, socketio)
+    atis_generator = ATISGenerator(config, socketio, airport_frequency_service=airport_frequency_service)
     traffic_manager = TrafficStateManager(config, sim_bridge, socketio)
     chatter_generator = ChatterGenerator(config, tts_engine)
     black_box = BlackBox(config)
@@ -776,6 +896,7 @@ if __name__ == '__main__':
     # --- ATC Handoff State Machine ---
     from core.atc_handoff import ATCHandoffManager
     atc_handoff = ATCHandoffManager(config, socketio)
+    event_bus.emit('flight_plan_loaded', shared_context.get('flight_plan', {}))
 
     @socketio.on('set_flight_mode')
     def handle_flight_mode(data):
@@ -800,6 +921,22 @@ if __name__ == '__main__':
         # Notify clients to update UI (red border for cabin mode)
         socketio.emit('intercom_mode_changed', {'target': target})
 
+    @socketio.on('tune_frequency')
+    def handle_tune_frequency(data):
+        frequency = data.get('frequency')
+        if frequency is None:
+            return
+        try:
+            frequency = round(float(frequency), 3)
+        except Exception:
+            return
+
+        tuned = sim_bridge.set_com1_frequency(frequency)
+        logic_manager.switch_frequency_context(frequency, source='ui')
+        with context_lock:
+            shared_context['aircraft']['com1_freq'] = frequency
+        socketio.emit('frequency_tuned', {'frequency': frequency, 'tuned': tuned})
+
     @socketio.on('cabin_intercom')
     def handle_cabin_intercom(data):
         """Handle intercom requests from UI."""
@@ -823,6 +960,17 @@ if __name__ == '__main__':
         """Handle pilot to crew messages (from channel selector)."""
         # data = {'text': str, 'target': 'fo' | 'purser' | 'all'}
         event_bus.emit('crew_message', data)
+
+    def handle_simulator_failure_event(data):
+        event_name = data.get('event')
+        result = data.get('result', {})
+        ok = False
+        if event_name:
+            ok = sim_bridge.trigger_failure_event(event_name)
+        if isinstance(result, dict):
+            result['ok'] = ok
+
+    event_bus.on('simulator_failure_event', handle_simulator_failure_event)
 
     # Feature 2.4: Debug Kit Runtime Updates
     @socketio.on('update_debug_config')

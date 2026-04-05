@@ -65,7 +65,10 @@ class SimProviderFactory:
         if provider_type == 'xplane':
             from .xplane_provider import XPlaneProvider
             host = sim_config.get('xplane_host', '127.0.0.1')
-            port = sim_config.get('xplane_port', 49009)
+            port = sim_config.get('xplane_web_port', sim_config.get('xplane_port', 8086))
+            if port in [49000, 49009]:
+                print(f"SimProviderFactory: Legacy X-Plane UDP port {port} detected; using Local Web API default 8086 instead")
+                port = 8086
             return XPlaneProvider(host=host, port=port)
         
         elif provider_type in ['msfs', 'p3d', 'fsx']:
