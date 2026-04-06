@@ -3,7 +3,7 @@
 
 ![Banner](https://img.shields.io/badge/Status-v3.0--alpha-orange) ![License](https://img.shields.io/badge/License-MIT-green) ![Simulator](https://img.shields.io/badge/Simulator-MSFS%20|%20P3D%20|%20X--Plane-blue)
 
-> ⚠️ **Stability Warning**: This version (v3.0-alpha) contains experimental features and known issues (see [Release Notes](RELEASE_NOTES.md)). If you prioritize stability, we strongly recommend using the previous **v2.5-beta** release.
+> ⚠️ **Stability Warning**: This version (3.1) contains experimental features and known issues (see [Release Notes](RELEASE_NOTES.md)). If you prioritize stability, we strongly recommend using the previous **v2.5-beta** release.
 
 **OpenFrequency** is a next-generation, open-source Air Traffic Control system for flight simulators.
 
@@ -34,7 +34,7 @@ Simulation enthusiasts deserve an immersion system that:
     *   Specific system failure alerts.
 *   **🌍 Multi-Simulator Support**:
     *   **MSFS** / **Prepar3D** / **FSX** via SimConnect
-    *   **X-Plane 11/12** via XPlaneConnect (UDP)
+    *   **X-Plane 12** via the official Local Web API
 *   **🎯 Visual Head Tracking**: Zero-cost webcam-based head tracking.
 *   **🗣️ Voice of the Sky**: High-quality Edge-TTS voices with real-time radio effects.
 *   **📱 Glass Cockpit UI**: Responsive web dashboard with dark mode and internationalization (EN/CN/JP).
@@ -50,7 +50,7 @@ Simulation enthusiasts deserve an immersion system that:
 
 #### Option A: All-in-One Pack (Recommended)
 1.  Go to the [Releases](https://github.com/XNGamingPanda/OpenFrequency/releases) page.
-2.  Download the latest `v3.0-alpha` zip package.
+2.  Download the latest `3.1` zip package.
 3.  Extract, rename `config.example.json` to `config.json`, add your API key, and run `python app.py`.
 
 #### Option B: Developer Setup (Git)
