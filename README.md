@@ -1,9 +1,9 @@
 # OpenFrequency 📡
 > *The AI ATC for Everyone.*
 
-![Banner](https://img.shields.io/badge/Status-v3.0--alpha-orange) ![License](https://img.shields.io/badge/License-MIT-green) ![Simulator](https://img.shields.io/badge/Simulator-MSFS%20|%20P3D%20|%20X--Plane-blue)
+![Banner](https://img.shields.io/badge/Status-v3.5--beta-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![Simulator](https://img.shields.io/badge/Simulator-MSFS%20|%20P3D%20|%20X--Plane-blue)
 
-> ⚠️ **Stability Warning**: This version (3.1) contains experimental features and known issues (see [Release Notes](RELEASE_NOTES.md)). If you prioritize stability, we strongly recommend using the previous **v2.5-beta** release.
+> ⚠️ **Beta Notice**: This version (3.5-beta) contains major career, packaging, X-Plane, ATIS, and EFB-style navigation changes. See [Release Notes](RELEASE_NOTES.md) before upgrading an existing setup.
 
 **OpenFrequency** is a next-generation, open-source Air Traffic Control system for flight simulators.
 
@@ -50,8 +50,8 @@ Simulation enthusiasts deserve an immersion system that:
 
 #### Option A: All-in-One Pack (Recommended)
 1.  Go to the [Releases](https://github.com/XNGamingPanda/OpenFrequency/releases) page.
-2.  Download the latest `3.1` zip package.
-3.  Extract, rename `config.example.json` to `config.json`, add your API key, and run `python app.py`.
+2.  Download the latest `3.5-beta` package.
+3.  Use the packaged Windows build when available, or extract the source package, rename `config.example.json` to `config.json`, add your API key, and run `python app.py`.
 
 #### Option B: Developer Setup (Git)
 1.  Clone the repo:

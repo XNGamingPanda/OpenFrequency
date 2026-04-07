@@ -10,7 +10,10 @@ shared_context = {
         "on_ground": True,
         "gear_handle": "DOWN",
         "com1_freq": 0.0,
-        "transponder": "0000"
+        "transponder": "0000",
+        "aircraft_type": "UNKNOWN",
+        "aircraft_icao": "",
+        "aircraft_title": ""
     },
     "environment": {
         "qnh": 29.92,

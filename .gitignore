@@ -1,72 +1,84 @@
-# Python
+# Python cache / build artifacts
 __pycache__/
-build/
-dist/
-*.spec.bak
 *.py[cod]
 *$py.class
+*.pyd
 *.so
-.Python
-env/
+*.egg
+*.egg-info/
+.eggs/
 build/
-develop-eggs/
 dist/
 downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
 wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+sdist/
 
-# Virtual Environment
-venv/
+# Virtual environments / local env files
 .venv/
+venv/
+env/
 .env
+.env.*
 
-# Project Specific
+# OpenFrequency runtime configuration and logs
 config.json
+llm_error.txt
 logs/
 *.log
-llm_error.txt
+openfrequency_*.log
+flight_log_*.txt
+track_*.csv
+cabin_*.csv
+
+# Generated audio / recordings / reports
 debug_tts.mp3
 temp_audio/
-*.webm
-*.wav
-*.mp3
-
-RELEASE_NOTES.md
-
-# Data & Output
-data/
 recordings/
 reports/
 screenshots/
+*.webm
+*.wav
+
+# Local data caches and user state
+data/airport_data/
+data/career/
+data/ground_cache/
+data/reports/
+
+# Keep reusable project data tracked explicitly.
+!data/
+!data/chatter_templates.json
+!data/cabin/
+!data/cabin/scripts.json
+!data/locales/
+!data/locales/*.json
+
+# User-provided cabin media can be large or copyrighted.
 static/cabin_media/
 
-# Binaries & Large Files
+# Large downloaded binaries and models
 ffmpeg/
 models/
 sherpa-onnx-whisper*/
-*.exe
 *.bin
 *.dll
 *.onnx
 *.zip
 
-# IDE
+# Local executables, except PyInstaller project metadata.
+*.exe
+*.spec.bak
+
+# Temporary development scratch files
+tmp_*.js
+tmp_*.py
+test_wavs/
+
+# IDE / OS
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.git
-
-# OS
 Thumbs.db
 .DS_Store

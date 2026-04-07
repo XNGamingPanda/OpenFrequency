@@ -1,4 +1,80 @@
-# OpenFrequency 3.1 Release Notes
+# OpenFrequency v3.5-beta Release Notes
+
+## 2026-04-07 Update
+
+> **Release Date**: 2026-04-07
+> **Version**: **v3.5-beta**
+> **Status**: **Beta**. This build is more complete than the 3.1 alpha line, but several systems remain under active tuning.
+
+This update is a broad beta milestone focused on making OpenFrequency easier to run, more useful in career flights, and more tightly integrated with X-Plane and live airport data. The headline changes are the new packaged Windows build path, a rebuilt career workflow, richer SimBrief integration, improved airport ground intelligence, and more proactive ATC behavior.
+
+### Desktop Packaging
+
+- **Windows EXE packaging**: Added PyInstaller packaging for a Windows desktop build while keeping the existing Flask / Socket.IO / HTML architecture.
+- **Desktop launcher**: Added a launcher that starts the local web server and opens the dashboard automatically.
+- **Hidden-console runtime**: The packaged app can run without leaving a console window open.
+- **Console debug build**: A separate console build remains available for troubleshooting.
+- **Tray controls**: Added a system tray icon with dashboard, logs, and exit actions.
+- **Runtime log path**: Packaged builds now write logs to `%APPDATA%\OpenFrequency\logs` instead of writing into the bundled app directory.
+- **Config handling**: The packaged build excludes the local `config.json`; runtime config is created from `config.example.json` in the user data directory.
+- **Resource filtering**: Temporary files, logs, user career data, debug audio, and local error files are excluded from packaging while required models and app assets are included.
+
+### Career Mode Rework
+
+- **Career dashboard fixes**: Fixed duplicate available-job labels and cleaned up the job market flow.
+- **Automatic dashboard handoff**: Accepting a job now takes the pilot directly into the career dashboard flow.
+- **Pilot nickname**: The displayed `STUDENT01` style pilot nickname is now editable and separated from operational flight callsigns.
+- **Airline contracts**: Career jobs now require signing with a regional airline first; future jobs use that airline's callsign until the pilot transfers.
+- **Regional airline pools**: Job generation now selects airline operators that better match the current airport region.
+- **Passenger vs cargo consistency**: Cargo operators such as FDX no longer generate passenger missions, and passenger airlines no longer generate cargo-only jobs by default.
+- **Installed aircraft discovery**: Career jobs now use installed simulator aircraft where possible instead of relying only on a small fixed aircraft list.
+- **License-aware aircraft selection**: The aircraft pool is filtered by the pilot's license level.
+- **Career readiness checks**: Before a career flight, the app checks origin airport, ground state, stopped state, aircraft type, and cold-and-dark readiness.
+- **Repeated readiness display**: Career readiness warnings are now refreshed when re-entering the dashboard, so incorrect aircraft or location states remain visible.
+- **Career callsign lock**: Active career jobs lock the runtime callsign to the mission callsign and prevent SimBrief or settings from overriding it.
+
+### SimBrief and Flight Planning
+
+- **Career SimBrief route links**: Career job cards and the active-job panel now include a SimBrief Dispatch URL prefilled with origin, destination, aircraft type, airline, flight number, callsign, flight type, and IFR rules.
+- **Dashboard import flow**: Career preparation prompts now guide users to generate a SimBrief route and then import the OFP using the SimBrief username saved in Settings.
+- **Active job route fallback**: Active jobs without an existing route use `DIRECT` internally until a SimBrief OFP is imported.
+- **Legacy active-job compatibility**: Existing active career jobs are dynamically enriched with SimBrief route links when shown to the UI.
+
+### X-Plane and Simulator Integration
+
+- **X-Plane Local Web API path**: X-Plane integration continues to use the official Local Web API instead of the legacy XPlaneConnect dependency.
+- **Aircraft identity detection**: X-Plane now reports current aircraft identity from aircraft datarefs where available; MSFS reads aircraft title/model through SimConnect.
+- **COM frequency sync**: Simulator-side frequency changes can update OpenFrequency's ATC context without fighting browser-side tuning.
+- **Connection status refresh**: Dashboard and mobile cockpit periodically refresh simulator connection state so disconnected simulators do not remain shown as connected.
+- **Failure injection tuning**: Random failure rates were reduced, low mode is less aggressive, and X-Plane failure injection now only alerts when the simulator write succeeds.
+
+### Airport Data, Ground Routing, and EFB Features
+
+- **Simulator-native ground data**: X-Plane airport ground layout is read from `apt.dat` instead of Little Navmap as the primary source.
+- **OpenStreetMap ground data option**: Added OSM / Overpass support for taxiways, aprons, runways, and parking nodes as a third-party ground source.
+- **Ground data source settings**: Settings can choose simulator-native or third-party sources for frequency and ground layout data.
+- **Weighted taxi routing**: Taxi route planning now models airports as a graph and includes penalties for runway crossings, hotspots, turn complexity, low visibility, and larger aircraft constraints.
+- **Ground ATC awareness**: Ground ATC prompts now receive taxi layout summaries and suggested routes instead of inventing taxiway names blindly.
+- **Instruction cards**: Added BeyondATC-style latest instruction cards for altitude, heading, speed, QNH/altimeter, approach, frequency, squawk, and taxi route.
+- **Taxiway map highlighting**: Taxi instructions can highlight matching taxiway segments on the dashboard map.
+- **Fit navigation view**: Added a map control to fit the view to the highlighted navigation path or flight trail.
+
+### ATC, Crew, Cabin, and Audio
+
+- **ATC proactive monitor**: Added a local-rule-first ATC monitor that tracks altitude, heading, speed, handoff, hold-short, and clearance-related deviations before asking the AI whether to speak.
+- **Frequency switch cleanup**: Switching frequencies now stops active audio and avoids duplicate `SYSTEM: Tuned` messages from browser/simulator echo.
+- **Crew routing fixes**: Crew mode text and voice inputs are forced to the cabin/crew path and no longer leak to ATC.
+- **Crew voice separation**: First Officer and Purser responses can use distinct voices.
+- **Crew proactive scenarios**: Crew can initiate context-aware messages for cabin readiness, climb, service, descent prep, and landing rollout.
+- **Cabin media support**: Cabin announcements can reference local audio or video files; videos display in a small dashboard media window.
+- **ANA template support**: Added support for ANA-style cabin media entries such as safety and disembarking videos.
+
+### Known Limitations
+
+- **MSFS native airport BGL parsing**: MSFS scenery package scanning exists, but compiled BGL decoding is not yet a full native ground-layout solution; OSM remains the fallback.
+- **Ground routing data quality**: OSM airport data can be incomplete or inconsistent at some airports, so highlighted taxi paths may be best-effort.
+- **Media licensing**: Users are responsible for ensuring cabin announcement audio/video files are legally obtained and usable.
+- **Career balance**: Rewards, licenses, and operator availability are still beta tuning areas.
 
 ## 2026-04-05 Update
 

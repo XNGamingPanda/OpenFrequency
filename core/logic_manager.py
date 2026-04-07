@@ -158,7 +158,7 @@ class LogicManager:
             print(f"LogicManager: Failed to restore history: {e}")
 
         with open(self.log_file, "w", encoding="utf-8") as f:
-            f.write(f"--- OpenSky ATC Log Started: {timestamp} ---\n")
+            f.write(f"--- OpenFrequency ATC Log Started: {timestamp} ---\n")
         
         # Start background task for METAR
         if self.scheduler:

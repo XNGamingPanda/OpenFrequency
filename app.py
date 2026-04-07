@@ -24,6 +24,7 @@ from core.atis_generator import ATISGenerator
 from core.airport_frequency_service import AirportFrequencyService
 from core.ground_data_service import GroundDataService
 from core.atc_monitor import ATCMonitor
+from core.aircraft_catalog import AircraftCatalog
 from core.self_check import self_check, download_ffmpeg, download_whisper_model
 from core.career import CareerProfile  # Career Mode
 from core.crew_manager import CrewManager  # Crew Manager (FO + Purser)
@@ -165,10 +166,40 @@ def _normalize_flight_plan(raw_flight_plan):
     }
 
 
+def _active_career_job():
+    profile_obj = globals().get('career_profile')
+    if profile_obj:
+        try:
+            job = profile_obj.get_profile().get('active_job')
+            if job and job.get('callsign'):
+                return job
+        except Exception:
+            pass
+    with context_lock:
+        job = shared_context.get('active_job')
+        if job and job.get('callsign'):
+            return dict(job)
+    return None
+
+
+def _career_callsign_locked():
+    with context_lock:
+        mode = shared_context.get('session_mode')
+    return mode == 'career' and bool(_active_career_job())
+
+
+def _current_runtime_callsign_from_config():
+    career_job = _active_career_job()
+    if career_job:
+        return career_job.get('callsign')
+    return config.get('user_profile', {}).get('callsign', 'N/A')
+
+
 def _sync_runtime_from_config():
     """Sync selected config state into shared runtime context."""
+    runtime_callsign = _current_runtime_callsign_from_config()
     with context_lock:
-        shared_context['aircraft']['callsign'] = config.get('user_profile', {}).get('callsign', 'N/A')
+        shared_context['aircraft']['callsign'] = runtime_callsign
         shared_context['flight_plan'] = _normalize_flight_plan(config.get('flight_plan', {}))
 
     print(f"System: Callsign initialized to {shared_context['aircraft']['callsign']}")
@@ -406,7 +437,10 @@ def career_page():
 
 @app.route('/career/profile')
 def career_profile_api():
-    return jsonify(career_profile.get_profile())
+    profile = career_profile.get_profile()
+    if profile.get('active_job'):
+        profile['active_job'] = _career_job_for_client(profile.get('active_job'))
+    return jsonify(profile)
 
 def _career_current_airport():
     with context_lock:
@@ -466,6 +500,28 @@ def _career_job_readiness(job):
         'message': "Aircraft should be stopped before dispatch."
     })
 
+    assigned_aircraft = (job.get('aircraft') or '').upper()
+    current_aircraft = (
+        aircraft.get('aircraft_type')
+        or aircraft.get('aircraft_icao')
+        or aircraft.get('aircraft_title')
+        or 'UNKNOWN'
+    )
+    current_aircraft_text = str(current_aircraft).upper()
+    aircraft_matches = bool(assigned_aircraft and assigned_aircraft in current_aircraft_text)
+    if not aircraft_matches:
+        catalog = AircraftCatalog(config)
+        detected = catalog.canonical_from_text(current_aircraft_text)
+        aircraft_matches = detected == assigned_aircraft
+
+    checks.append({
+        'key': 'aircraft_type',
+        'ok': aircraft_matches,
+        'message_key': 'check_aircraft_type',
+        'params': {'required': assigned_aircraft or 'N/A', 'current': current_aircraft_text or 'UNKNOWN'},
+        'message': f"Use the assigned aircraft type {assigned_aircraft or 'N/A'}. Current detected aircraft: {current_aircraft_text or 'UNKNOWN'}."
+    })
+
     combustion = bool(aircraft.get('combustion', False))
     n1 = float(aircraft.get('n1') or 0)
     cold_dark = (not combustion) and n1 < 5
@@ -476,7 +532,7 @@ def _career_job_readiness(job):
         'message': "Recommended start state: cold and dark at the gate."
     })
     return {
-        'ready': all(item['ok'] for item in checks[:3]),
+        'ready': all(item['ok'] for item in checks),
         'checks': checks,
         'aircraft': {
             'nearest_airport': nearest or 'N/A',
@@ -487,11 +543,27 @@ def _career_job_readiness(job):
         }
     }
 
+def _career_job_for_client(job):
+    """Return an active career job copy with fields needed by current UI."""
+    if not job:
+        return None
+    enriched = dict(job)
+    if not enriched.get('route_source'):
+        enriched['route_source'] = 'simbrief_recommended'
+    if not enriched.get('airline_code'):
+        callsign = (enriched.get('callsign') or '').upper()
+        enriched['airline_code'] = callsign[:3] if len(callsign) >= 3 else ''
+    if not enriched.get('simbrief_url'):
+        from core.career.job_generator import JobGenerator
+        job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service, config=config)
+        enriched['simbrief_url'] = job_gen.build_simbrief_url(enriched)
+    return enriched
+
 @app.route('/career/jobs')
 def career_jobs_api():
     """Get available jobs from the job generator."""
     from core.career.job_generator import JobGenerator
-    job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service)
+    job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service, config=config)
     current_airport = request.args.get('origin') or _career_current_airport()
     jobs = job_gen.generate_jobs(current_airport, count=8)
     # Cache jobs for later accept
@@ -506,10 +578,21 @@ def career_jobs_api():
         'requires_contract': not bool(profile.get('current_airline')),
     })
 
+@app.route('/career/readiness')
+def career_readiness_api():
+    """Return current active career job and preparation checklist."""
+    job = _career_job_for_client(career_profile.get_profile().get('active_job'))
+    if not job:
+        return jsonify({'active_job': None, 'readiness': None})
+    return jsonify({
+        'active_job': job,
+        'readiness': _career_job_readiness(job)
+    })
+
 @app.route('/career/airlines')
 def career_airlines_api():
     from core.career.job_generator import JobGenerator
-    job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service)
+    job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service, config=config)
     current_airport = request.args.get('origin') or _career_current_airport()
     return jsonify({
         'origin': current_airport,
@@ -523,7 +606,7 @@ def career_sign_airline():
     data = request.get_json() or {}
     code = (data.get('code') or '').strip().upper()
     current_airport = data.get('origin') or _career_current_airport()
-    job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service)
+    job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service, config=config)
     airlines = job_gen.available_airlines(current_airport)
     selected = next((airline for airline in airlines if airline['code'] == code), None)
     if not selected:
@@ -547,8 +630,9 @@ def career_accept_job():
         job = cached_jobs.get(job_id)
     
     if job:
-        job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service)
+        job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service, config=config)
         job_gen.accept_job(job)
+        job = _career_job_for_client(job)
         readiness = _career_job_readiness(job)
         # Override callsign in shared context
         with context_lock:
@@ -560,7 +644,7 @@ def career_accept_job():
                 'destination': job.get('destination'),
                 'cruise_alt': job.get('cruise_alt', 0),
                 'flight_number': job.get('callsign'),
-                'route': job.get('route', 'DIRECT')
+                'route': job.get('route') or 'DIRECT'
             })
             shared_context['session_mode'] = 'career'
         career_evaluator.set_mode(True)
@@ -643,6 +727,13 @@ def career_nickname():
 
 @app.route('/career/callsign', methods=['POST'])
 def career_callsign():
+    if _active_career_job():
+        job = _active_career_job()
+        return jsonify({
+            "success": False,
+            "error": "Career callsign is locked to the active job.",
+            "callsign": job.get('callsign')
+        }), 409
     data = request.json
     callsign = data.get('callsign', '').strip().upper()
     if callsign:
@@ -760,22 +851,25 @@ def import_simbrief():
         })
         
         # Update Shared Context
+        callsign_locked = _career_callsign_locked()
         with context_lock:
             shared_context['flight_plan'] = flight_plan
-            if callsign:
+            if callsign and not callsign_locked:
                 shared_context['aircraft']['callsign'] = callsign
             config['simbrief']['username'] = username
             config['simbrief']['last_fetched'] = time.time()
             config['flight_plan'] = flight_plan
-            if callsign:
+            if callsign and not callsign_locked:
                 config.setdefault('user_profile', {})['callsign'] = callsign
         
         # Save username to config implicitly
         with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
 
-        if callsign:
+        if callsign and not callsign_locked:
             print(f"SimBrief Callsign Imported: {callsign}")
+        elif callsign_locked:
+            print(f"SimBrief Callsign ignored in career mode; active job callsign remains {_active_career_job().get('callsign')}")
         print(f"Flight Plan Imported: {origin} -> {dest} via {route}")
         event_bus.emit('flight_plan_loaded', flight_plan)
         return jsonify({
@@ -1081,7 +1175,7 @@ if __name__ == '__main__':
     host = os.environ.get("OPENFREQUENCY_HOST", "127.0.0.1" if packaged_mode else "0.0.0.0")
     port = int(os.environ.get("OPENFREQUENCY_PORT", "5000"))
 
-    print("--- Initializing OpenFrequency v3.1-alpha ---")
+    print("--- Initializing OpenFrequency v3.5-beta ---")
     print(f"Debug: WERKZEUG_RUN_MAIN = {os.environ.get('WERKZEUG_RUN_MAIN')}")
     
     # 0. Environment Self-Check (only in worker process)

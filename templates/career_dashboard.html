@@ -175,7 +175,11 @@
     <div class="career-card" id="active-job-panel" style="display: none;">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h3 class="mb-0" data-ci="active_job">Active Job</h3>
-            <a href="/dashboard?mode=career" class="btn btn-success" data-ci="start_career_flight">Start Career Flight</a>
+            <div class="d-flex gap-2 flex-wrap">
+                <a id="active-job-simbrief-link" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary" data-ci="simbrief_plan">Generate SimBrief Route</a>
+                <button id="active-job-simbrief-import" class="btn btn-outline-primary" type="button" data-ci="simbrief_import">Import SimBrief OFP</button>
+                <a href="/dashboard?mode=career" class="btn btn-success" data-ci="start_career_flight">Start Career Flight</a>
+            </div>
         </div>
         <hr>
         <div class="row">
@@ -343,6 +347,12 @@
             requires_contract: 'You need to sign with a local airline before accepting career jobs.',
             no_jobs: 'No jobs available at the current airport. Move to a supported airport or refresh after simulator position updates.',
             accept_job: 'Accept Job',
+            simbrief_plan: 'Generate SimBrief Route',
+            simbrief_import: 'Import SimBrief OFP',
+            simbrief_username_missing: 'Set your SimBrief username in Settings first.',
+            simbrief_import_done: 'SimBrief OFP imported.',
+            simbrief_import_failed: 'Failed to import SimBrief OFP.',
+            route_source_simbrief: 'Route: SimBrief recommended',
             action_needed: 'Action Needed',
             purchase_license: 'Purchase License',
             owned: 'Owned',
@@ -358,7 +368,8 @@
             check_position: 'Move the aircraft to {origin} before starting this career flight. Current detected airport: {current}.',
             check_on_ground: 'Aircraft should be on the ground.',
             check_stopped: 'Aircraft should be stopped before dispatch.',
-            check_cold_dark: 'Recommended start state: cold and dark at the gate.'
+            check_cold_dark: 'Recommended start state: cold and dark at the gate.',
+            check_aircraft_type: 'Use the assigned aircraft type {required}. Current detected aircraft: {current}.'
         },
         zh: {
             career_dashboard: '生涯仪表盘',
@@ -407,6 +418,12 @@
             requires_contract: '需要先与当地航空公司签约，才能接受生涯任务。',
             no_jobs: '当前机场暂无可用任务。请移动到支持的机场，或等待模拟器位置更新后刷新。',
             accept_job: '接受任务',
+            simbrief_plan: '生成 SimBrief 航路',
+            simbrief_import: '导入 SimBrief OFP',
+            simbrief_username_missing: '请先在设置页填写 SimBrief 用户名。',
+            simbrief_import_done: 'SimBrief OFP 已导入。',
+            simbrief_import_failed: 'SimBrief OFP 导入失败。',
+            route_source_simbrief: '航路：由 SimBrief 推荐',
             action_needed: '需要处理',
             purchase_license: '购买执照',
             owned: '已拥有',
@@ -422,7 +439,8 @@
             check_position: '开始生涯飞行前，请先把飞机移动到 {origin}。当前检测到的位置：{current}。',
             check_on_ground: '飞机应位于地面。',
             check_stopped: '放行前飞机应保持停稳。',
-            check_cold_dark: '推荐从机位冷舱状态开始。'
+            check_cold_dark: '推荐从机位冷舱状态开始。',
+            check_aircraft_type: '请使用任务指定机型 {required}。当前检测到的机型：{current}。'
         },
         ja: {
             career_dashboard: 'キャリアダッシュボード',
@@ -471,6 +489,12 @@
             requires_contract: 'キャリアジョブを受ける前に、地域の航空会社と契約してください。',
             no_jobs: '現在の空港には利用可能なジョブがありません。対応空港へ移動するか、シミュレーター位置更新後に再読み込みしてください。',
             accept_job: 'ジョブを受ける',
+            simbrief_plan: 'SimBrief ルート生成',
+            simbrief_import: 'SimBrief OFP インポート',
+            simbrief_username_missing: '先に設定画面で SimBrief ユーザー名を入力してください。',
+            simbrief_import_done: 'SimBrief OFP をインポートしました。',
+            simbrief_import_failed: 'SimBrief OFP のインポートに失敗しました。',
+            route_source_simbrief: 'ルート：SimBrief 推奨',
             action_needed: '対応が必要',
             purchase_license: 'ライセンス購入',
             owned: '所有済み',
@@ -486,7 +510,8 @@
             check_position: 'キャリア飛行を開始する前に、機体を {origin} へ移動してください。現在検出された空港：{current}。',
             check_on_ground: '機体は地上にある必要があります。',
             check_stopped: 'ディスパッチ前に機体を停止させてください。',
-            check_cold_dark: 'ゲートでコールドアンドダーク状態から開始することを推奨します。'
+            check_cold_dark: 'ゲートでコールドアンドダーク状態から開始することを推奨します。',
+            check_aircraft_type: '指定機種 {required} を使用してください。現在検出された機体：{current}。'
         }
     };
 
@@ -542,6 +567,19 @@
         document.getElementById('job-pay').textContent = money(job.pay);
         document.getElementById('job-xp').textContent = money(job.xp_reward);
         document.getElementById('locked-callsign').textContent = text(job.callsign);
+        const simbriefLink = document.getElementById('active-job-simbrief-link');
+        const simbriefImport = document.getElementById('active-job-simbrief-import');
+        if (simbriefLink) {
+            if (job.simbrief_url) {
+                simbriefLink.href = job.simbrief_url;
+                simbriefLink.classList.remove('disabled');
+                simbriefImport?.removeAttribute('disabled');
+            } else {
+                simbriefLink.href = '#';
+                simbriefLink.classList.add('disabled');
+                simbriefImport?.setAttribute('disabled', 'disabled');
+            }
+        }
         if (readiness) renderReadiness(readiness);
     }
 
@@ -599,7 +637,9 @@
                     <span>${job.airline_code || ''}</span>
                     <span>${job.callsign}</span>
                 </div>
-                <div class="mt-3 text-end">
+                <div class="small text-muted mt-2">${ci('route_source_simbrief')}</div>
+                <div class="mt-3 d-flex justify-content-end gap-2 flex-wrap">
+                    <a class="btn btn-outline-secondary" href="${job.simbrief_url}" target="_blank" rel="noopener noreferrer">${ci('simbrief_plan')}</a>
                     <button class="btn btn-primary accept-job-btn" data-job-id="${job.id}">${ci('accept_job')}</button>
                 </div>
             </div>
@@ -723,6 +763,29 @@
         new bootstrap.Modal(document.getElementById('violationsModal')).show();
     }
 
+    async function importActiveJobSimBrief() {
+        try {
+            const configPayload = await fetch('/get_config').then(r => r.json());
+            const username = configPayload?.simbrief?.username;
+            if (!username) {
+                alert(ci('simbrief_username_missing'));
+                return;
+            }
+            const response = await fetch('/import_simbrief', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            const data = await response.json();
+            if (!response.ok || data.status === 'error') {
+                throw new Error(data.message || data.error || 'import failed');
+            }
+            alert(ci('simbrief_import_done'));
+        } catch (error) {
+            alert(`${ci('simbrief_import_failed')} ${error.message || error}`);
+        }
+    }
+
     document.getElementById('edit-nickname-btn').addEventListener('click', () => {
         document.getElementById('nickname-input').value = document.getElementById('pilot-nickname').textContent.trim();
         new bootstrap.Modal(document.getElementById('nicknameModal')).show();
@@ -742,6 +805,7 @@
         bootstrap.Modal.getInstance(document.getElementById('nicknameModal')).hide();
         await loadProfile();
     });
+    document.getElementById('active-job-simbrief-import')?.addEventListener('click', importActiveJobSimBrief);
 
     applyCareerI18n();
     loadProfile();

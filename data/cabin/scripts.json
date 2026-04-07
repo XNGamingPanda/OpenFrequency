@@ -1,0 +1,69 @@
+{
+    "Generic": {
+        "voice": "en-US-JennyNeural",
+        "welcome": "Ladies and gentlemen, welcome aboard. Please fasten your seatbelts and ensure all carry-on items are stowed.",
+        "door_close": "Cabin crew, arm doors and cross check.",
+        "safety_demo": "Please pay attention to the safety demonstration. Exits are located...",
+        "takeoff_prep": "Cabin crew, seats for takeoff.",
+        "climb_service": "We will now begin our inflight service.",
+        "descent": "We are beginning our descent. Please return to your seats.",
+        "landing_prep": "Cabin crew, seats for landing.",
+        "arrival_prep": "Please remain seated until the aircraft has come to a complete stop."
+    },
+    "CCA": {
+        "voice": "zh-CN-XiaoxiaoNeural",
+        "welcome": "女士们先生们，欢迎乘坐中国国际航空公司航班。请您系好安全带，收起小桌板。",
+        "door_close": "乘务组，舱门滑梯预位，交叉检查。",
+        "safety_demo": "现在播放安全演示，请注意观看。",
+        "takeoff_prep": "客舱乘务员，请就座。",
+        "climb_service": "我们将为您提供餐饮服务。",
+        "descent": "飞机即将下降，请回到座位坐好。",
+        "landing_prep": "客舱乘务员，请做好着陆准备。",
+        "arrival_prep": "感谢选乘国航航班，下次旅途再会。"
+    },
+    "UAL": {
+        "voice": "en-US-GuyNeural",
+        "welcome": "Welcome aboard United. We're happy to have you with us today.",
+        "door_close": "Flight attendants, doors to arrival and cross check.",
+        "safety_demo": "Please give your attention to the safety video screens.",
+        "takeoff_prep": "Flight attendants, prepare for departure.",
+        "climb_service": "Sit back, relax, and enjoy the flight.",
+        "descent": "We are starting our initial descent.",
+        "landing_prep": "Flight attendants, prepare for arrival."
+    },
+    "ANA": {
+        "voice": "ja-JP-NanamiNeural",
+        "welcome": {
+            "text": "Ladies and gentlemen, welcome aboard ANA. We are delighted to have you with us today."
+        },
+        "door_close": {
+            "text": "Cabin attendants, arm doors and cross check."
+        },
+        "safety_demo": {
+            "text": "We will now begin the ANA safety video. Please watch the screens carefully.",
+            "video": "cabin_media/ANA-Safety-Video.mp4"
+        },
+        "takeoff_prep": {
+            "text": "Cabin attendants, please prepare for departure."
+        },
+        "climb_service": {
+            "text": "We will begin our inflight service shortly. Thank you for flying with ANA."
+        },
+        "descent": {
+            "text": "We have started our descent. Please return to your seats and fasten your seatbelt."
+        },
+        "turbulence": {
+            "text": "Ladies and gentlemen, due to expected turbulence, please return to your seats and fasten your seatbelts immediately."
+        },
+        "landing_prep": {
+            "text": "Cabin attendants, please prepare for landing."
+        },
+        "arrival_prep": {
+            "text": "Cabin attendants, please prepare the cabin for arrival."
+        },
+        "deboarding": {
+            "text": "Thank you for flying with ANA today. Please remain seated until the aircraft has come to a complete stop.",
+            "video": "cabin_media/ANA-Disembarking-Video.mp4"
+        }
+    }
+}

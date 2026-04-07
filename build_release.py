@@ -1,7 +1,7 @@
 import subprocess
 import os
 
-zip_name = "OpenFrequency_v3.0_Alpha.zip"
+zip_name = "OpenFrequency_v3.5_Beta.zip"
 
 def create_release_zip():
     # 7z exclusion list

@@ -291,6 +291,7 @@ class SimBridge:
                     pos = self.provider.get_position()
                     attitude = self.provider.get_attitude()
                     engine = self.provider.get_engine_data()
+                    identity = self.provider.get_aircraft_identity() if hasattr(self.provider, 'get_aircraft_identity') else {}
 
                     with self.lock:
                         previous = copy.deepcopy(self.context['aircraft'])
@@ -316,7 +317,10 @@ class SimBridge:
                         'fuel_flow': engine.get('fuel_flow', previous.get('fuel_flow', 0)),
                         'parking_brake': previous.get('parking_brake', False),
                         'combustion': previous.get('combustion', True),
-                        'gear': 1 if self.provider.get_gear_status() else 0
+                        'gear': 1 if self.provider.get_gear_status() else 0,
+                        'aircraft_type': identity.get('aircraft_type') or previous.get('aircraft_type', 'UNKNOWN'),
+                        'aircraft_icao': identity.get('aircraft_icao') or previous.get('aircraft_icao', ''),
+                        'aircraft_title': identity.get('aircraft_title') or previous.get('aircraft_title', ''),
                     }
                 else:
                     # === REAL SIMCONNECT ===
@@ -350,6 +354,8 @@ class SimBridge:
                     parking_brake = bool(self.aq.get("BRAKE_PARKING_POSITION"))
                     combustion = bool(self.aq.get("GENERAL_ENG_COMBUSTION:1"))
                     gear = self.aq.get("GEAR_HANDLE_POSITION") or 0
+                    aircraft_title = self.aq.get("TITLE") or ""
+                    aircraft_model = self.aq.get("ATC_MODEL") or ""
 
                     context_update = {
                         'latitude': lat if lat is not None else 40.08,
@@ -372,7 +378,10 @@ class SimBridge:
                         'fuel_flow': fuel_flow,
                         'parking_brake': parking_brake,
                         'combustion': combustion,
-                        'gear': gear
+                        'gear': gear,
+                        'aircraft_type': aircraft_model or aircraft_title or "UNKNOWN",
+                        'aircraft_icao': aircraft_model or "",
+                        'aircraft_title': aircraft_title or aircraft_model or "",
                     }
 
                 # Update Context

@@ -25,6 +25,8 @@ class XPlaneProvider(SimProvider):
         'flaps': 'sim/flightmodel/controls/flaprat',
         'transponder': 'sim/cockpit/radios/transponder_code',
         'com1': 'sim/cockpit2/radios/actuators/com1_frequency_hz_833',
+        'aircraft_icao': 'sim/aircraft/view/acf_ICAO',
+        'aircraft_description': 'sim/aircraft/view/acf_descrip',
     }
 
     FAILURE_DREFS = {
@@ -217,6 +219,15 @@ class XPlaneProvider(SimProvider):
         elif value > 10_000:
             value /= 1000.0
         return round(value, 3)
+
+    def get_aircraft_identity(self) -> dict:
+        icao = str(self._get_dref('aircraft_icao', '') or '').strip().upper()
+        description = str(self._get_dref('aircraft_description', '') or '').strip()
+        return {
+            'aircraft_icao': icao,
+            'aircraft_title': description or icao,
+            'aircraft_type': icao or description,
+        }
 
     def trigger_event(self, event_name: str):
         if event_name not in self.FAILURE_DREFS:

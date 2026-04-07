@@ -1452,7 +1452,8 @@
                 check_position: 'Move the aircraft to {origin} before starting this career flight. Current detected airport: {current}.',
                 check_on_ground: 'Aircraft should be on the ground.',
                 check_stopped: 'Aircraft should be stopped before dispatch.',
-                check_cold_dark: 'Recommended start state: cold and dark at the gate.'
+                check_cold_dark: 'Recommended start state: cold and dark at the gate.',
+                check_aircraft_type: 'Use the assigned aircraft type {required}. Current detected aircraft: {current}.'
             },
             zh: {
                 ready: '生涯飞行已就绪。',
@@ -1461,7 +1462,8 @@
                 check_position: '开始生涯飞行前，请先把飞机移动到 {origin}。当前检测到的位置：{current}。',
                 check_on_ground: '飞机应位于地面。',
                 check_stopped: '放行前飞机应保持停稳。',
-                check_cold_dark: '推荐从机位冷舱状态开始。'
+                check_cold_dark: '推荐从机位冷舱状态开始。',
+                check_aircraft_type: '请使用任务指定机型 {required}。当前检测到的机型：{current}。'
             },
             ja: {
                 ready: 'キャリア飛行の準備ができています。',
@@ -1470,7 +1472,8 @@
                 check_position: 'キャリア飛行を開始する前に、機体を {origin} へ移動してください。現在検出された空港：{current}。',
                 check_on_ground: '機体は地上にある必要があります。',
                 check_stopped: 'ディスパッチ前に機体を停止させてください。',
-                check_cold_dark: 'ゲートでコールドアンドダーク状態から開始することを推奨します。'
+                check_cold_dark: 'ゲートでコールドアンドダーク状態から開始することを推奨します。',
+                check_aircraft_type: '指定機種 {required} を使用してください。現在検出された機体：{current}。'
             }
         }[lang] || {};
         const readinessText = (item) => {
@@ -1491,7 +1494,134 @@
         alertBox.style.display = 'block';
     }
 
+    function careerReadinessDictV2() {
+        const lang = localStorage.getItem('language') || 'en';
+        return ({
+            en: {
+                ready: 'Career flight ready.',
+                ready_detail: 'Aircraft position, aircraft type, and startup checks look good.',
+                setup: 'Career flight setup required.',
+                check_position: 'Move the aircraft to {origin} before starting this career flight. Current detected airport: {current}.',
+                check_on_ground: 'Aircraft should be on the ground.',
+                check_stopped: 'Aircraft should be stopped before dispatch.',
+                check_cold_dark: 'Start this career flight from a cold and dark state at the gate.',
+                check_aircraft_type: 'Use the assigned aircraft type {required}. Current detected aircraft: {current}.',
+                simbrief_plan: 'Generate SimBrief Route',
+                simbrief_import: 'Import SimBrief OFP',
+                simbrief_hint: 'After generating the route in SimBrief, return here and import it using the SimBrief username saved in Settings.',
+                simbrief_username_missing: 'Set your SimBrief username in Settings first.',
+                simbrief_import_done: 'SimBrief OFP imported.',
+                simbrief_import_failed: 'Failed to import SimBrief OFP.'
+            },
+            zh: {
+                ready: '\u751f\u6daf\u98de\u884c\u5df2\u5c31\u7eea\u3002',
+                ready_detail: '\u98de\u673a\u4f4d\u7f6e\u3001\u673a\u578b\u548c\u542f\u52a8\u72b6\u6001\u68c0\u67e5\u901a\u8fc7\u3002',
+                setup: '\u9700\u8981\u5b8c\u6210\u751f\u6daf\u98de\u884c\u51c6\u5907\u3002',
+                check_position: '\u5f00\u59cb\u751f\u6daf\u98de\u884c\u524d\uff0c\u8bf7\u5148\u628a\u98de\u673a\u79fb\u52a8\u5230 {origin}\u3002\u5f53\u524d\u68c0\u6d4b\u5230\u7684\u4f4d\u7f6e\uff1a{current}\u3002',
+                check_on_ground: '\u98de\u673a\u5e94\u4f4d\u4e8e\u5730\u9762\u3002',
+                check_stopped: '\u653e\u884c\u524d\u98de\u673a\u5e94\u4fdd\u6301\u505c\u7a33\u3002',
+                check_cold_dark: '\u8bf7\u4ece\u673a\u4f4d\u51b7\u8231\u72b6\u6001\u5f00\u59cb\u672c\u6b21\u751f\u6daf\u98de\u884c\u3002',
+                check_aircraft_type: '\u8bf7\u4f7f\u7528\u4efb\u52a1\u6307\u5b9a\u673a\u578b {required}\u3002\u5f53\u524d\u68c0\u6d4b\u5230\u7684\u673a\u578b\uff1a{current}\u3002',
+                simbrief_plan: '\u751f\u6210 SimBrief \u822a\u8def',
+                simbrief_import: '\u5bfc\u5165 SimBrief OFP',
+                simbrief_hint: '\u70b9\u51fb\u751f\u6210\u822a\u8def\u5b8c\u6210 SimBrief \u8ba1\u5212\u540e\uff0c\u56de\u5230\u8fd9\u91cc\u70b9\u51fb\u5bfc\u5165\u3002\u7528\u6237\u540d\u4f1a\u4f7f\u7528\u8bbe\u7f6e\u9875\u4e2d\u4fdd\u5b58\u7684 SimBrief \u7528\u6237\u540d\u3002',
+                simbrief_username_missing: '\u8bf7\u5148\u5728\u8bbe\u7f6e\u9875\u586b\u5199 SimBrief \u7528\u6237\u540d\u3002',
+                simbrief_import_done: 'SimBrief OFP \u5df2\u5bfc\u5165\u3002',
+                simbrief_import_failed: 'SimBrief OFP \u5bfc\u5165\u5931\u8d25\u3002'
+            },
+            ja: {
+                ready: '\u30ad\u30e3\u30ea\u30a2\u30d5\u30e9\u30a4\u30c8\u306e\u6e96\u5099\u304c\u5b8c\u4e86\u3057\u307e\u3057\u305f\u3002',
+                ready_detail: '\u6a5f\u4f53\u4f4d\u7f6e\u3001\u6a5f\u7a2e\u3001\u8d77\u52d5\u72b6\u614b\u306e\u78ba\u8a8d\u306b\u554f\u984c\u306f\u3042\u308a\u307e\u305b\u3093\u3002',
+                setup: '\u30ad\u30e3\u30ea\u30a2\u30d5\u30e9\u30a4\u30c8\u306e\u6e96\u5099\u304c\u5fc5\u8981\u3067\u3059\u3002',
+                check_position: '\u30ad\u30e3\u30ea\u30a2\u30d5\u30e9\u30a4\u30c8\u958b\u59cb\u524d\u306b\u3001\u6a5f\u4f53\u3092 {origin} \u3078\u79fb\u52d5\u3057\u3066\u304f\u3060\u3055\u3044\u3002\u73fe\u5728\u691c\u51fa\u3055\u308c\u305f\u7a7a\u6e2f\uff1a{current}\u3002',
+                check_on_ground: '\u6a5f\u4f53\u306f\u5730\u4e0a\u306b\u3042\u308b\u5fc5\u8981\u304c\u3042\u308a\u307e\u3059\u3002',
+                check_stopped: '\u30c7\u30a3\u30b9\u30d1\u30c3\u30c1\u524d\u306b\u6a5f\u4f53\u3092\u505c\u6b62\u3055\u305b\u3066\u304f\u3060\u3055\u3044\u3002',
+                check_cold_dark: '\u30b2\u30fc\u30c8\u3067\u30b3\u30fc\u30eb\u30c9\u30a2\u30f3\u30c9\u30c0\u30fc\u30af\u72b6\u614b\u304b\u3089\u958b\u59cb\u3057\u3066\u304f\u3060\u3055\u3044\u3002',
+                check_aircraft_type: '\u6307\u5b9a\u6a5f\u7a2e {required} \u3092\u4f7f\u7528\u3057\u3066\u304f\u3060\u3055\u3044\u3002\u73fe\u5728\u691c\u51fa\u3055\u308c\u305f\u6a5f\u7a2e\uff1a{current}\u3002',
+                simbrief_plan: 'SimBrief \u30eb\u30fc\u30c8\u751f\u6210',
+                simbrief_import: 'SimBrief OFP \u30a4\u30f3\u30dd\u30fc\u30c8',
+                simbrief_hint: 'SimBrief \u3067\u30eb\u30fc\u30c8\u751f\u6210\u5f8c\u3001\u3053\u3053\u306b\u623b\u3063\u3066\u30a4\u30f3\u30dd\u30fc\u30c8\u3057\u3066\u304f\u3060\u3055\u3044\u3002\u8a2d\u5b9a\u306b\u4fdd\u5b58\u3055\u308c\u305f SimBrief \u30e6\u30fc\u30b6\u30fc\u540d\u3092\u4f7f\u7528\u3057\u307e\u3059\u3002',
+                simbrief_username_missing: '\u5148\u306b\u8a2d\u5b9a\u753b\u9762\u3067 SimBrief \u30e6\u30fc\u30b6\u30fc\u540d\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044\u3002',
+                simbrief_import_done: 'SimBrief OFP \u3092\u30a4\u30f3\u30dd\u30fc\u30c8\u3057\u307e\u3057\u305f\u3002',
+                simbrief_import_failed: 'SimBrief OFP \u306e\u30a4\u30f3\u30dd\u30fc\u30c8\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002'
+            }
+        })[lang] || {};
+    }
+
+    function careerReadinessTextV2(dict, item) {
+        let template = dict[item.message_key] || item.message || item.key;
+        Object.entries(item.params || {}).forEach(([name, value]) => {
+            template = template.replaceAll(`{${name}}`, value || 'N/A');
+        });
+        return template;
+    }
+
+    async function importCareerSimBrief() {
+        const dict = careerReadinessDictV2();
+        try {
+            const configPayload = await fetch('/get_config').then(r => r.json());
+            const username = configPayload?.simbrief?.username;
+            if (!username) {
+                alert(dict.simbrief_username_missing || 'Set your SimBrief username in Settings first.');
+                return;
+            }
+            const response = await fetch('/import_simbrief', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            const data = await response.json();
+            if (!response.ok || data.status === 'error') {
+                throw new Error(data.message || data.error || 'import failed');
+            }
+            alert(dict.simbrief_import_done || 'SimBrief OFP imported.');
+        } catch (error) {
+            alert(`${dict.simbrief_import_failed || 'Failed to import SimBrief OFP.'} ${error.message || error}`);
+        }
+    }
+
+    function renderCareerReadinessV2(readiness, job = null) {
+        const alertBox = document.getElementById('career-readiness-alert');
+        if (!alertBox || !readiness || !Array.isArray(readiness.checks)) return;
+        const dict = careerReadinessDictV2();
+        const failed = readiness.checks.filter(item => !item.ok);
+        const simbriefActions = job?.simbrief_url ? `
+            <div class="mt-3 small text-muted">${dict.simbrief_hint || ''}</div>
+            <div class="mt-2 d-flex gap-2 flex-wrap">
+                <a class="btn btn-sm btn-outline-secondary" href="${job.simbrief_url}" target="_blank" rel="noopener noreferrer">${dict.simbrief_plan || 'Generate SimBrief Route'}</a>
+                <button class="btn btn-sm btn-primary" type="button" onclick="importCareerSimBrief()">${dict.simbrief_import || 'Import SimBrief OFP'}</button>
+            </div>
+        ` : '';
+        if (failed.length === 0) {
+            alertBox.className = 'alert alert-success mt-2 mb-0';
+            alertBox.innerHTML = `<strong>${dict.ready || 'Career flight ready.'}</strong> ${dict.ready_detail || 'Aircraft position and startup checks look good.'}${simbriefActions}`;
+        } else {
+            alertBox.className = 'alert alert-warning mt-2 mb-0';
+            alertBox.innerHTML = `<strong>${dict.setup || 'Career flight setup required.'}</strong><br>${failed.map(item => `- ${careerReadinessTextV2(dict, item)}`).join('<br>')}${simbriefActions}`;
+        }
+        alertBox.style.display = 'block';
+    }
+
+    async function refreshCareerReadinessFromServer() {
+        const params = new URLSearchParams(window.location.search);
+        let isCareer = params.get('mode') === 'career';
+        try {
+            if (!isCareer) {
+                const session = await fetch('/api/session_mode').then(r => r.json());
+                isCareer = session?.mode === 'career';
+            }
+            if (!isCareer) return;
+            const payload = await fetch('/career/readiness').then(r => r.json());
+            if (payload?.active_job && payload?.readiness) {
+                renderCareerReadinessV2(payload.readiness, payload.active_job);
+            }
+        } catch (e) {
+            console.warn('Failed to refresh career readiness:', e);
+        }
+    }
+
     showCareerReadinessIfNeeded();
+    refreshCareerReadinessFromServer();
 
 </script>
 {% endblock %}

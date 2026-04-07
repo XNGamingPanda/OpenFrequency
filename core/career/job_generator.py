@@ -5,7 +5,10 @@ Career Mode - Job Generator
 import time
 import random
 import math
+from urllib.parse import urlencode
 from typing import List, Dict, Any
+
+from ..aircraft_catalog import AircraftCatalog
 
 class JobGenerator:
     """Generate flight jobs/missions for career mode."""
@@ -58,6 +61,22 @@ class JobGenerator:
         'passenger': 3.0,
         'charter': 4.0,
         'emergency': 5.0,
+    }
+
+    SIMBRIEF_TYPE_MAP = {
+        'B738': 'B738',
+        'A320': 'A320',
+        'B77W': 'B77W',
+        'A350': 'A359',
+        'B748': 'B748',
+        'A380': 'A388',
+        'C172': 'C172',
+        'PA28': 'P28A',
+        'C208': 'C208',
+        'BE58': 'BE58',
+        'TBM9': 'TBM9',
+        'CRJ7': 'CRJ7',
+        'E175': 'E75L',
     }
 
     AIRLINE_POOLS = {
@@ -168,9 +187,11 @@ class JobGenerator:
         }
     }
     
-    def __init__(self, career_profile, airport_service=None):
+    def __init__(self, career_profile, airport_service=None, config=None):
         self.career_profile = career_profile
         self.airport_service = airport_service
+        self.config = config or {}
+        self.aircraft_catalog = AircraftCatalog(self.config)
         self._rng = random.SystemRandom()
 
     AIRLINE_NAMES = {
@@ -359,6 +380,37 @@ class JobGenerator:
             return ['passenger', 'charter'] if code in pools.get('charter', []) else ['passenger']
         return ['passenger', 'charter'] if code in pools.get('charter', []) else ['passenger']
 
+    def _flight_number_from_callsign(self, callsign: str, airline_code: str) -> str:
+        callsign = (callsign or '').upper()
+        airline_code = (airline_code or '').upper()
+        if airline_code and callsign.startswith(airline_code):
+            number = callsign[len(airline_code):]
+            return number or str(self._rng.randint(100, 9999))
+        digits = ''.join(ch for ch in callsign if ch.isdigit())
+        return digits or str(self._rng.randint(100, 9999))
+
+    def _simbrief_url(self, job: Dict[str, Any]) -> str:
+        airline_code = (job.get('airline_code') or job.get('callsign', '')[:3] or '').upper()
+        aircraft = job.get('aircraft') or 'B738'
+        params = {
+            'orig': job.get('origin'),
+            'dest': job.get('destination'),
+            'type': self.SIMBRIEF_TYPE_MAP.get(aircraft, aircraft),
+            'airline': airline_code,
+            'fltnum': self._flight_number_from_callsign(job.get('callsign', ''), airline_code),
+            'callsign': job.get('callsign'),
+            'flighttype': 'c' if job.get('type') == 'cargo' else 's',
+            'flightrules': 'i',
+            'route': job.get('route', ''),
+        }
+        if job.get('cruise_alt'):
+            params['fl'] = str(job.get('cruise_alt'))
+        return f"https://dispatch.simbrief.com/options/custom?{urlencode({k: v for k, v in params.items() if v not in (None, '')})}"
+
+    def build_simbrief_url(self, job: Dict[str, Any]) -> str:
+        """Build a SimBrief dispatch redirect URL for an existing job."""
+        return self._simbrief_url(job)
+
     def _generate_callsign(self, job_type: str, origin: str = '', destination: str = '', airline_code: str = '') -> str:
         """Generate a region-aware realistic callsign for the job."""
         if airline_code:
@@ -448,7 +500,7 @@ class JobGenerator:
             
             # Determine aircraft
             max_rank = min(rank_index, 5)
-            aircraft_pool = self.AIRCRAFT_BY_RANK.get(max_rank, ['C172'])
+            aircraft_pool = self.aircraft_catalog.allowed_for_rank(max_rank, self.AIRCRAFT_BY_RANK)
             aircraft = self._rng.choice(aircraft_pool)
             
             # XP reward
@@ -469,8 +521,11 @@ class JobGenerator:
                 'airline_code': airline_code,
                 'airline_name': self.AIRLINE_NAMES.get(airline_code, airline_code),
                 'airline_region': self._country_for_airport(current_airport),
+                'route': '',
+                'route_source': 'simbrief_recommended',
                 'generated_at': int(time.time()),
             }
+            job['simbrief_url'] = self._simbrief_url(job)
             jobs.append(job)
         
         # Sort by distance
