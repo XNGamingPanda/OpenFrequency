@@ -161,6 +161,8 @@
                         data-i18n="clear_track_btn">
                         🗑️ <span data-i18n="clear_track_btn">Clear Trail</span>
                     </button>
+                    <button id="btn-fit-nav" class="btn btn-sm btn-outline-primary bg-white mt-2" type="button"
+                        data-i18n="fit_nav_btn">Fit Nav</button>
                 </div>
             </div>
             <!-- Nearby Frequencies Pane -->
@@ -319,6 +321,9 @@
 
     function renderNearbyAirports(airports, activeFrequency, currentController) {
         if (!nearbyAirportsList) return;
+        if (!currentAirportIdent && airports && airports.length > 0) {
+            currentAirportIdent = airports[0].ident;
+        }
 
         if (activeFrequencyBadge) {
             if (activeFrequency) {
@@ -595,6 +600,9 @@
         attribution: '© OpenStreetMap'
     }).addTo(map);
     let aircraftMarker;
+    let currentAirportIdent = null;
+    const taxiHighlightLayer = L.layerGroup().addTo(map);
+    let lastNavBounds = null;
 
     // Issue 2: Altitude-colored track segments
     let flightPathNodes = [];  // [[lat, lng], ...]
@@ -864,6 +872,12 @@
         if (activeFrequencyBadge) {
             activeFrequencyBadge.textContent = `${Number(data.frequency).toFixed(3)} ${data.controller || ''}`.trim();
         }
+        if (data.channel_key) {
+            const parts = String(data.channel_key).split(':');
+            if (parts[0] && parts[0] !== 'AREA') {
+                currentAirportIdent = parts[0];
+            }
+        }
         loadNearbyFrequencies();
     });
 
@@ -1059,6 +1073,18 @@
     if (btnClearTrack) {
         btnClearTrack.addEventListener('click', clearMapTrail);
     }
+    const btnFitNav = document.getElementById('btn-fit-nav');
+    if (btnFitNav) {
+        btnFitNav.addEventListener('click', () => {
+            if (lastNavBounds && lastNavBounds.isValid && lastNavBounds.isValid()) {
+                map.fitBounds(lastNavBounds.pad(0.2));
+            } else if (flightPathNodes.length > 1) {
+                map.fitBounds(L.latLngBounds(flightPathNodes).pad(0.2));
+            } else if (aircraftMarker) {
+                map.setView(aircraftMarker.getLatLng(), 15);
+            }
+        });
+    }
 
     // --- Audio & socket logic same as before ---
     let mediaRecorder;
@@ -1214,6 +1240,49 @@
             instructionCardsList.appendChild(chip);
         });
         instructionCardsPanel.classList.remove('d-none');
+        const taxiCard = cards.find(card => card.type === 'TAXI');
+        if (taxiCard) {
+            highlightTaxiRoute(taxiCard.value);
+        }
+    }
+
+    function normalizeTaxiName(value) {
+        return String(value || '').trim().toUpperCase().replace(/^TWY\s+/, '');
+    }
+
+    async function highlightTaxiRoute(routeValue) {
+        if (!currentAirportIdent || !routeValue) return;
+        const routeNames = String(routeValue).split(/\s+/).map(normalizeTaxiName).filter(Boolean);
+        if (routeNames.length === 0) return;
+
+        try {
+            const resp = await fetch(`/api/ground_layout/${encodeURIComponent(currentAirportIdent)}`);
+            if (!resp.ok) return;
+            const layout = await resp.json();
+            taxiHighlightLayer.clearLayers();
+            const matched = [];
+
+            (layout.edges || []).forEach(edge => {
+                const edgeName = normalizeTaxiName(edge.name);
+                if (!edgeName || !routeNames.includes(edgeName)) return;
+                const line = L.polyline([edge.start, edge.end], {
+                    color: '#ff1744',
+                    weight: 7,
+                    opacity: 0.85,
+                    dashArray: '10, 6',
+                }).addTo(taxiHighlightLayer);
+                line.bindTooltip(edge.name || 'Taxiway', { sticky: true });
+                matched.push(line);
+            });
+
+            if (matched.length > 0) {
+                const group = L.featureGroup(matched);
+                lastNavBounds = group.getBounds();
+                map.fitBounds(lastNavBounds.pad(0.2));
+            }
+        } catch (e) {
+            console.warn('Failed to highlight taxi route', e);
+        }
     }
 
     socket.on('instruction_cards_update', (data) => {

@@ -304,6 +304,40 @@ def refresh_airport_data():
 
     return jsonify({"status": "success"})
 
+
+@app.route('/api/ground_layout/<airport_ident>')
+def get_ground_layout_api(airport_ident):
+    airport_ident = (airport_ident or "").strip().upper()
+    if not airport_ident:
+        return jsonify({"status": "error", "message": "Missing airport ident"}), 400
+
+    layout = ground_data_service.get_airport_layout(airport_ident)
+    if not layout:
+        return jsonify({"status": "error", "message": "Ground layout unavailable"}), 404
+
+    nodes = {str(node.get("id")): node for node in layout.get("taxi_nodes", [])}
+    edges = []
+    for edge in layout.get("taxi_edges", []):
+        start = nodes.get(str(edge.get("start")))
+        end = nodes.get(str(edge.get("end")))
+        if not start or not end:
+            continue
+        edges.append({
+            "name": edge.get("name") or "",
+            "kind": edge.get("kind") or "taxiway",
+            "start": [start.get("lat"), start.get("lon")],
+            "end": [end.get("lat"), end.get("lon")],
+        })
+
+    return jsonify({
+        "status": "ok",
+        "airport": airport_ident,
+        "source": (layout.get("metadata") or {}).get("source") or layout.get("source_path") or "unknown",
+        "edges": edges,
+        "runways": layout.get("runways", []),
+        "aprons": layout.get("aprons", []),
+    })
+
 @app.route('/api/xplane/traffic_targets')
 def get_xplane_traffic_targets():
     global traffic_manager
@@ -885,7 +919,7 @@ def report_image(filename):
 
 
 if __name__ == '__main__':
-    print("--- Initializing OpenSky-ATC v2.5 ---")
+    print("--- Initializing OpenFrequency v3.1-alpha ---")
     print(f"Debug: WERKZEUG_RUN_MAIN = {os.environ.get('WERKZEUG_RUN_MAIN')}")
     
     # 0. Environment Self-Check (only in worker process)
