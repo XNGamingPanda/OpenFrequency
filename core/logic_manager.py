@@ -4,6 +4,7 @@ import random
 from .context import shared_context, context_lock, event_bus
 from .immersion.workload_sim import WorkloadSimulator
 from .taxi_router import TaxiRouter
+from .instruction_extractor import InstructionExtractor
 
 class LogicManager:
     """
@@ -456,6 +457,7 @@ class LogicManager:
             self.active_channel_key = channel_key
 
         if duplicate_switch:
+            self.last_freq = normalized_freq
             return
 
         self.socketio.emit('stop_active_audio', {'reason': 'frequency_change'})
@@ -470,6 +472,7 @@ class LogicManager:
         })
 
         self._broadcast_chat("SYSTEM", f"Tuned: {float(frequency_mhz):.3f} ({current_controller})")
+        self.last_freq = normalized_freq
         if "ATIS" in current_controller:
             self._broadcast_chat("SYSTEM", "--- ATIS Broadcast ---")
             airport_ident = freq_entry['airport_ident'] if freq_entry else None
@@ -583,9 +586,12 @@ class LogicManager:
             # 1. Frequency/Controller Handoff Check
             current_freq = ac_data.get('com1_freq')
             current_alt = ac_data.get('altitude', 0)
-            if current_freq and current_freq != self.last_freq:
+            try:
+                current_freq = round(float(current_freq), 3) if current_freq else None
+            except Exception:
+                current_freq = None
+            if current_freq and abs(current_freq - float(self.last_freq or 0.0)) >= 0.005:
                 self.switch_frequency_context(current_freq, source='sim')
-                self.last_freq = current_freq
 
             # === 主动移交触发逻辑 ===
             vs = ac_data.get('vs', 0)  # 垂直速度 ft/min
@@ -693,6 +699,11 @@ class LogicManager:
     def process_llm_request(self, text):
         """Sends the request to the LLM."""
         print(f"LogicManager: Processing LLM request for '{text}'")
+        with context_lock:
+            current_controller = shared_context['atc_state'].get('current_controller', '')
+            current_airport = shared_context['environment'].get('current_airport') or shared_context['environment'].get('nearest_airport')
+        if 'Ground' in current_controller:
+            self._refresh_ground_context(current_airport)
         # Pass recent history (exclude the very last one if it is the current message to avoid duplication in prompt, 
         # but simpler to just pass last 10 and let LLMClient handle formatting)
         # actually, let's just pass the last 6 messages for context
@@ -710,7 +721,19 @@ class LogicManager:
 
         sender = self._get_current_sender_name()
         self._broadcast_chat(sender, text)
+        event_bus.emit('atc_instruction_issued', text, action, shared_context)
+        self._emit_instruction_cards(text, sender)
         event_bus.emit('tts_request', text)
+
+    def _emit_instruction_cards(self, text, sender):
+        cards = InstructionExtractor.extract(text)
+        if not cards:
+            return
+        self.socketio.emit('instruction_cards_update', {
+            'sender': sender,
+            'cards': cards,
+            'source_text': text,
+        })
 
     def on_sim_status(self, data):
         """Handles sim connection status updates."""

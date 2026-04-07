@@ -12,14 +12,16 @@ from .sim_provider_factory import SimProviderFactory
 class EmergencyDirector:
     """Director system for injecting random emergencies and failures."""
     
-    # Default probability table (per minute)
+    # Default probability table (per minute). Keep these very low so the
+    # "low" setting behaves like an occasional training surprise, not a
+    # guaranteed failure generator.
     DEFAULT_PROBABILITIES = {
-        'engine_fire': 0.01,      # 1% chance per minute
-        'engine_failure': 0.02,   # 2% chance per minute
-        'gear_stuck': 0.03,       # 3% chance per minute
-        'hydraulic_fail': 0.02,   # 2% chance per minute
-        'electrical_fail': 0.01,  # 1% chance per minute
-        'bird_strike': 0.02       # 2% chance per minute
+        'engine_fire': 0.00015,
+        'engine_failure': 0.00035,
+        'gear_stuck': 0.00020,
+        'hydraulic_fail': 0.00020,
+        'electrical_fail': 0.00015,
+        'bird_strike': 0.00025
     }
     
     # Emergency prompts for LLM
@@ -72,7 +74,10 @@ class EmergencyDirector:
             self.DEFAULT_PROBABILITIES.copy()
         )
         
-        self.check_interval = config.get('emergency', {}).get('check_interval', 60)  # seconds
+        emergency_config = config.get('emergency', {})
+        self.check_interval = emergency_config.get('check_interval', 120)  # seconds
+        self.min_interval = emergency_config.get('min_interval_sec', self._default_min_interval())
+        self.last_trigger_time = 0
         
         self.running = False
         self.thread = None
@@ -115,16 +120,26 @@ class EmergencyDirector:
         """Get multiplier based on probability level."""
         levels = {
             'none': 0.0,
-            'low': 0.25,
-            'medium': 1.0,
-            'high': 5.0
+            'low': 0.05,
+            'medium': 0.35,
+            'high': 1.0
         }
         return levels.get(self.probability_level, 0.25)
+
+    def _default_min_interval(self):
+        intervals = {
+            'none': 10**9,
+            'low': 3 * 60 * 60,
+            'medium': 75 * 60,
+            'high': 30 * 60,
+        }
+        return intervals.get(self.probability_level, 3 * 60 * 60)
 
     def _on_config_update(self, new_config):
         """Handle config changes."""
         new_enabled = new_config.get('emergency', {}).get('enabled', False)
         self.probability_level = new_config.get('emergency', {}).get('level', 'low')
+        self.min_interval = new_config.get('emergency', {}).get('min_interval_sec', self._default_min_interval())
         
         self.base_probabilities = new_config.get('emergency', {}).get(
             'probabilities',
@@ -157,6 +172,10 @@ class EmergencyDirector:
                 continue
             if not self._supports_failure_injection():
                 continue
+            if time.time() - self.last_trigger_time < self.min_interval:
+                continue
+            if not self._is_safe_to_trigger_random_failure():
+                continue
 
             # Roll dice for each emergency type
             for event_type, base_prob in self.base_probabilities.items():
@@ -176,6 +195,7 @@ class EmergencyDirector:
         print(f"EmergencyDirector: 🚨 EMERGENCY TRIGGERED: {event_type}")
         
         self.active_emergency = event_type
+        self.last_trigger_time = time.time()
         
         # Determine specific system/engine
         system_detail = None
@@ -188,11 +208,15 @@ class EmergencyDirector:
         elif event_type == 'electrical_fail':
             system_detail = random.choice(['AC Bus 1', 'AC Bus 2', 'DC Bat Bus', 'Standby Power'])
         
-        # Play warning sound
-        self._play_warning_sound(event_type)
-        
         # Inject simulator failure only when the current simulator supports it.
         injected = self._inject_simulator_event(event_type, engine_num, system_detail)
+        if not injected:
+            print(f"EmergencyDirector: Simulator injection failed for {event_type}; random emergency suppressed.")
+            self.active_emergency = None
+            return
+
+        # Play warning sound only after simulator injection succeeds.
+        self._play_warning_sound(event_type)
         
         # Inject high-priority LLM prompt
         prompt = self.EMERGENCY_PROMPTS.get(event_type, '')
@@ -234,7 +258,7 @@ class EmergencyDirector:
         simconnect_events = {
             'engine_fire': f'TOGGLE_{engine_suffix}_FAILURE',
             'engine_failure': f'TOGGLE_{engine_suffix}_FAILURE',
-            'gear_stuck': None,  # Handled differently
+            'gear_stuck': 'TOGGLE_GEAR_STUCK',
             'hydraulic_fail': 'TOGGLE_HYDRAULIC_FAILURE',
             'electrical_fail': 'TOGGLE_ELECTRICAL_FAILURE',
             'bird_strike': f'TOGGLE_{engine_suffix}_FAILURE'
@@ -278,6 +302,28 @@ class EmergencyDirector:
     def _supports_failure_injection(self):
         return self._get_provider_type() in self.supported_failure_providers
 
+    def _is_safe_to_trigger_random_failure(self):
+        """Avoid random failures during taxi, takeoff, short final, and rollout."""
+        from .context import shared_context, context_lock
+
+        with context_lock:
+            aircraft = dict(shared_context.get('aircraft', {}))
+
+        on_ground = bool(aircraft.get('on_ground', True))
+        altitude = float(aircraft.get('altitude', 0) or 0)
+        airspeed = float(aircraft.get('airspeed', 0) or 0)
+        vertical_speed = float(aircraft.get('vs', 0) or 0)
+
+        if on_ground:
+            return False
+        if altitude < 2500:
+            return False
+        if altitude < 5000 and vertical_speed < -500:
+            return False
+        if airspeed < 120:
+            return False
+        return True
+
     def _get_provider_type(self):
         sim_config = self.config.get('simulator', {})
         provider = sim_config.get('provider', 'auto')
@@ -287,7 +333,7 @@ class EmergencyDirector:
 
     def trigger_manual(self, event_type):
         """Manually trigger an emergency (for testing)."""
-        if event_type in self.probabilities:
+        if event_type in self.base_probabilities:
             self._trigger_emergency(event_type)
             return True
         return False

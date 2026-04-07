@@ -13,6 +13,7 @@ class AirportFrequencyService:
     DATA_URL = "https://raw.githubusercontent.com/davidmegginson/ourairports-data/refs/heads/main/airport-frequencies.csv"
     AIRPORTS_URL = "https://raw.githubusercontent.com/davidmegginson/ourairports-data/refs/heads/main/airports.csv"
     RUNWAYS_URL = "https://raw.githubusercontent.com/davidmegginson/ourairports-data/refs/heads/main/runways.csv"
+    DEFAULT_CENTER_FREQUENCY = 132.450
 
     def __init__(self, config):
         self.config = config
@@ -222,8 +223,39 @@ class AirportFrequencyService:
                         continue
                     seen.add(key)
                     merged.append(entry)
-                return sorted(merged, key=lambda item: (item["frequency_mhz"], item["label"]))
-        return third_party_entries
+                return self._with_center_frequency(airport_ident, sorted(merged, key=lambda item: (item["frequency_mhz"], item["label"])))
+        return self._with_center_frequency(airport_ident, third_party_entries)
+
+    def _with_center_frequency(self, airport_ident, entries):
+        entries = [dict(item) for item in entries]
+        if not entries:
+            return []
+        if any((entry.get("role") or "").lower() == "center" for entry in entries):
+            return entries
+
+        center_frequency = self._configured_center_frequency()
+        entries.append({
+            "id": f"{airport_ident}-area-center",
+            "airport_ident": airport_ident,
+            "type": "CTR",
+            "description": "Area Center",
+            "frequency_mhz": center_frequency,
+            "label": f"Area Center {center_frequency:.3f}",
+            "role": "Center",
+            "synthetic": True,
+        })
+        return sorted(entries, key=lambda item: (item["frequency_mhz"], item["label"]))
+
+    def _configured_center_frequency(self):
+        frequencies = self.config.get("frequencies", {}) or {}
+        for key in ("Center", "center", "CTR", "ctr"):
+            value = frequencies.get(key)
+            if value:
+                try:
+                    return round(float(value), 3)
+                except (TypeError, ValueError):
+                    pass
+        return self.DEFAULT_CENTER_FREQUENCY
 
     def get_frequency_source(self):
         navdata = self.config.get("navdata", {}) or {}

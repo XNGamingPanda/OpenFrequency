@@ -79,6 +79,7 @@ class LLMClient:
         
         self.bus.on('llm_request', self.handle_request)
         self.bus.on('proactive_atc_request', self.request_proactive_msg)
+        self.bus.on('atc_monitor_check', self.handle_atc_monitor_check)
         self.bus.on('config_updated', self.handle_config_update)
         print("LLMClient: Initialized and subscribed to 'llm_request' & 'proactive_atc_request'.")
         
@@ -169,6 +170,37 @@ class LLMClient:
         # Run in thread to avoid blocking EventBus/SimBridge
         import threading
         t = threading.Thread(target=self.generate_response, args=(None, system_prompt, True))
+        t.start()
+
+    def handle_atc_monitor_check(self, issue, context_snapshot):
+        role = context_snapshot.get('atc_state', {}).get('current_controller', 'ATC')
+        callsign = context_snapshot.get('aircraft', {}).get('callsign', 'Aircraft')
+        aircraft = issue.get('aircraft', {})
+        system_prompt = f"""
+        You are {role}. Decide whether ATC should proactively contact {callsign}.
+
+        Current possible issue:
+        - Type: {issue.get('type')}
+        - Detail: {issue.get('detail')}
+        - Previous ATC instruction: {issue.get('instruction') or 'N/A'}
+        - Aircraft: altitude {aircraft.get('altitude')} ft, heading {aircraft.get('heading')}, speed {aircraft.get('airspeed')} kt, vertical speed {aircraft.get('vs')} fpm, on ground {aircraft.get('on_ground')}, COM1 {aircraft.get('com1_freq')}
+
+        Decision rules:
+        1. If this is normal or not urgent, return exactly: {{"text": "", "action": "SILENT"}}
+        2. If ATC should speak, return one short realistic radio call as JSON: {{"text": "...", "action": "ADVISORY"}}
+        3. Do not over-control. Stay within the current controller role.
+        4. Address the pilot by callsign {callsign}.
+        """
+
+        import threading
+        t = threading.Thread(
+            target=self.generate_response,
+            args=(None, system_prompt, True),
+            kwargs={
+                'callback_event': 'atc_monitor_decision',
+                'metadata': {'issue': issue}
+            }
+        )
         t.start()
 
     def _build_system_prompt(self, user_input, history=[]):
@@ -265,6 +297,7 @@ class LLMClient:
             taxiway_names = ", ".join(ground_summary.get('taxiway_names', [])[:20]) or "N/A"
             stand_names = ", ".join(ground_summary.get('stand_names', [])[:25]) or "N/A"
             route_names = " -> ".join(suggested.get('taxiways', [])) if suggested.get('taxiways') else "N/A"
+            route_target = suggested.get('target_runway') or suggested.get('end_node') or "N/A"
             ground_help = f"""
         GROUND LAYOUT DATA:
         - Source: {ground_summary.get('source', 'simulator')}
@@ -273,13 +306,16 @@ class LLMClient:
         - Stands/gates known: {stand_names}
         - Taxi graph: {ground_summary.get('taxi_node_count', 0)} nodes / {ground_summary.get('taxi_edge_count', 0)} edges
         - Suggested departure taxi route from current position: {route_names}
+        - Suggested route target runway/holding point: {route_target}
         - Suggested route cost: {suggested.get('cost', 'N/A')}
         - Runway crossing count on suggested route: {suggested.get('runway_crossings', 'N/A')}
 
         GROUND MOVEMENT RULES:
+        - Treat Suggested departure taxi route as the primary taxi plan when it is not N/A.
         - Use airport taxiway and stand names from the ground layout data when issuing taxi instructions.
         - Prefer routes with fewer runway crossings and fewer hotspots, even if slightly longer.
-        - If the suggested route looks usable, keep phraseology close to that route instead of inventing random taxiway names.
+        - If the suggested route looks usable, issue taxi instructions close to that route instead of inventing random taxiway names.
+        - Do not mention internal node IDs to the pilot; convert the path to taxiway names, runway holding point, and runway crossing instructions.
         """
         
         # NOTE: History is now passed separately as messages, not embedded here

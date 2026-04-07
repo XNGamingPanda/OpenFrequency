@@ -138,6 +138,7 @@ class TaxiRouter:
             "cost": round(best_route["cost"], 1),
             "runway_crossings": runway_crossings,
             "end_node": best_route["path"][-1],
+            "target_runway": self._runway_for_node(best_route["path"][-1]),
         }
 
     def find_path(self, start, end, aircraft_size="medium", low_visibility=False):
@@ -178,6 +179,19 @@ class TaxiRouter:
                     continue
             candidates.extend([start_id, end_id])
         return list(dict.fromkeys(candidates))
+
+    def _runway_for_node(self, node_id):
+        runway_names = []
+        if node_id not in self.graph:
+            return ""
+        for neighbor in self.graph.neighbors(node_id):
+            edge = self.graph.edges[node_id, neighbor]
+            if edge.get("kind") != "runway":
+                continue
+            for runway_name in edge.get("runway_names", set()):
+                if runway_name and runway_name not in runway_names:
+                    runway_names.append(runway_name)
+        return " / ".join(runway_names)
 
     def _edge_cost(self, previous, current, neighbor, edge, aircraft_size, low_visibility):
         base = float(edge.get("distance_m", 0.0))

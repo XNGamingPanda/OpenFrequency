@@ -217,6 +217,11 @@
 
     // Request initial status
     socket.emit('request_sim_status');
+    setInterval(() => {
+        if (socket.connected) {
+            socket.emit('request_sim_status');
+        }
+    }, 3000);
 
     socket.on('chat_log', (data) => {
         // 管制角色颜色映射

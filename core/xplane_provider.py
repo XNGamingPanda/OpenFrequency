@@ -28,10 +28,24 @@ class XPlaneProvider(SimProvider):
     }
 
     FAILURE_DREFS = {
-        'TOGGLE_ENGINE1_FAILURE': ('sim/operation/failures/rel_engfai0', 6),
-        'TOGGLE_ENGINE2_FAILURE': ('sim/operation/failures/rel_engfai1', 6),
-        'TOGGLE_HYDRAULIC_FAILURE': ('sim/operation/failures/rel_hydpmp', 6),
-        'TOGGLE_ELECTRICAL_FAILURE': ('sim/operation/failures/rel_elec_sys', 6),
+        'TOGGLE_ENGINE1_FAILURE': [
+            ('sim/operation/failures/rel_engfai0', 6),
+        ],
+        'TOGGLE_ENGINE2_FAILURE': [
+            ('sim/operation/failures/rel_engfai1', 6),
+        ],
+        'TOGGLE_HYDRAULIC_FAILURE': [
+            ('sim/operation/failures/rel_hydpmp', 6),
+        ],
+        'TOGGLE_ELECTRICAL_FAILURE': [
+            ('sim/operation/failures/rel_gen_esys', 6),
+        ],
+        'TOGGLE_GEAR_STUCK': [
+            ('sim/operation/failures/rel_gear_act', 6),
+            ('sim/operation/failures/rel_lagear1', 6),
+            ('sim/operation/failures/rel_lagear2', 6),
+            ('sim/operation/failures/rel_lagear3', 6),
+        ],
     }
 
     def __init__(self, host='127.0.0.1', port=8086):
@@ -139,13 +153,15 @@ class XPlaneProvider(SimProvider):
 
     def _set_dref(self, key, value):
         if not self._connected:
-            return
+            return False
         dref_name = self.DATAREFS.get(key, key)
         try:
             dataref_id = self._get_dataref_id(dref_name)
             self._request('PATCH', f'/datarefs/{dataref_id}/value', json={'data': value})
+            return True
         except Exception as e:
             print(f"XPlaneProvider: Failed to set {dref_name} - {e}")
+            return False
 
     def get_position(self) -> dict:
         alt_m = self._get_dref('altitude_m', 0)
@@ -187,11 +203,25 @@ class XPlaneProvider(SimProvider):
         self._set_dref('transponder', code)
 
     def set_com1_frequency(self, frequency: float):
-        freq_hz = int(float(frequency) * 1000)
-        self._set_dref('com1', freq_hz)
+        freq_hz = int(round(float(frequency) * 1_000_000))
+        return self._set_dref('com1', freq_hz)
+
+    def get_com1_frequency(self) -> float:
+        raw = self._get_dref('com1', 0)
+        try:
+            value = float(raw or 0)
+        except Exception:
+            return 0.0
+        if value > 1_000_000:
+            value /= 1_000_000.0
+        elif value > 10_000:
+            value /= 1000.0
+        return round(value, 3)
 
     def trigger_event(self, event_name: str):
         if event_name not in self.FAILURE_DREFS:
-            return
-        dref_name, value = self.FAILURE_DREFS[event_name]
-        self._set_dref(dref_name, value)
+            return False
+        ok = False
+        for dref_name, value in self.FAILURE_DREFS[event_name]:
+            ok = self._set_dref(dref_name, value) or ok
+        return ok

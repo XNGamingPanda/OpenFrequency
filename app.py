@@ -23,6 +23,7 @@ from core.chatter_generator import ChatterGenerator
 from core.atis_generator import ATISGenerator
 from core.airport_frequency_service import AirportFrequencyService
 from core.ground_data_service import GroundDataService
+from core.atc_monitor import ATCMonitor
 from core.self_check import self_check, download_ffmpeg, download_whisper_model
 from core.career import CareerProfile  # Career Mode
 from core.crew_manager import CrewManager  # Crew Manager (FO + Purser)
@@ -907,6 +908,7 @@ if __name__ == '__main__':
     from core.emergency_director import EmergencyDirector
     
     logic_manager = LogicManager(config, socketio, airport_frequency_service=airport_frequency_service, ground_service=ground_data_service)
+    atc_monitor = ATCMonitor(config)
     sim_bridge = SimBridge(config, shared_context, context_lock, event_bus)
     nav_manager = NavManager(config, shared_context, context_lock, event_bus, ground_service=ground_data_service, airport_frequency_service=airport_frequency_service)
     stt_module = STTLocal(config, event_bus)
@@ -1030,6 +1032,7 @@ if __name__ == '__main__':
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         print("Starting background services (Worker Process)...")
         logic_manager.start()
+        atc_monitor.start()
         sim_bridge.start()
         nav_manager.start()
         traffic_manager.start()

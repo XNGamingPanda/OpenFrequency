@@ -70,7 +70,8 @@ class SimBridge:
             if not self.provider or not self.provider.is_connected():
                 return False
             try:
-                self.provider.set_com1_frequency(frequency_mhz)
+                if not self.provider.set_com1_frequency(frequency_mhz):
+                    return False
                 with self.lock:
                     self.context['aircraft']['com1_freq'] = frequency_mhz
                 print(f"SimBridge: X-Plane COM1 tuned to {frequency_mhz:.3f}")
@@ -107,9 +108,11 @@ class SimBridge:
                     self.provider = SimProviderFactory.create(self.config)
                     if not self.provider.connect():
                         return False
-                self.provider.trigger_event(event_name)
-                print(f"SimBridge: Injected X-Plane failure {event_name}")
-                return True
+                if self.provider.trigger_event(event_name):
+                    print(f"SimBridge: Injected X-Plane failure {event_name}")
+                    return True
+                print(f"SimBridge: X-Plane failure dataref not available or write failed: {event_name}")
+                return False
             except Exception as e:
                 print(f"SimBridge: Failed to inject X-Plane failure {event_name} - {e}")
                 return False
@@ -298,7 +301,7 @@ class SimBridge:
                         'altitude': pos.get('altitude', previous.get('altitude', 0)),
                         'heading': attitude.get('heading', previous.get('heading', 0)),
                         'airspeed': self.provider.get_airspeed(),
-                        'com1_freq': previous.get('com1_freq', 118.1),
+                        'com1_freq': self.provider.get_com1_frequency() or previous.get('com1_freq', 118.1),
                         'g_force': previous.get('g_force', 1.0),
                         'on_ground': previous.get('on_ground', False),
                         'throttle': previous.get('throttle', 0),

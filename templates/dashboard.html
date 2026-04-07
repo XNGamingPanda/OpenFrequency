@@ -41,6 +41,49 @@
         background: #1f2328;
         color: #f5f5f5;
     }
+
+    #instruction-cards-panel {
+        border-top: 1px solid rgba(0, 0, 0, 0.08);
+        background: rgba(248, 249, 250, 0.95);
+    }
+
+    .instruction-card {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border: 1px solid rgba(13, 110, 253, 0.3);
+        border-radius: 999px;
+        padding: 0.35rem 0.65rem;
+        background: #fff;
+        color: #0b2447;
+        font-size: 0.82rem;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(13, 110, 253, 0.08);
+    }
+
+    .instruction-card .instruction-type {
+        color: #0d6efd;
+        letter-spacing: 0.03em;
+    }
+
+    .instruction-card .instruction-value {
+        font-family: "Consolas", "SFMono-Regular", monospace;
+    }
+
+    body.dark-mode #instruction-cards-panel {
+        border-top-color: rgba(255, 255, 255, 0.12);
+        background: #171a1f;
+    }
+
+    body.dark-mode .instruction-card {
+        background: #222832;
+        border-color: rgba(96, 165, 250, 0.45);
+        color: #f5f7fb;
+    }
+
+    body.dark-mode .instruction-card .instruction-type {
+        color: #7cb8ff;
+    }
 </style>
 <div class="row h-100">
     <!-- Header Row (Full Width) -->
@@ -149,6 +192,10 @@
                 style="overflow-y: auto; max-height: calc(100vh - 300px); background-color: #f8f9fa;">
                 <!-- Chat messages go here -->
             </div>
+            <div id="instruction-cards-panel" class="px-2 py-2 d-none">
+                <div class="small text-muted fw-semibold mb-1" data-i18n="latest_instructions">Latest Instructions</div>
+                <div id="instruction-cards-list" class="d-flex flex-wrap gap-2"></div>
+            </div>
             {% if can_interact %}
             <div class="card-footer bg-white p-2">
                 <div class="input-group">
@@ -238,6 +285,8 @@
     const vsEl = document.getElementById('data-vs');
     const nearbyAirportsList = document.getElementById('nearby-airports-list');
     const activeFrequencyBadge = document.getElementById('active-frequency-badge');
+    const instructionCardsPanel = document.getElementById('instruction-cards-panel');
+    const instructionCardsList = document.getElementById('instruction-cards-list');
 
     function i18nText(key, fallback) {
         const currentLang = localStorage.getItem('language') || 'en';
@@ -1097,8 +1146,15 @@
         }
     });
 
-    // Request initial status (fix for refresh race condition)
+    // Request initial status and keep it fresh. The backend also pushes status
+    // changes, but this prevents a missed disconnect event from leaving the UI
+    // stuck on "Sim Connected".
     socket.emit('request_sim_status');
+    setInterval(() => {
+        if (socket.connected) {
+            socket.emit('request_sim_status');
+        }
+    }, 3000);
 
     // 管制角色颜色映射 / Controller Role Color Mapping
     const roleColorMap = {
@@ -1134,6 +1190,34 @@
         div.innerHTML = `<strong>${data.sender}:</strong> ${data.text}`;
         logContainer.appendChild(div);
         logContainer.scrollTop = logContainer.scrollHeight;
+    });
+
+    function renderInstructionCards(cards) {
+        if (!instructionCardsPanel || !instructionCardsList || !cards || cards.length === 0) return;
+        instructionCardsList.innerHTML = '';
+        cards.forEach(card => {
+            const chip = document.createElement('div');
+            chip.className = 'instruction-card';
+
+            const type = document.createElement('span');
+            type.className = 'instruction-type';
+            type.textContent = card.type || 'INFO';
+
+            const value = document.createElement('span');
+            value.className = 'instruction-value';
+            value.textContent = card.value || '';
+
+            chip.appendChild(type);
+            chip.appendChild(document.createTextNode(':'));
+            chip.appendChild(value);
+            chip.title = card.label || card.type || '';
+            instructionCardsList.appendChild(chip);
+        });
+        instructionCardsPanel.classList.remove('d-none');
+    }
+
+    socket.on('instruction_cards_update', (data) => {
+        renderInstructionCards(data.cards || []);
     });
 
     // Audio Playback
