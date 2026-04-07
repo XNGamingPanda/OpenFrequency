@@ -59,8 +59,28 @@ if os.path.isdir(local_ffmpeg_bin):
 else:
     print("System: No local FFmpeg found, relying on system PATH.")
 
-# Load config
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
+def _bool_env(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _runtime_dir():
+    configured = os.environ.get("OPENFREQUENCY_RUNTIME_DIR")
+    if configured:
+        os.makedirs(configured, exist_ok=True)
+        return configured
+    if getattr(__import__("sys"), "frozen", False):
+        base = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "OpenFrequency")
+        os.makedirs(base, exist_ok=True)
+        return base
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+# Load config. Packaged builds keep config outside the exe so user secrets and
+# local settings are never bundled into the executable.
+CONFIG_PATH = os.environ.get("OPENFREQUENCY_CONFIG_PATH") or os.path.join(_runtime_dir(), 'config.json')
 print(f"CONFIG_PATH resolved to: {CONFIG_PATH}")
 config = {}
 def load_config():
@@ -388,17 +408,128 @@ def career_page():
 def career_profile_api():
     return jsonify(career_profile.get_profile())
 
+def _career_current_airport():
+    with context_lock:
+        environment = shared_context.get('environment', {})
+        flight_plan = shared_context.get('flight_plan', {})
+        aircraft = shared_context.get('aircraft', {})
+        candidates = [
+            environment.get('current_airport'),
+            environment.get('nearest_airport'),
+            flight_plan.get('origin'),
+            'ZBAA'
+        ]
+        lat = aircraft.get('latitude')
+        lon = aircraft.get('longitude')
+    ident = next((str(item).strip().upper() for item in candidates if item and str(item).strip().upper() != 'N/A'), 'ZBAA')
+    if (not ident or ident == 'N/A') and lat and lon:
+        ident = airport_frequency_service.get_nearest_airport_ident(lat, lon)
+    return (ident or 'ZBAA').upper()
+
+def _career_job_readiness(job):
+    with context_lock:
+        aircraft = dict(shared_context.get('aircraft', {}))
+        nearest = (
+            shared_context.get('environment', {}).get('current_airport')
+            or shared_context.get('environment', {}).get('nearest_airport')
+            or ''
+        ).upper()
+
+    origin = (job.get('origin') or '').upper()
+    checks = []
+    at_origin = nearest == origin if nearest and nearest != 'N/A' else False
+    if not at_origin:
+        lat = aircraft.get('latitude')
+        lon = aircraft.get('longitude')
+        airport = airport_frequency_service.get_airport_position(origin)
+        if airport and lat and lon:
+            distance_nm = airport_frequency_service._distance_nm(lat, lon, airport['lat'], airport['lon'])
+            at_origin = distance_nm <= 5
+
+    checks.append({
+        'key': 'position',
+        'ok': bool(at_origin),
+        'message_key': 'check_position',
+        'params': {'origin': origin, 'current': nearest or 'N/A'},
+        'message': f"Move the aircraft to {origin} before starting this career flight. Current detected airport: {nearest or 'N/A'}."
+    })
+    checks.append({
+        'key': 'on_ground',
+        'ok': bool(aircraft.get('on_ground', False)),
+        'message_key': 'check_on_ground',
+        'message': "Aircraft should be on the ground."
+    })
+    checks.append({
+        'key': 'stopped',
+        'ok': float(aircraft.get('airspeed') or 0) < 5,
+        'message_key': 'check_stopped',
+        'message': "Aircraft should be stopped before dispatch."
+    })
+
+    combustion = bool(aircraft.get('combustion', False))
+    n1 = float(aircraft.get('n1') or 0)
+    cold_dark = (not combustion) and n1 < 5
+    checks.append({
+        'key': 'cold_dark',
+        'ok': cold_dark,
+        'message_key': 'check_cold_dark',
+        'message': "Recommended start state: cold and dark at the gate."
+    })
+    return {
+        'ready': all(item['ok'] for item in checks[:3]),
+        'checks': checks,
+        'aircraft': {
+            'nearest_airport': nearest or 'N/A',
+            'on_ground': bool(aircraft.get('on_ground', False)),
+            'airspeed': round(float(aircraft.get('airspeed') or 0), 1),
+            'n1': round(n1, 1),
+            'combustion': combustion,
+        }
+    }
+
 @app.route('/career/jobs')
 def career_jobs_api():
     """Get available jobs from the job generator."""
     from core.career.job_generator import JobGenerator
-    job_gen = JobGenerator(career_profile)
-    # Use ZBAA as default current airport (can be improved to detect from sim)
-    jobs = job_gen.generate_jobs('ZBAA', count=8)
+    job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service)
+    current_airport = request.args.get('origin') or _career_current_airport()
+    jobs = job_gen.generate_jobs(current_airport, count=8)
     # Cache jobs for later accept
     with context_lock:
         shared_context['cached_jobs'] = {j['id']: j for j in jobs}
-    return jsonify(jobs)
+    profile = career_profile.get_profile()
+    return jsonify({
+        'origin': current_airport,
+        'jobs': jobs,
+        'count': len(jobs),
+        'current_airline': profile.get('current_airline'),
+        'requires_contract': not bool(profile.get('current_airline')),
+    })
+
+@app.route('/career/airlines')
+def career_airlines_api():
+    from core.career.job_generator import JobGenerator
+    job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service)
+    current_airport = request.args.get('origin') or _career_current_airport()
+    return jsonify({
+        'origin': current_airport,
+        'airlines': job_gen.available_airlines(current_airport),
+        'current_airline': career_profile.get_profile().get('current_airline'),
+    })
+
+@app.route('/career/sign_airline', methods=['POST'])
+def career_sign_airline():
+    from core.career.job_generator import JobGenerator
+    data = request.get_json() or {}
+    code = (data.get('code') or '').strip().upper()
+    current_airport = data.get('origin') or _career_current_airport()
+    job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service)
+    airlines = job_gen.available_airlines(current_airport)
+    selected = next((airline for airline in airlines if airline['code'] == code), None)
+    if not selected:
+        return jsonify({'success': False, 'error': 'Airline is not available in this region'}), 400
+    career_profile.set_airline(selected)
+    return jsonify({'success': True, 'airline': selected})
 
 @app.route('/career/accept_job', methods=['POST'])
 def career_accept_job():
@@ -416,13 +547,31 @@ def career_accept_job():
         job = cached_jobs.get(job_id)
     
     if job:
-        job_gen = JobGenerator(career_profile)
+        job_gen = JobGenerator(career_profile, airport_service=airport_frequency_service)
         job_gen.accept_job(job)
+        readiness = _career_job_readiness(job)
         # Override callsign in shared context
         with context_lock:
             shared_context['callsign_override'] = job['callsign']
+            shared_context['aircraft']['callsign'] = job['callsign']
             shared_context['active_job'] = job
-        return jsonify({'success': True, 'callsign': job['callsign'], 'job': job})
+            shared_context['flight_plan'] = _normalize_flight_plan({
+                'origin': job.get('origin'),
+                'destination': job.get('destination'),
+                'cruise_alt': job.get('cruise_alt', 0),
+                'flight_number': job.get('callsign'),
+                'route': job.get('route', 'DIRECT')
+            })
+            shared_context['session_mode'] = 'career'
+        career_evaluator.set_mode(True)
+        event_bus.emit('flight_plan_loaded', shared_context.get('flight_plan', {}))
+        return jsonify({
+            'success': True,
+            'callsign': job['callsign'],
+            'job': job,
+            'readiness': readiness,
+            'redirect_url': '/dashboard?mode=career'
+        })
     else:
         return jsonify({'success': False, 'error': 'Job not found - please refresh job list'}), 404
 
@@ -483,6 +632,14 @@ def career_transactions_api():
 @app.route('/career/progress')
 def career_progress_api():
     return jsonify(career_profile.get_next_rank_progress())
+
+@app.route('/career/nickname', methods=['POST'])
+def career_nickname():
+    data = request.json or {}
+    nickname = data.get('nickname', '').strip()
+    if career_profile.update_nickname(nickname):
+        return jsonify({"success": True, "nickname": nickname[:32]})
+    return jsonify({"success": False, "error": "Invalid nickname"}), 400
 
 @app.route('/career/callsign', methods=['POST'])
 def career_callsign():
@@ -919,11 +1076,16 @@ def report_image(filename):
 
 
 if __name__ == '__main__':
+    packaged_mode = _bool_env("OPENFREQUENCY_PACKAGED", False)
+    debug_mode = _bool_env("OPENFREQUENCY_DEBUG", not packaged_mode)
+    host = os.environ.get("OPENFREQUENCY_HOST", "127.0.0.1" if packaged_mode else "0.0.0.0")
+    port = int(os.environ.get("OPENFREQUENCY_PORT", "5000"))
+
     print("--- Initializing OpenFrequency v3.1-alpha ---")
     print(f"Debug: WERKZEUG_RUN_MAIN = {os.environ.get('WERKZEUG_RUN_MAIN')}")
     
     # 0. Environment Self-Check (only in worker process)
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    if packaged_mode or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         ok, errors = self_check()
         if not ok:
             print("⚠️ Environment check failed! Starting in rescue mode...")
@@ -1063,7 +1225,7 @@ if __name__ == '__main__':
 
     # 2. Start all background threads
     # CRITICAL: Only start services in the worker process (reloader child), not the parent.
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    if packaged_mode or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         print("Starting background services (Worker Process)...")
         logic_manager.start()
         atc_monitor.start()
@@ -1083,5 +1245,5 @@ if __name__ == '__main__':
         print("System: Parent process started. Waiting for reloader to spawn worker...")
 
     # 3. Start the Web Server
-    print("Starting Web Server on http://0.0.0.0:5000")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)
+    print(f"Starting Web Server on http://{host}:{port}")
+    socketio.run(app, host=host, port=port, debug=debug_mode, allow_unsafe_werkzeug=True, use_reloader=debug_mode)

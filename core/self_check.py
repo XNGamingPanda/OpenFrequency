@@ -32,6 +32,7 @@ def self_check():
     
     # 2. Check Whisper Model
     model_paths = [
+        "./models/sherpa-onnx-whisper-small",
         "./models/faster-whisper-small",
         "./models/faster-whisper-base",
         "./models/whisper-small"
@@ -48,7 +49,8 @@ def self_check():
         })
     
     # 3. Check config.json exists
-    if not os.path.exists("config.json"):
+    config_path = os.environ.get("OPENFREQUENCY_CONFIG_PATH") or "config.json"
+    if not os.path.exists(config_path):
         errors.append({
             "id": "config",
             "title": "Config File Missing",

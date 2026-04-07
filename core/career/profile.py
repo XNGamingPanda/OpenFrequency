@@ -4,6 +4,7 @@ Career Mode - Profile Management
 """
 import os
 import json
+import copy
 import threading
 from datetime import datetime
 
@@ -21,6 +22,9 @@ class CareerProfile:
     
     DEFAULT_PROFILE = {
         "callsign": "STUDENT01",
+        "nickname": "STUDENT01",
+        "current_airline": None,
+        "airline_history": [],
         "rank": "Student (P0)",
         "xp": 0,
         "money": 5000,
@@ -38,7 +42,7 @@ class CareerProfile:
         self.data_dir = data_dir
         self.profile_path = os.path.join(data_dir, "profile.json")
         self.profile = None
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         
         os.makedirs(data_dir, exist_ok=True)
         self._load_profile()
@@ -54,7 +58,9 @@ class CareerProfile:
                 # 确保所有字段存在
                 for key, val in self.DEFAULT_PROFILE.items():
                     if key not in self.profile:
-                        self.profile[key] = val
+                        self.profile[key] = copy.deepcopy(val)
+                if not self.profile.get('nickname'):
+                    self.profile['nickname'] = self.profile.get('callsign', 'STUDENT01')
             except Exception as e:
                 print(f"CareerProfile: Error loading profile: {e}")
                 self._create_default_profile()
@@ -63,7 +69,7 @@ class CareerProfile:
     
     def _create_default_profile(self):
         """创建默认档案"""
-        self.profile = self.DEFAULT_PROFILE.copy()
+        self.profile = copy.deepcopy(self.DEFAULT_PROFILE)
         self.profile['created_at'] = datetime.now().isoformat()
         self._save_profile()
         print("CareerProfile: Created new profile")
@@ -80,12 +86,44 @@ class CareerProfile:
     def get_profile(self) -> dict:
         """获取档案副本"""
         with self.lock:
-            return self.profile.copy()
+            return copy.deepcopy(self.profile)
     
     def update_callsign(self, callsign: str):
         """更新呼号"""
         with self.lock:
             self.profile['callsign'] = callsign
+        self._save_profile()
+
+    def update_nickname(self, nickname: str):
+        """Update the pilot display nickname."""
+        nickname = (nickname or "").strip()
+        if not nickname:
+            return False
+        with self.lock:
+            self.profile['nickname'] = nickname[:32]
+        self._save_profile()
+        return True
+
+    def set_airline(self, airline: dict):
+        """Sign or transfer the pilot to an airline."""
+        if not airline or not airline.get('code'):
+            return False
+        contract = {
+            "code": str(airline.get('code')).upper(),
+            "name": airline.get('name') or str(airline.get('code')).upper(),
+            "country": airline.get('country') or "DEFAULT",
+            "signed_at": datetime.now().isoformat()
+        }
+        with self.lock:
+            previous = self.profile.get('current_airline')
+            if previous:
+                self.profile.setdefault('airline_history', []).append(previous)
+            self.profile['current_airline'] = contract
+        self._save_profile()
+        return True
+
+    def save_profile(self):
+        """Public save helper for older career routes."""
         self._save_profile()
     
     def add_xp(self, amount: int, reason: str = ""):

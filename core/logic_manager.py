@@ -1,6 +1,7 @@
 import threading
 import time
 import random
+import os
 from .context import shared_context, context_lock, event_bus
 from .immersion.workload_sim import WorkloadSimulator
 from .taxi_router import TaxiRouter
@@ -47,7 +48,7 @@ class LogicManager:
         self.last_vs = 0  # 上一次垂直速度，用于判断爬升/下降
         
         # Defer log file creation to start() to avoid double initialization
-        self.log_dir = "logs"
+        self.log_dir = os.environ.get("OPENFREQUENCY_LOG_DIR", "logs")
         self.log_file = None
         self.track_file = None
         self._logs_initialized = False

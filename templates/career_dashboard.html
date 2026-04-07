@@ -2,104 +2,120 @@
 {% block content %}
 
 <style>
+    .career-hero {
+        border-radius: 0 0 28px 28px;
+        padding: 32px;
+        color: #f8fafc;
+        background:
+            radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.35), transparent 32%),
+            linear-gradient(135deg, #0f172a 0%, #1e3a5f 52%, #062e2f 100%);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.24);
+    }
+
     .career-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 20px;
-        padding: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 18px;
+        padding: 24px;
     }
 
     .career-card {
         background: var(--card-bg-color, #fff);
-        border-radius: 16px;
-        padding: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.10);
+    }
+
+    .career-action-card {
         cursor: pointer;
-        transition: all 0.3s ease;
-        border: 2px solid transparent;
+        transition: transform 0.18s ease, border-color 0.18s ease;
     }
 
-    .career-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-        border-color: var(--main-accent-color, #3b82f6);
-    }
-
-    .career-card h3 {
-        font-size: 1.5rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .career-card .icon {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .career-header {
-        background: linear-gradient(135deg, #1a1a2e, #16213e);
-        color: white;
-        padding: 30px;
-        border-radius: 0 0 20px 20px;
+    .career-action-card:hover {
+        transform: translateY(-3px);
+        border-color: #38bdf8;
     }
 
     .stat-badge {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 0.9rem;
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        border-radius: 999px;
+        padding: 8px 14px;
+        background: rgba(255, 255, 255, 0.13);
+        color: #fff;
+        font-weight: 700;
+    }
+
+    .pilot-name-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .nickname-input {
+        width: 180px;
+        max-width: 100%;
     }
 
     .job-list,
     .license-list,
     .transaction-list {
-        max-height: 400px;
+        max-height: 520px;
         overflow-y: auto;
     }
 
     .job-item {
-        background: var(--card-bg-color, #f8f9fa);
-        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-left: 5px solid #0ea5e9;
+        border-radius: 14px;
         padding: 16px;
         margin-bottom: 12px;
-        border-left: 4px solid #3b82f6;
-        cursor: pointer;
-        transition: all 0.2s ease;
+        background: var(--card-bg-color, #fff);
     }
 
-    .job-item:hover {
-        background: rgba(59, 130, 246, 0.1);
+    .job-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
     }
 
-    .license-item {
-        background: var(--card-bg-color, #f8f9fa);
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 12px;
-        border-left: 4px solid #10b981;
+    .job-meta span {
+        border-radius: 999px;
+        padding: 4px 10px;
+        background: rgba(14, 165, 233, 0.11);
+        color: #0369a1;
+        font-size: 0.86rem;
+        font-weight: 700;
     }
 
-    .license-item.owned {
-        border-left-color: #f59e0b;
-        opacity: 0.7;
+    .dark-mode .job-meta span {
+        background: rgba(56, 189, 248, 0.16);
+        color: #bae6fd;
     }
 
-    .transaction-item {
-        padding: 12px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    .readiness-list {
+        display: grid;
+        gap: 8px;
     }
 
-    .transaction-item.income {
-        border-left: 3px solid #10b981;
+    .readiness-item {
+        border-radius: 10px;
+        padding: 10px 12px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
     }
 
-    .transaction-item.expense {
-        border-left: 3px solid #ef4444;
+    .readiness-item.ok {
+        border-color: rgba(34, 197, 94, 0.45);
+        background: rgba(34, 197, 94, 0.08);
     }
 
-    .callsign-locked {
-        background: #fef3c7;
-        border: 2px dashed #f59e0b;
-        padding: 12px;
-        border-radius: 8px;
+    .readiness-item.warn {
+        border-color: rgba(245, 158, 11, 0.45);
+        background: rgba(245, 158, 11, 0.10);
     }
 
     .back-btn {
@@ -110,390 +126,626 @@
     }
 </style>
 
-<!-- Career Header -->
-<div class="career-header">
-    <div class="d-flex justify-content-between align-items-center flex-wrap">
+<div class="career-hero">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
-            <h1 class="mb-1">🎖️ <span data-i18n="career_dashboard">Career Dashboard</span></h1>
-            <p class="mb-0 opacity-75">
-                <span id="pilot-rank">Student (P0)</span> -
-                <span id="pilot-callsign" class="fw-bold">STUDENT01</span>
-            </p>
+            <h1 class="mb-2" data-ci="career_dashboard">Career Dashboard</h1>
+            <div class="pilot-name-wrap">
+                <span id="pilot-rank">Student (P0)</span>
+                <span>-</span>
+                <strong id="pilot-nickname">STUDENT01</strong>
+                <button class="btn btn-sm btn-outline-light" id="edit-nickname-btn" data-ci="edit_nickname">Edit Nickname</button>
+            </div>
+            <div class="small opacity-75 mt-2"><span data-ci="operational_callsign">Operational callsign</span>: <span id="pilot-callsign">STUDENT01</span></div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-            <span class="stat-badge">💰 $<span id="balance">5000</span></span>
-            <span class="stat-badge">⭐ <span id="xp">0</span> XP</span>
-            <span class="stat-badge">🕐 <span id="flight-hours">0</span>h</span>
+            <span class="stat-badge">$<span id="balance">5000</span></span>
+            <span class="stat-badge"><span id="xp">0</span> XP</span>
+            <span class="stat-badge"><span id="flight-hours">0</span>h</span>
         </div>
     </div>
 </div>
 
-<!-- Career Grid -->
 <div class="career-grid">
-    <!-- 1. Job Market -->
-    <div class="career-card" onclick="openJobMarket()">
-        <div class="icon">📋</div>
-        <h3 data-i18n="btn_job_market">Job Market</h3>
-        <p class="text-muted mb-0">
-            <span data-i18n="job_available">Available:</span> <span id="job-count" class="fw-bold text-primary">5</span>
-            <span data-i18n="job_available">jobs</span>
-        </p>
+    <div class="career-card career-action-card" onclick="openJobMarket()">
+        <div class="h2" data-ci="jobs">Jobs</div>
+        <div class="text-muted"><span data-ci="available_jobs">Available jobs</span>: <strong id="job-count">0</strong></div>
+        <div class="small text-muted mt-2"><span data-ci="current_market">Current market</span>: <span id="market-origin" data-ci="detecting">Detecting...</span></div>
     </div>
-
-    <!-- 2. License Center -->
-    <div class="career-card" onclick="openLicenseCenter()">
-        <div class="icon">🎓</div>
-        <h3 data-i18n="btn_license">License Center</h3>
-        <p class="text-muted mb-0">
-            <span data-i18n="lbl_rank">Current:</span> <span id="current-license" class="fw-bold">P0</span>
-        </p>
+    <div class="career-card career-action-card" onclick="openAirlineCenter()">
+        <div class="h2" data-ci="airline_contract">Airline Contract</div>
+        <div class="text-muted"><span data-ci="employer">Employer</span>: <strong id="current-airline">Not signed</strong></div>
+        <div class="small text-muted mt-2" data-ci="contract_hint">Sign with a local airline before taking jobs.</div>
     </div>
-
-    <!-- 3. Bank / Finance -->
-    <div class="career-card" onclick="openBank()">
-        <div class="icon">💰</div>
-        <h3 data-i18n="btn_bank">Bank Account</h3>
-        <p class="text-muted mb-0">
-            <span data-i18n="lbl_balance">Balance:</span> $<span id="bank-balance"
-                class="fw-bold text-success">5000</span>
-        </p>
+    <div class="career-card career-action-card" onclick="openLicenseCenter()">
+        <div class="h2" data-ci="licenses">Licenses</div>
+        <div class="text-muted"><span data-ci="current_license">Current license</span>: <strong id="current-license">P0</strong></div>
     </div>
-
-    <!-- 4. Violation History -->
-    <div class="career-card" onclick="openViolations()">
-        <div class="icon">⚠️</div>
-        <h3 data-i18n="violation_history">Violations</h3>
-        <p class="text-muted mb-0">
-            Clean Record: <span id="safe-hours" class="fw-bold text-success">12</span>h
-        </p>
+    <div class="career-card career-action-card" onclick="openBank()">
+        <div class="h2" data-ci="bank">Bank</div>
+        <div class="text-muted"><span data-ci="balance">Balance</span>: $<strong id="bank-balance">5000</strong></div>
+    </div>
+    <div class="career-card career-action-card" onclick="openViolations()">
+        <div class="h2" data-ci="record">Record</div>
+        <div class="text-muted"><span data-ci="safe_hours">Safe hours</span>: <strong id="safe-hours">0</strong>h</div>
     </div>
 </div>
 
-<!-- Active Job Panel -->
-<div class="container mt-4" id="active-job-panel" style="display: none;">
-    <div class="card border-primary">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">✈️ Active Job</h5>
+<div class="container mb-5">
+    <div class="career-card" id="active-job-panel" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h3 class="mb-0" data-ci="active_job">Active Job</h3>
+            <a href="/dashboard?mode=career" class="btn btn-success" data-ci="start_career_flight">Start Career Flight</a>
         </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <p><strong>Route:</strong> <span id="job-route">ZBAA → ZSPD</span></p>
-                    <p><strong>Aircraft:</strong> <span id="job-aircraft">B737</span></p>
-                </div>
-                <div class="col-md-6">
-                    <p><strong>Pay:</strong> $<span id="job-pay">3500</span></p>
-                    <p><strong>XP Reward:</strong> <span id="job-xp">450</span></p>
-                </div>
+        <hr>
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong data-ci="route">Route</strong>: <span id="job-route">N/A</span></p>
+                <p><strong data-ci="aircraft">Aircraft</strong>: <span id="job-aircraft">N/A</span></p>
+                <p><strong data-ci="callsign_label">Callsign</strong>: <span id="locked-callsign">N/A</span></p>
             </div>
-            <div class="callsign-locked">
-                🔒 <strong>Callsign Locked:</strong> <span id="locked-callsign">B-5421</span>
-            </div>
-            <div class="mt-3">
-                <a href="/dashboard?mode=career" class="btn btn-success">🛫 Start Flight</a>
+            <div class="col-md-6">
+                <p><strong data-ci="pay">Pay</strong>: $<span id="job-pay">0</span></p>
+                <p><strong data-ci="xp_reward">XP Reward</strong>: <span id="job-xp">0</span></p>
             </div>
         </div>
+        <div id="readiness-panel" class="readiness-list"></div>
     </div>
 </div>
 
-<!-- Back to Main Menu -->
-<a href="/" class="btn btn-outline-light back-btn">← <span data-i18n="back_dashboard">Back to Menu</span></a>
+<a href="/" class="btn btn-outline-secondary back-btn" data-ci="back_to_menu">Back to Menu</a>
 
-<!-- Job Market Modal -->
-<div class="modal fade" id="jobMarketModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+<div class="modal fade" id="nicknameModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">📋 <span data-i18n="btn_job_market">Job Market</span></h5>
+                <h5 class="modal-title" data-ci="edit_pilot_nickname">Edit Pilot Nickname</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body job-list" id="job-list">
-                <!-- Jobs will be loaded here -->
+            <div class="modal-body">
+                <label class="form-label" for="nickname-input" data-ci="nickname">Nickname</label>
+                <input class="form-control nickname-input" id="nickname-input" maxlength="32">
+                <div class="form-text" data-ci="nickname_hint">This changes the displayed pilot name only. Flight callsigns stay mission-based.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal" data-ci="cancel">Cancel</button>
+                <button class="btn btn-primary" id="save-nickname-btn" data-ci="save">Save</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- License Center Modal -->
+<div class="modal fade" id="jobMarketModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" data-ci="job_market">Job Market</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div class="text-muted"><span data-ci="origin">Origin</span>: <strong id="modal-market-origin">N/A</strong></div>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadJobs(true)" data-ci="refresh_jobs">Refresh Jobs</button>
+                </div>
+                <div class="job-list" id="job-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="airlineModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" data-ci="airline_contract">Airline Contract</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <span data-ci="airline_contract_explain">Sign with one airline first. Future jobs will use that airline's callsign. You can transfer later, but it should be a deliberate career decision.</span>
+                </div>
+                <div class="text-muted mb-3"><span data-ci="region">Region</span>: <strong id="airline-region">N/A</strong></div>
+                <div class="job-list" id="airline-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="licenseCenterModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">🎓 <span data-i18n="btn_license">License Center</span></h5>
+                <h5 class="modal-title" data-ci="license_center">License Center</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body license-list" id="license-list">
-                <!-- Licenses will be loaded here -->
-            </div>
+            <div class="modal-body license-list" id="license-list"></div>
         </div>
     </div>
 </div>
 
-<!-- Bank Modal -->
 <div class="modal fade" id="bankModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">💰 <span data-i18n="btn_bank">Bank Account</span></h5>
+                <h5 class="modal-title" data-ci="bank_account">Bank Account</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-success text-center">
                     <h3>$<span id="modal-bank-balance">5000</span></h3>
-                    <small data-i18n="bank_balance">Account Balance</small>
+                    <small data-ci="account_balance">Account Balance</small>
                 </div>
-                <h6 data-i18n="bank_history">Transaction History</h6>
-                <div class="transaction-list" id="transaction-list">
-                    <!-- Transactions will be loaded here -->
-                </div>
+                <h6 data-ci="transaction_history">Transaction History</h6>
+                <div class="transaction-list" id="transaction-list"></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Violations Modal -->
 <div class="modal fade" id="violationsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">⚠️ <span data-i18n="violation_history">Violation History</span></h5>
+                <h5 class="modal-title" data-ci="violations">Violations</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="violations-list">
-                <div class="alert alert-success">
-                    ✅ No violations recorded. Keep flying safely!
-                </div>
-            </div>
+            <div class="modal-body" id="violations-list"></div>
         </div>
     </div>
 </div>
 
 <script>
-    const socket = window.socket || io();
+    const CAREER_I18N = {
+        en: {
+            career_dashboard: 'Career Dashboard',
+            edit_nickname: 'Edit Nickname',
+            operational_callsign: 'Operational callsign',
+            jobs: 'Jobs',
+            available_jobs: 'Available jobs',
+            current_market: 'Current market',
+            detecting: 'Detecting...',
+            airline_contract: 'Airline Contract',
+            employer: 'Employer',
+            not_signed: 'Not signed',
+            contract_hint: 'Sign with a local airline before taking jobs.',
+            licenses: 'Licenses',
+            current_license: 'Current license',
+            bank: 'Bank',
+            balance: 'Balance',
+            record: 'Record',
+            safe_hours: 'Safe hours',
+            active_job: 'Active Job',
+            start_career_flight: 'Start Career Flight',
+            route: 'Route',
+            aircraft: 'Aircraft',
+            callsign_label: 'Callsign',
+            pay: 'Pay',
+            xp_reward: 'XP Reward',
+            back_to_menu: 'Back to Menu',
+            edit_pilot_nickname: 'Edit Pilot Nickname',
+            nickname: 'Nickname',
+            nickname_hint: 'This changes the displayed pilot name only. Flight callsigns stay mission-based.',
+            cancel: 'Cancel',
+            save: 'Save',
+            job_market: 'Job Market',
+            origin: 'Origin',
+            refresh_jobs: 'Refresh Jobs',
+            airline_contract_explain: "Sign with one airline first. Future jobs will use that airline's callsign. You can transfer later, but it should be a deliberate career decision.",
+            region: 'Region',
+            license_center: 'License Center',
+            bank_account: 'Bank Account',
+            account_balance: 'Account Balance',
+            transaction_history: 'Transaction History',
+            violations: 'Violations',
+            choose_airline: 'Choose Airline',
+            sign_contract: 'Sign Contract',
+            current_employer: 'Current Employer',
+            requires_contract: 'You need to sign with a local airline before accepting career jobs.',
+            no_jobs: 'No jobs available at the current airport. Move to a supported airport or refresh after simulator position updates.',
+            accept_job: 'Accept Job',
+            action_needed: 'Action Needed',
+            purchase_license: 'Purchase License',
+            owned: 'Owned',
+            requirements: 'Requires {xp} XP and {hours} flight hours',
+            purchase_confirm: 'Purchase this license?',
+            no_transactions: 'No transactions yet',
+            transaction: 'Transaction',
+            no_violations: 'No violations recorded.',
+            failed_accept: 'Failed to accept job.',
+            failed_sign: 'Failed to sign airline contract.',
+            failed_purchase: 'Failed to purchase license.',
+            invalid_nickname: 'Invalid nickname.',
+            check_position: 'Move the aircraft to {origin} before starting this career flight. Current detected airport: {current}.',
+            check_on_ground: 'Aircraft should be on the ground.',
+            check_stopped: 'Aircraft should be stopped before dispatch.',
+            check_cold_dark: 'Recommended start state: cold and dark at the gate.'
+        },
+        zh: {
+            career_dashboard: '生涯仪表盘',
+            edit_nickname: '修改昵称',
+            operational_callsign: '运行呼号',
+            jobs: '任务',
+            available_jobs: '可用任务',
+            current_market: '当前任务市场',
+            detecting: '正在检测...',
+            airline_contract: '航空公司合约',
+            employer: '当前雇主',
+            not_signed: '尚未签约',
+            contract_hint: '接任务前需要先与当地航空公司签约。',
+            licenses: '执照',
+            current_license: '当前执照',
+            bank: '银行',
+            balance: '余额',
+            record: '记录',
+            safe_hours: '安全飞行小时',
+            active_job: '当前任务',
+            start_career_flight: '开始生涯飞行',
+            route: '航线',
+            aircraft: '机型',
+            callsign_label: '呼号',
+            pay: '报酬',
+            xp_reward: '经验奖励',
+            back_to_menu: '返回主菜单',
+            edit_pilot_nickname: '修改飞行员昵称',
+            nickname: '昵称',
+            nickname_hint: '这里只修改显示昵称。飞行呼号仍由任务和航空公司决定。',
+            cancel: '取消',
+            save: '保存',
+            job_market: '任务市场',
+            origin: '始发机场',
+            refresh_jobs: '刷新任务',
+            airline_contract_explain: '需要先签约一家航空公司。之后的任务会使用该航空公司的呼号。后续可以换公司，但应作为一次明确的职业选择。',
+            region: '地区',
+            license_center: '执照中心',
+            bank_account: '银行账户',
+            account_balance: '账户余额',
+            transaction_history: '交易记录',
+            violations: '违规记录',
+            choose_airline: '选择航空公司',
+            sign_contract: '签约',
+            current_employer: '当前雇主',
+            requires_contract: '需要先与当地航空公司签约，才能接受生涯任务。',
+            no_jobs: '当前机场暂无可用任务。请移动到支持的机场，或等待模拟器位置更新后刷新。',
+            accept_job: '接受任务',
+            action_needed: '需要处理',
+            purchase_license: '购买执照',
+            owned: '已拥有',
+            requirements: '需要 {xp} XP 和 {hours} 小时飞行时间',
+            purchase_confirm: '确认购买这个执照？',
+            no_transactions: '暂无交易记录',
+            transaction: '交易',
+            no_violations: '暂无违规记录。',
+            failed_accept: '接受任务失败。',
+            failed_sign: '签约失败。',
+            failed_purchase: '购买执照失败。',
+            invalid_nickname: '昵称无效。',
+            check_position: '开始生涯飞行前，请先把飞机移动到 {origin}。当前检测到的位置：{current}。',
+            check_on_ground: '飞机应位于地面。',
+            check_stopped: '放行前飞机应保持停稳。',
+            check_cold_dark: '推荐从机位冷舱状态开始。'
+        },
+        ja: {
+            career_dashboard: 'キャリアダッシュボード',
+            edit_nickname: 'ニックネーム変更',
+            operational_callsign: '運航コールサイン',
+            jobs: 'ジョブ',
+            available_jobs: '利用可能なジョブ',
+            current_market: '現在のマーケット',
+            detecting: '検出中...',
+            airline_contract: '航空会社契約',
+            employer: '所属会社',
+            not_signed: '未契約',
+            contract_hint: 'ジョブを受ける前に、地域の航空会社と契約してください。',
+            licenses: 'ライセンス',
+            current_license: '現在のライセンス',
+            bank: '銀行',
+            balance: '残高',
+            record: '記録',
+            safe_hours: '安全飛行時間',
+            active_job: '現在のジョブ',
+            start_career_flight: 'キャリア飛行を開始',
+            route: 'ルート',
+            aircraft: '機体',
+            callsign_label: 'コールサイン',
+            pay: '報酬',
+            xp_reward: 'XP報酬',
+            back_to_menu: 'メニューへ戻る',
+            edit_pilot_nickname: 'パイロット名を変更',
+            nickname: 'ニックネーム',
+            nickname_hint: '表示名のみ変更します。飛行中のコールサインはジョブと航空会社で決まります。',
+            cancel: 'キャンセル',
+            save: '保存',
+            job_market: 'ジョブマーケット',
+            origin: '出発空港',
+            refresh_jobs: 'ジョブ更新',
+            airline_contract_explain: 'まず航空会社と契約してください。以降のジョブはその航空会社のコールサインを使います。後で移籍できますが、明確なキャリア選択として扱われます。',
+            region: '地域',
+            license_center: 'ライセンスセンター',
+            bank_account: '銀行口座',
+            account_balance: '口座残高',
+            transaction_history: '取引履歴',
+            violations: '違反記録',
+            choose_airline: '航空会社を選択',
+            sign_contract: '契約する',
+            current_employer: '現在の所属会社',
+            requires_contract: 'キャリアジョブを受ける前に、地域の航空会社と契約してください。',
+            no_jobs: '現在の空港には利用可能なジョブがありません。対応空港へ移動するか、シミュレーター位置更新後に再読み込みしてください。',
+            accept_job: 'ジョブを受ける',
+            action_needed: '対応が必要',
+            purchase_license: 'ライセンス購入',
+            owned: '所有済み',
+            requirements: '{xp} XP と飛行時間 {hours} 時間が必要',
+            purchase_confirm: 'このライセンスを購入しますか？',
+            no_transactions: '取引履歴はありません',
+            transaction: '取引',
+            no_violations: '違反記録はありません。',
+            failed_accept: 'ジョブの受諾に失敗しました。',
+            failed_sign: '航空会社との契約に失敗しました。',
+            failed_purchase: 'ライセンス購入に失敗しました。',
+            invalid_nickname: 'ニックネームが無効です。',
+            check_position: 'キャリア飛行を開始する前に、機体を {origin} へ移動してください。現在検出された空港：{current}。',
+            check_on_ground: '機体は地上にある必要があります。',
+            check_stopped: 'ディスパッチ前に機体を停止させてください。',
+            check_cold_dark: 'ゲートでコールドアンドダーク状態から開始することを推奨します。'
+        }
+    };
 
-    // i18n Translation loading
-    function loadTranslations() {
-        const lang = localStorage.getItem('language') || 'en';
-        const localeMap = { 'en': 'en-US', 'zh': 'zh-CN', 'ja': 'ja-JP' };
-        const locale = localeMap[lang] || 'en-US';
-
-        fetch(`/api/locales/${locale}`)
-            .then(r => r.json())
-            .then(translations => {
-                document.querySelectorAll('[data-i18n]').forEach(el => {
-                    const key = el.getAttribute('data-i18n');
-                    if (translations[key]) {
-                        el.textContent = translations[key];
-                    }
-                });
-            })
-            .catch(e => console.log('Translations error:', e));
+    const careerLang = localStorage.getItem('language') || 'en';
+    const careerDict = CAREER_I18N[careerLang] || CAREER_I18N.en;
+    function ci(key, fallback = '') {
+        return careerDict[key] || CAREER_I18N.en[key] || fallback || key;
+    }
+    function ciFormat(key, fallback = '', params = {}) {
+        let template = ci(key, fallback);
+        Object.entries(params || {}).forEach(([name, value]) => {
+            template = template.replaceAll(`{${name}}`, value || 'N/A');
+        });
+        return template;
+    }
+    function applyCareerI18n() {
+        document.querySelectorAll('[data-ci]').forEach(el => {
+            el.textContent = ci(el.getAttribute('data-ci'), el.textContent);
+        });
     }
 
-    // Load career profile
-    function loadProfile() {
-        fetch('/career/profile')
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById('pilot-rank').textContent = data.rank || 'Student (P0)';
-                document.getElementById('pilot-callsign').textContent = data.callsign || 'STUDENT01';
-                document.getElementById('balance').textContent = data.money || 0;
-                document.getElementById('bank-balance').textContent = data.money || 0;
-                document.getElementById('modal-bank-balance').textContent = data.money || 0;
-                document.getElementById('xp').textContent = data.xp || 0;
-                document.getElementById('flight-hours').textContent = Math.round(data.total_flight_time || 0);
-                document.getElementById('current-license').textContent = data.licenses ? data.licenses[data.licenses.length - 1] : 'P0';
+    let cachedJobs = [];
+    let jobMarketModal = null;
 
-                // Check for active job
-                if (data.active_job) {
-                    showActiveJob(data.active_job);
-                }
-            });
+    function money(value) {
+        return Number(value || 0).toLocaleString();
     }
 
-    function showActiveJob(job) {
+    function text(value, fallback = 'N/A') {
+        return value === undefined || value === null || value === '' ? fallback : value;
+    }
+
+    async function loadProfile() {
+        const data = await fetch('/career/profile').then(r => r.json());
+        document.getElementById('pilot-rank').textContent = data.rank || 'Student (P0)';
+        document.getElementById('pilot-nickname').textContent = data.nickname || data.callsign || 'STUDENT01';
+        document.getElementById('pilot-callsign').textContent = data.callsign || 'STUDENT01';
+        document.getElementById('current-airline').textContent = data.current_airline ? `${data.current_airline.name} (${data.current_airline.code})` : ci('not_signed');
+        document.getElementById('balance').textContent = money(data.money);
+        document.getElementById('bank-balance').textContent = money(data.money);
+        document.getElementById('modal-bank-balance').textContent = money(data.money);
+        document.getElementById('xp').textContent = money(data.xp);
+        document.getElementById('flight-hours').textContent = Math.round(data.total_flight_time || 0);
+        document.getElementById('safe-hours').textContent = Math.round(data.total_flight_time || 0);
+        document.getElementById('current-license').textContent = data.licenses?.[data.licenses.length - 1] || 'P0';
+        if (data.active_job) showActiveJob(data.active_job);
+    }
+
+    function showActiveJob(job, readiness = null) {
         document.getElementById('active-job-panel').style.display = 'block';
-        document.getElementById('job-route').textContent = `${job.origin} → ${job.destination}`;
-        document.getElementById('job-aircraft').textContent = job.aircraft;
-        document.getElementById('job-pay').textContent = job.pay;
-        document.getElementById('job-xp').textContent = job.xp_reward;
-        document.getElementById('locked-callsign').textContent = job.callsign;
-
-        // Lock callsign in UI
-        document.getElementById('pilot-callsign').textContent = job.callsign;
+        document.getElementById('job-route').textContent = `${job.origin} -> ${job.destination}`;
+        document.getElementById('job-aircraft').textContent = text(job.aircraft);
+        document.getElementById('job-pay').textContent = money(job.pay);
+        document.getElementById('job-xp').textContent = money(job.xp_reward);
+        document.getElementById('locked-callsign').textContent = text(job.callsign);
+        if (readiness) renderReadiness(readiness);
     }
 
-    function openJobMarket() {
-        // Load jobs via API
-        fetch('/career/jobs')
-            .then(r => r.json())
-            .then(jobs => {
-                const list = document.getElementById('job-list');
-                list.innerHTML = jobs.map(job => `
-                    <div class="job-item" data-job-id="${job.id}">
-                        <div class="d-flex justify-content-between">
-                            <strong>${job.origin_name} → ${job.destination_name}</strong>
-                            <span class="badge bg-success">$${job.pay}</span>
-                        </div>
-                        <div class="small text-muted mt-1">
-                            ✈️ ${job.aircraft} | 📏 ${job.distance_km}km | ⭐ ${job.xp_reward} XP
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mt-2">
-                            <span class="small">🔖 Callsign: <strong>${job.callsign}</strong></span>
-                            <button class="btn btn-sm btn-primary accept-job-btn" data-job-id="${job.id}">
-                                ✅ Accept
-                            </button>
-                        </div>
+    function renderReadiness(readiness) {
+        const panel = document.getElementById('readiness-panel');
+        panel.innerHTML = readiness.checks.map(item => `
+            <div class="readiness-item ${item.ok ? 'ok' : 'warn'}">
+                <strong>${item.ok ? 'OK' : ci('action_needed')}:</strong> ${ciFormat(item.message_key, item.message, item.params)}
+            </div>
+        `).join('');
+    }
+
+    async function loadJobs(openModal = false) {
+        const payload = await fetch('/career/jobs').then(r => r.json());
+        cachedJobs = payload.jobs || [];
+        document.getElementById('job-count').textContent = cachedJobs.length;
+        document.getElementById('market-origin').textContent = payload.origin || 'N/A';
+        document.getElementById('modal-market-origin').textContent = payload.origin || 'N/A';
+        renderJobs(cachedJobs, payload);
+        if (openModal) {
+            jobMarketModal = jobMarketModal || new bootstrap.Modal(document.getElementById('jobMarketModal'));
+            jobMarketModal.show();
+        }
+    }
+
+    function renderJobs(jobs, payload = {}) {
+        const list = document.getElementById('job-list');
+        if (payload.requires_contract) {
+            list.innerHTML = `
+                <div class="alert alert-warning">
+                    ${ci('requires_contract')}
+                    <div class="mt-3"><button class="btn btn-primary" onclick="openAirlineCenter()">${ci('choose_airline')}</button></div>
+                </div>
+            `;
+            return;
+        }
+        if (!jobs.length) {
+            list.innerHTML = `<div class="alert alert-warning">${ci('no_jobs')}</div>`;
+            return;
+        }
+        list.innerHTML = jobs.map(job => `
+            <div class="job-item">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <strong>${job.origin_name} -> ${job.destination_name}</strong>
+                        <div class="small text-muted">${job.origin} -> ${job.destination}</div>
                     </div>
-                `).join('');
-
-                // Add event listeners for accept buttons
-                list.querySelectorAll('.accept-job-btn').forEach(btn => {
-                    btn.addEventListener('click', function (e) {
-                        e.stopPropagation();
-                        acceptJob(this.getAttribute('data-job-id'));
-                    });
-                });
-
-                document.getElementById('job-count').textContent = jobs.length;
-                new bootstrap.Modal(document.getElementById('jobMarketModal')).show();
-            });
+                    <span class="badge bg-success">$${money(job.pay)}</span>
+                </div>
+                <div class="job-meta">
+                    <span>${job.aircraft}</span>
+                    <span>${job.distance_km} km</span>
+                    <span>${job.xp_reward} XP</span>
+                    <span>${job.type}</span>
+                    <span>${job.airline_code || ''}</span>
+                    <span>${job.callsign}</span>
+                </div>
+                <div class="mt-3 text-end">
+                    <button class="btn btn-primary accept-job-btn" data-job-id="${job.id}">${ci('accept_job')}</button>
+                </div>
+            </div>
+        `).join('');
+        list.querySelectorAll('.accept-job-btn').forEach(btn => {
+            btn.addEventListener('click', () => acceptJob(btn.dataset.jobId));
+        });
     }
 
-    function acceptJob(jobId) {
-        console.log('Accepting job:', jobId);
-        fetch('/career/accept_job', {
+    async function acceptJob(jobId) {
+        const response = await fetch('/career/accept_job', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ job_id: jobId })
-        })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    bootstrap.Modal.getInstance(document.getElementById('jobMarketModal')).hide();
-                    showActiveJob(data.job);
-                    loadProfile();
-                    alert('✅ Job accepted! Your callsign is now: ' + data.callsign);
-                } else {
-                    alert('❌ Error: ' + data.error);
-                }
-            })
-            .catch(e => {
-                console.error('Accept job error:', e);
-                alert('❌ Network error');
-            });
+        });
+        const data = await response.json();
+        if (!data.success) {
+            alert(data.error || ci('failed_accept'));
+            return;
+        }
+        jobMarketModal?.hide();
+        showActiveJob(data.job, data.readiness);
+        await loadProfile();
+        sessionStorage.setItem('career_readiness', JSON.stringify(data.readiness || {}));
+        window.location.href = data.redirect_url || '/dashboard?mode=career';
     }
 
-    function openLicenseCenter() {
-        fetch('/career/licenses')
-            .then(r => r.json())
-            .then(licenses => {
-                const list = document.getElementById('license-list');
-                list.innerHTML = licenses.map(lic => `
-                    <div class="license-item ${lic.owned ? 'owned' : ''}">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>${lic.name}</strong>
-                                ${lic.owned ? '<span class="badge bg-warning ms-2">✓ Owned</span>' : ''}
-                            </div>
-                            <span class="badge bg-primary">$${lic.price}</span>
-                        </div>
-                        <div class="small text-muted mt-1">
-                            📊 Requires: ${lic.required_xp} XP | ${lic.required_hours}h flight time
-                        </div>
-                        ${!lic.owned ? `
-                            <button class="btn btn-sm ${lic.can_buy ? 'btn-success' : 'btn-secondary'} mt-2 buy-license-btn" 
-                                    data-license-id="${lic.id}" ${!lic.can_buy ? 'disabled' : ''}>
-                                ${lic.can_buy ? '🎓 Purchase License' : '🔒 Requirements Not Met'}
-                            </button>
-                        ` : ''}
+    function openJobMarket() {
+        loadJobs(true);
+    }
+
+    async function openAirlineCenter() {
+        const payload = await fetch('/career/airlines').then(r => r.json());
+        document.getElementById('airline-region').textContent = payload.origin || 'N/A';
+        const list = document.getElementById('airline-list');
+        const currentCode = payload.current_airline?.code || '';
+        list.innerHTML = (payload.airlines || []).map(airline => `
+            <div class="job-item">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <strong>${airline.name}</strong>
+                        <div class="small text-muted">${airline.code} | ${airline.country} | ${airline.category}</div>
                     </div>
-                `).join('');
-
-                // Add event listeners
-                list.querySelectorAll('.buy-license-btn').forEach(btn => {
-                    btn.addEventListener('click', function () {
-                        buyLicense(this.getAttribute('data-license-id'));
-                    });
-                });
-
-                new bootstrap.Modal(document.getElementById('licenseCenterModal')).show();
-            });
+                    ${currentCode === airline.code
+                        ? `<span class="badge bg-success">${ci('current_employer')}</span>`
+                        : `<button class="btn btn-primary sign-airline-btn" data-code="${airline.code}">${ci('sign_contract')}</button>`}
+                </div>
+            </div>
+        `).join('');
+        list.querySelectorAll('.sign-airline-btn').forEach(btn => btn.addEventListener('click', () => signAirline(btn.dataset.code)));
+        new bootstrap.Modal(document.getElementById('airlineModal')).show();
     }
 
-    function buyLicense(licenseId) {
-        if (!confirm('Are you sure you want to purchase this license?')) return;
+    async function signAirline(code) {
+        const data = await fetch('/career/sign_airline', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        }).then(r => r.json());
+        if (!data.success) {
+            alert(data.error || ci('failed_sign'));
+            return;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('airlineModal'))?.hide();
+        await loadProfile();
+        await loadJobs(false);
+    }
 
-        fetch('/career/buy_license', {
+    async function openLicenseCenter() {
+        const licenses = await fetch('/career/licenses').then(r => r.json());
+        const list = document.getElementById('license-list');
+        list.innerHTML = licenses.map(lic => `
+            <div class="job-item">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <strong>${lic.name}</strong>
+                        ${lic.owned ? `<span class="badge bg-warning ms-2">${ci('owned')}</span>` : ''}
+                    </div>
+                    <span class="badge bg-primary">$${money(lic.price)}</span>
+                </div>
+                <div class="small text-muted mt-2">${ci('requirements').replace('{xp}', lic.required_xp).replace('{hours}', lic.required_hours)}</div>
+                ${!lic.owned ? `<button class="btn btn-sm ${lic.can_buy ? 'btn-success' : 'btn-secondary'} mt-3 buy-license-btn" data-license-id="${lic.id}" ${!lic.can_buy ? 'disabled' : ''}>${ci('purchase_license')}</button>` : ''}
+            </div>
+        `).join('');
+        list.querySelectorAll('.buy-license-btn').forEach(btn => btn.addEventListener('click', () => buyLicense(btn.dataset.licenseId)));
+        new bootstrap.Modal(document.getElementById('licenseCenterModal')).show();
+    }
+
+    async function buyLicense(licenseId) {
+        if (!confirm(ci('purchase_confirm'))) return;
+        const data = await fetch('/career/buy_license', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ license_id: licenseId })
-        })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    alert('🎉 Congratulations! You earned your ' + licenseId + ' license!');
-                    loadProfile();
-                    openLicenseCenter(); // Refresh list
-                } else {
-                    alert('❌ Error: ' + data.error);
-                }
-            });
+        }).then(r => r.json());
+        if (!data.success) {
+            alert(data.error || ci('failed_purchase'));
+            return;
+        }
+        await loadProfile();
+        await openLicenseCenter();
     }
 
-    function openBank() {
-        loadProfile();
-        fetch('/career/transactions')
-            .then(r => r.json())
-            .then(transactions => {
-                const list = document.getElementById('transaction-list');
-                if (transactions.length === 0) {
-                    list.innerHTML = '<div class="text-muted text-center py-3">No transactions yet</div>';
-                } else {
-                    list.innerHTML = transactions.map(tx => `
-                        <div class="transaction-item ${tx.amount > 0 ? 'income' : 'expense'}">
-                            <div class="d-flex justify-content-between">
-                                <span>${tx.description}</span>
-                                <strong class="${tx.amount > 0 ? 'text-success' : 'text-danger'}">
-                                    ${tx.amount > 0 ? '+' : ''}$${tx.amount}
-                                </strong>
-                            </div>
-                            <small class="text-muted">${tx.date || ''}</small>
-                        </div>
-                    `).join('');
-                }
-                new bootstrap.Modal(document.getElementById('bankModal')).show();
-            });
+    async function openBank() {
+        await loadProfile();
+        const transactions = await fetch('/career/transactions').then(r => r.json());
+        const list = document.getElementById('transaction-list');
+        list.innerHTML = transactions.length
+            ? transactions.map(tx => `<div class="py-2 border-bottom d-flex justify-content-between"><span>${text(tx.description, ci('transaction'))}</span><strong>${tx.amount > 0 ? '+' : ''}$${money(tx.amount)}</strong></div>`).join('')
+            : `<div class="text-muted text-center py-3">${ci('no_transactions')}</div>`;
+        new bootstrap.Modal(document.getElementById('bankModal')).show();
     }
 
-    function openViolations() {
-        fetch('/career/profile')
-            .then(r => r.json())
-            .then(profile => {
-                const list = document.getElementById('violations-list');
-                const violations = profile.violations || [];
-                if (violations.length === 0) {
-                    list.innerHTML = `
-                        <div class="alert alert-success">
-                            ✅ No violations recorded. Keep flying safely!<br>
-                            <small class="text-muted">Safe flight hours: ${Math.round(profile.total_flight_time || 0)}h</small>
-                        </div>
-                    `;
-                } else {
-                    list.innerHTML = violations.map(v => `
-                        <div class="alert alert-warning">
-                            ⚠️ <strong>${v.type}</strong> - ${v.description}<br>
-                            <small class="text-muted">${v.date}</small>
-                        </div>
-                    `).join('');
-                }
-                new bootstrap.Modal(document.getElementById('violationsModal')).show();
-            });
+    async function openViolations() {
+        const profile = await fetch('/career/profile').then(r => r.json());
+        const violations = profile.violations || [];
+        const list = document.getElementById('violations-list');
+        list.innerHTML = violations.length
+            ? violations.map(v => `<div class="alert alert-warning"><strong>${text(v.type)}</strong><br>${text(v.details || v.description, '')}<br><small>${text(v.timestamp || v.date, '')}</small></div>`).join('')
+            : `<div class="alert alert-success">${ci('no_violations')}</div>`;
+        new bootstrap.Modal(document.getElementById('violationsModal')).show();
     }
 
-    // Init
+    document.getElementById('edit-nickname-btn').addEventListener('click', () => {
+        document.getElementById('nickname-input').value = document.getElementById('pilot-nickname').textContent.trim();
+        new bootstrap.Modal(document.getElementById('nicknameModal')).show();
+    });
+
+    document.getElementById('save-nickname-btn').addEventListener('click', async () => {
+        const nickname = document.getElementById('nickname-input').value.trim();
+        const data = await fetch('/career/nickname', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nickname })
+        }).then(r => r.json());
+        if (!data.success) {
+            alert(data.error || ci('invalid_nickname'));
+            return;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('nicknameModal')).hide();
+        await loadProfile();
+    });
+
+    applyCareerI18n();
     loadProfile();
-    loadTranslations();
+    loadJobs(false);
 </script>
 
 {% endblock %}

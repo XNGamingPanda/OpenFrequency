@@ -14,7 +14,8 @@
         "output_device": "default",
         "push_to_talk": true,
         "radio_effect": true,
-        "stt_model_path": "base"
+        "stt_model_path": "./models/sherpa-onnx-whisper-small",
+        "stt_language": "en"
     },
     "simbrief": {
         "username": ""

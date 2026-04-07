@@ -90,6 +90,9 @@ class AirportFrequencyService:
                     "name": name,
                     "lat": float(lat_raw),
                     "lon": float(lon_raw),
+                    "iso_country": (row.get("iso_country") or "").strip().upper(),
+                    "type": (row.get("type") or "").strip().lower(),
+                    "scheduled_service": (row.get("scheduled_service") or "").strip().lower(),
                 }
             except ValueError:
                 continue

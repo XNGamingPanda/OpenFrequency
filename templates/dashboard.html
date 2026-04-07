@@ -84,6 +84,11 @@
     body.dark-mode .instruction-card .instruction-type {
         color: #7cb8ff;
     }
+
+    #career-readiness-alert {
+        display: none;
+        border-left: 4px solid #f59e0b;
+    }
 </style>
 <div class="row h-100">
     <!-- Header Row (Full Width) -->
@@ -98,6 +103,7 @@
                 {% endif %}
             </div>
         </div>
+        <div id="career-readiness-alert" class="alert alert-warning mt-2 mb-0"></div>
     </div>
 
     <!-- Left Column: Gauges + Map -->
@@ -1425,6 +1431,67 @@
             if (e.key === 'Enter') sendText();
         };
     }
+    function showCareerReadinessIfNeeded() {
+        const raw = sessionStorage.getItem('career_readiness');
+        if (!raw) return;
+        sessionStorage.removeItem('career_readiness');
+        let readiness = null;
+        try {
+            readiness = JSON.parse(raw);
+        } catch (e) {
+            return;
+        }
+        const alertBox = document.getElementById('career-readiness-alert');
+        if (!alertBox || !readiness || !Array.isArray(readiness.checks)) return;
+        const lang = localStorage.getItem('language') || 'en';
+        const dict = {
+            en: {
+                ready: 'Career flight ready.',
+                ready_detail: 'Aircraft position and startup checks look good.',
+                setup: 'Career flight setup required.',
+                check_position: 'Move the aircraft to {origin} before starting this career flight. Current detected airport: {current}.',
+                check_on_ground: 'Aircraft should be on the ground.',
+                check_stopped: 'Aircraft should be stopped before dispatch.',
+                check_cold_dark: 'Recommended start state: cold and dark at the gate.'
+            },
+            zh: {
+                ready: '生涯飞行已就绪。',
+                ready_detail: '飞机位置和启动检查看起来正常。',
+                setup: '需要完成生涯飞行准备。',
+                check_position: '开始生涯飞行前，请先把飞机移动到 {origin}。当前检测到的位置：{current}。',
+                check_on_ground: '飞机应位于地面。',
+                check_stopped: '放行前飞机应保持停稳。',
+                check_cold_dark: '推荐从机位冷舱状态开始。'
+            },
+            ja: {
+                ready: 'キャリア飛行の準備ができています。',
+                ready_detail: '機体位置と開始状態の確認は正常です。',
+                setup: 'キャリア飛行の準備が必要です。',
+                check_position: 'キャリア飛行を開始する前に、機体を {origin} へ移動してください。現在検出された空港：{current}。',
+                check_on_ground: '機体は地上にある必要があります。',
+                check_stopped: 'ディスパッチ前に機体を停止させてください。',
+                check_cold_dark: 'ゲートでコールドアンドダーク状態から開始することを推奨します。'
+            }
+        }[lang] || {};
+        const readinessText = (item) => {
+            let template = dict[item.message_key] || item.message;
+            Object.entries(item.params || {}).forEach(([name, value]) => {
+                template = template.replaceAll(`{${name}}`, value || 'N/A');
+            });
+            return template;
+        };
+        const failed = readiness.checks.filter(item => !item.ok);
+        if (failed.length === 0) {
+            alertBox.className = 'alert alert-success mt-2 mb-0';
+            alertBox.innerHTML = `<strong>${dict.ready || 'Career flight ready.'}</strong> ${dict.ready_detail || 'Aircraft position and startup checks look good.'}`;
+        } else {
+            alertBox.className = 'alert alert-warning mt-2 mb-0';
+            alertBox.innerHTML = `<strong>${dict.setup || 'Career flight setup required.'}</strong><br>${failed.map(item => `- ${readinessText(item)}`).join('<br>')}`;
+        }
+        alertBox.style.display = 'block';
+    }
+
+    showCareerReadinessIfNeeded();
 
 </script>
 {% endblock %}
