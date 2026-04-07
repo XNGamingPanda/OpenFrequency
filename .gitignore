@@ -44,6 +44,7 @@ data/
 recordings/
 reports/
 screenshots/
+static/cabin_media/
 
 # Binaries & Large Files
 ffmpeg/

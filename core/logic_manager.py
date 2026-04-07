@@ -3,16 +3,19 @@ import time
 import random
 from .context import shared_context, context_lock, event_bus
 from .immersion.workload_sim import WorkloadSimulator
+from .taxi_router import TaxiRouter
 
 class LogicManager:
     """
     The central coordinator. Does not own other modules.
     It subscribes to events on the EventBus and emits data to the UI via SocketIO.
     """
-    def __init__(self, config, socketio, airport_frequency_service=None):
+    def __init__(self, config, socketio, airport_frequency_service=None, ground_service=None):
         self.config = config
         self.socketio = socketio
         self.airport_frequency_service = airport_frequency_service
+        self.ground_service = ground_service
+        self.taxi_router = TaxiRouter(ground_service) if ground_service else None
         self.workload_sim = WorkloadSimulator(config)
         self.scheduler = None
         self.last_freq = 0.0
@@ -70,6 +73,7 @@ class LogicManager:
         event_bus.on('flight_plan_loaded', self.on_flight_plan_loaded)
         event_bus.on('metar_fetch_request', self._handle_metar_fetch_request)
         event_bus.on('external_chat_log', self._handle_external_chat_log)
+        event_bus.on('config_updated', self._handle_config_updated)
         
         # Start Infinite Pattern Loop if enabled
         if self.infinite_pattern and self.scheduler:
@@ -245,6 +249,11 @@ class LogicManager:
     def _handle_external_chat_log(self, sender, text):
         self._broadcast_chat(sender, text)
 
+    def _handle_config_updated(self, new_config):
+        self.config = new_config
+        if self.ground_service:
+            self.ground_service.update_config(new_config)
+
     def on_flight_plan_loaded(self, flight_plan):
         self._refresh_nearby_airports(force=True)
 
@@ -289,8 +298,75 @@ class LogicManager:
                 if airports:
                     shared_context['environment']['current_airport'] = airports[0]['ident']
             self.socketio.emit('nearby_frequencies_update', {'airports': airports})
+            self._refresh_ground_context(airports[0]['ident'] if airports else None)
 
         return airports
+
+    def _refresh_ground_context(self, airport_ident=None):
+        if not self.ground_service:
+            return None
+
+        with context_lock:
+            aircraft = dict(shared_context.get('aircraft', {}))
+            environment = dict(shared_context.get('environment', {}))
+        airport_ident = (airport_ident or environment.get('current_airport') or environment.get('nearest_airport') or '').strip().upper()
+        if not airport_ident or airport_ident == 'N/A':
+            return None
+
+        layout = self.ground_service.get_airport_layout(airport_ident)
+        if not layout:
+            return None
+
+        taxiway_names = []
+        for edge in layout.get('taxi_edges', []):
+            if edge.get('kind') in {'taxiway', 'taxiway_link', 'apron_link'}:
+                name = (edge.get('name') or '').strip()
+                if name and name not in taxiway_names:
+                    taxiway_names.append(name)
+
+        stand_names = []
+        for stand in layout.get('startup_locations', []):
+            stand_name = (stand.get('gate_id') or stand.get('name') or '').strip()
+            if stand_name and stand_name not in stand_names:
+                stand_names.append(stand_name)
+
+        route = None
+        if self.taxi_router:
+            preferred_runways = []
+            wind_dir = aircraft.get('wind_dir')
+            if self.airport_frequency_service:
+                preferred_runways = self.airport_frequency_service.get_preferred_runways(airport_ident, wind_dir=wind_dir, limit=2)
+            low_visibility = False
+            weather_data = environment.get('weather_data') or {}
+            vis = weather_data.get('visib') or weather_data.get('visibility')
+            try:
+                low_visibility = float(vis) < 5000
+            except Exception:
+                low_visibility = False
+            aircraft_size = 'heavy' if self.config.get('user_profile', {}).get('heavy') else 'medium'
+            route = self.taxi_router.suggest_taxi_route(
+                airport_ident,
+                {'lat': aircraft.get('latitude'), 'lon': aircraft.get('longitude')},
+                preferred_runways=preferred_runways,
+                aircraft_size=aircraft_size,
+                low_visibility=low_visibility,
+            )
+
+        summary = {
+            'airport_ident': airport_ident,
+            'source': self.config.get('navdata', {}).get('ground_source', 'simulator'),
+            'taxiway_names': taxiway_names[:40],
+            'stand_names': stand_names[:80],
+            'runway_count': len(layout.get('runways', [])),
+            'startup_count': len(layout.get('startup_locations', [])),
+            'taxi_node_count': len(layout.get('taxi_nodes', [])),
+            'taxi_edge_count': len(layout.get('taxi_edges', [])),
+            'suggested_taxi_route': route,
+        }
+        with context_lock:
+            shared_context['navigation']['ground_layout_summary'] = summary
+            shared_context['navigation']['current_taxi_path'] = route.get('taxiways', []) if route else []
+        return summary
 
     def _format_channel_key(self, airport_ident, frequency_mhz, role):
         airport_ident = (airport_ident or 'AREA').strip().upper()
@@ -329,16 +405,21 @@ class LogicManager:
     def _restore_channel_history(self, channel_key):
         restored = list(self.channel_histories.get(channel_key, []))
         self.message_history = restored
-        self.socketio.emit('chat_history_replace', {
-            'channel_key': channel_key,
-            'messages': restored
-        })
 
     def switch_frequency_context(self, frequency_mhz, source='sim'):
         freq_entry = self._find_frequency_entry(frequency_mhz)
         current_controller = None
+        duplicate_switch = False
 
         with context_lock:
+            try:
+                normalized_freq = round(float(frequency_mhz), 3)
+            except Exception:
+                return
+
+            existing_frequency = round(float(shared_context['atc_state'].get('current_frequency', 0.0) or 0.0), 3)
+            existing_channel_key = shared_context['atc_state'].get('current_channel_key', '')
+
             if self.active_channel_key:
                 self.channel_histories[self.active_channel_key] = list(self.message_history)
                 self.channel_controllers[self.active_channel_key] = shared_context['atc_state'].get('current_controller', 'ATC')
@@ -364,12 +445,23 @@ class LogicManager:
                 shared_context['atc_state']['current_frequency_role'] = role
                 shared_context['atc_state']['current_channel_key'] = channel_key
 
-            shared_context['atc_state']['current_frequency'] = round(float(frequency_mhz), 3)
+            duplicate_switch = (
+                existing_frequency == normalized_freq and
+                existing_channel_key == channel_key and
+                source == 'sim'
+            )
+
+            shared_context['atc_state']['current_frequency'] = normalized_freq
             current_controller = shared_context['atc_state']['current_controller']
             self.active_channel_key = channel_key
 
+        if duplicate_switch:
+            return
+
+        self.socketio.emit('stop_active_audio', {'reason': 'frequency_change'})
         self._restore_channel_history(self.active_channel_key)
         self.previous_controller_name = self.channel_controllers.get(self.active_channel_key, current_controller)
+        self._refresh_ground_context(freq_entry['airport_ident'] if freq_entry else airport_ident)
         self.socketio.emit('radio_context_changed', {
             'frequency': round(float(frequency_mhz), 3),
             'controller': current_controller,
@@ -448,6 +540,10 @@ class LogicManager:
         
         if lat is not None and lon is not None:
             self._refresh_nearby_airports()
+            with context_lock:
+                current_controller = shared_context['atc_state'].get('current_controller', '')
+            if 'Ground' in current_controller:
+                self._refresh_ground_context()
             should_log = True
             is_teleport = False
             
@@ -548,6 +644,10 @@ class LogicManager:
         """Handles recognized speech from the user."""
         print(f"LogicManager: User speech received: '{text}'")
         self._broadcast_chat('Pilot', text)
+
+        if self.intercom_target == 'CABIN':
+            event_bus.emit('crew_message', {'text': text, 'target': 'all'})
+            return
         
         # Issue 4: Check if ATC should ignore (too busy, didn't hear)
         if self.workload_sim.should_ignore():

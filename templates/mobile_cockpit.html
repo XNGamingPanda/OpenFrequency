@@ -135,6 +135,7 @@
     let audioChunks = [];
     const playbackQueue = [];
     let isPlaybackActive = false;
+    let currentPlaybackAudio = null;
 
     function enqueueAudioPlayback(audioUrl, volume = 1.0) {
         playbackQueue.push({ audioUrl, volume });
@@ -152,12 +153,15 @@
         isPlaybackActive = true;
         const { audioUrl, volume } = playbackQueue.shift();
         const audio = new Audio(audioUrl);
+        currentPlaybackAudio = audio;
         audio.volume = volume;
         audio.addEventListener('ended', () => {
+            currentPlaybackAudio = null;
             URL.revokeObjectURL(audioUrl);
             playNextQueuedAudio();
         }, { once: true });
         audio.addEventListener('error', () => {
+            currentPlaybackAudio = null;
             URL.revokeObjectURL(audioUrl);
             playNextQueuedAudio();
         }, { once: true });
@@ -165,9 +169,25 @@
             .then(() => console.log("Audio playing successfully."))
             .catch(e => {
                 console.error("Audio playback interrupted/failed:", e);
+                currentPlaybackAudio = null;
                 URL.revokeObjectURL(audioUrl);
                 playNextQueuedAudio();
             });
+    }
+
+    function stopAllPlayback() {
+        while (playbackQueue.length > 0) {
+            const item = playbackQueue.shift();
+            if (item && item.audioUrl) {
+                URL.revokeObjectURL(item.audioUrl);
+            }
+        }
+        isPlaybackActive = false;
+        if (currentPlaybackAudio) {
+            currentPlaybackAudio.pause();
+            currentPlaybackAudio.currentTime = 0;
+            currentPlaybackAudio = null;
+        }
     }
 
     // --- SocketIO Event Handlers ---
@@ -259,6 +279,10 @@
         } catch (e) {
             console.error("Error processing audio data:", e);
         }
+    });
+
+    socket.on('stop_active_audio', () => {
+        stopAllPlayback();
     });
 
     // ... (PTT Logic) ...

@@ -2,7 +2,7 @@
 Flask==3.0.0
 Flask-SocketIO==5.3.6
 python-socketio==5.11.0
-eventlet==0.33.3
+gevent>=24.2.1
 
 # Simulator Connectors
 SimConnect
@@ -18,10 +18,13 @@ soundfile
 
 # Head Tracking (Optional)
 opencv-python>=4.8.0
+# Note: the current head tracker uses the legacy MediaPipe Solutions Face Mesh API.
+# Newer Python 3.13-compatible MediaPipe builds may expose only the Tasks API.
 mediapipe>=0.10.0
 
 # Utilities
 requests>=2.31.0
+networkx>=3.2.1
 pyautogui>=0.9.54
 apscheduler>=3.10.0
 matplotlib>=3.8.0

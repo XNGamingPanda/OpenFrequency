@@ -6,6 +6,8 @@ from collections import defaultdict
 
 import requests
 
+from .simulator_ground_service import SimulatorGroundService
+
 
 class AirportFrequencyService:
     DATA_URL = "https://raw.githubusercontent.com/davidmegginson/ourairports-data/refs/heads/main/airport-frequencies.csv"
@@ -23,6 +25,11 @@ class AirportFrequencyService:
         self._airport_positions = {}
         self._runways_by_airport = defaultdict(list)
         self._loaded = False
+        self.simulator_ground_service = SimulatorGroundService(config)
+
+    def update_config(self, config):
+        self.config = config
+        self.simulator_ground_service.update_config(config)
 
     def load(self):
         return self.load_cached_or_download(force_update=False)
@@ -201,8 +208,26 @@ class AirportFrequencyService:
         airport_ident = (airport_ident or "").strip().upper()
         if not airport_ident:
             return []
+        source = self.get_frequency_source()
         with self._lock:
-            return [dict(item) for item in self._freq_by_airport.get(airport_ident, [])]
+            third_party_entries = [dict(item) for item in self._freq_by_airport.get(airport_ident, [])]
+        if source == "simulator":
+            simulator_entries = self.simulator_ground_service.get_airport_frequencies(airport_ident)
+            if simulator_entries:
+                merged = []
+                seen = set()
+                for entry in simulator_entries + third_party_entries:
+                    key = (entry.get("role"), entry.get("frequency_mhz"))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    merged.append(entry)
+                return sorted(merged, key=lambda item: (item["frequency_mhz"], item["label"]))
+        return third_party_entries
+
+    def get_frequency_source(self):
+        navdata = self.config.get("navdata", {}) or {}
+        return (navdata.get("frequency_source") or "third_party").lower()
 
     def get_frequency_map(self, airport_ident):
         result = {}
@@ -219,6 +244,30 @@ class AirportFrequencyService:
         with self._lock:
             airport = self._airport_positions.get(airport_ident, {})
         return (airport.get("name") or "").strip()
+
+    def get_airport_position(self, airport_ident):
+        airport_ident = (airport_ident or "").strip().upper()
+        if not airport_ident:
+            return None
+        with self._lock:
+            airport = self._airport_positions.get(airport_ident)
+        return dict(airport) if airport else None
+
+    def get_nearest_airport_ident(self, lat, lon):
+        if lat is None or lon is None:
+            return None
+        with self._lock:
+            airport_positions = dict(self._airport_positions)
+        if not airport_positions:
+            return None
+        best_ident = None
+        best_distance = None
+        for ident, airport in airport_positions.items():
+            distance = self._distance_nm(lat, lon, airport["lat"], airport["lon"])
+            if best_distance is None or distance < best_distance:
+                best_ident = ident
+                best_distance = distance
+        return best_ident
 
     def get_preferred_runways(self, airport_ident, wind_dir=None, limit=2):
         airport_ident = (airport_ident or "").strip().upper()

@@ -205,6 +205,7 @@ class LLMClient:
         current_frequency_label = context_copy['atc_state'].get('current_frequency_label', 'N/A')
         nearby_airports = context_copy['environment'].get('nearby_airports', [])
         current_airport = context_copy['environment'].get('current_airport', nearest_airport)
+        ground_summary = context_copy.get('navigation', {}).get('ground_layout_summary', {}) or {}
         
         # === 频率数据库 (如无配置则随机生成) ===
         freq_db = dict(self.config.get('frequencies', {}))
@@ -257,6 +258,29 @@ class LLMClient:
         - If pilot asks for ATC help: Provide appropriate frequency from the database above.
         - Give vectors to nearest runway if possible.
         """
+
+        ground_help = ""
+        if "Ground" in role and ground_summary and ground_summary.get('airport_ident') == current_airport:
+            suggested = ground_summary.get('suggested_taxi_route') or {}
+            taxiway_names = ", ".join(ground_summary.get('taxiway_names', [])[:20]) or "N/A"
+            stand_names = ", ".join(ground_summary.get('stand_names', [])[:25]) or "N/A"
+            route_names = " -> ".join(suggested.get('taxiways', [])) if suggested.get('taxiways') else "N/A"
+            ground_help = f"""
+        GROUND LAYOUT DATA:
+        - Source: {ground_summary.get('source', 'simulator')}
+        - Airport: {ground_summary.get('airport_ident', current_airport)}
+        - Taxiways known: {taxiway_names}
+        - Stands/gates known: {stand_names}
+        - Taxi graph: {ground_summary.get('taxi_node_count', 0)} nodes / {ground_summary.get('taxi_edge_count', 0)} edges
+        - Suggested departure taxi route from current position: {route_names}
+        - Suggested route cost: {suggested.get('cost', 'N/A')}
+        - Runway crossing count on suggested route: {suggested.get('runway_crossings', 'N/A')}
+
+        GROUND MOVEMENT RULES:
+        - Use airport taxiway and stand names from the ground layout data when issuing taxi instructions.
+        - Prefer routes with fewer runway crossings and fewer hotspots, even if slightly longer.
+        - If the suggested route looks usable, keep phraseology close to that route instead of inventing random taxiway names.
+        """
         
         # NOTE: History is now passed separately as messages, not embedded here
         # This saves token costs by using proper role-based messaging
@@ -302,6 +326,8 @@ class LLMClient:
         {freq_text}
         
         {emergency_help}
+
+        {ground_help}
         
         CRITICAL RULES:
         1. Address the pilot by callsign '{callsign}' at the START of your message. Do NOT repeat it at the end.
@@ -347,6 +373,42 @@ class LLMClient:
             # If parsing fails, try to return just the text if it looks like a normal sentence,
             # otherwise return the raw output but log it.
             return response_text, None
+
+    def _call_llm_sync(self, system_prompt, user_message, max_tokens=100):
+        """Compatibility helper for older modules that need a synchronous plain-text reply."""
+        if not self.client and not self.openai_client:
+            raise RuntimeError("LLM client not initialized")
+
+        try:
+            if self.client:
+                contents = [
+                    types.Content(
+                        role="user",
+                        parts=[types.Part(text=system_prompt)]
+                    ),
+                    types.Content(
+                        role="user",
+                        parts=[types.Part(text=user_message)]
+                    )
+                ]
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(max_output_tokens=max_tokens)
+                )
+                return (response.text or "").strip()
+
+            response = self.openai_client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+                max_tokens=max_tokens
+            )
+            return (response.choices[0].message.content or "").strip()
+        except Exception:
+            raise
 
     def generate_response(self, user_text=None, trigger_prompt=None, is_proactive=False, history=[], callback_event=None, metadata=None):
         if not self.client and not self.openai_client:

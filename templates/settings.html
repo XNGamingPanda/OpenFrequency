@@ -107,6 +107,25 @@
                             </div>
                         </div>
                     </div>
+                    <div class="mt-2">
+                        <label class="form-label small mb-0" data-i18n="frequency_data_source">Frequency Data Source</label>
+                        <select class="form-select form-select-sm" id="conf-frequency-source">
+                            <option value="third_party" data-i18n="source_ourairports">OurAirports / Third-party</option>
+                            <option value="simulator" data-i18n="source_simulator">Simulator Native Data</option>
+                        </select>
+                    </div>
+                    <div class="mt-2">
+                        <label class="form-label small mb-0" data-i18n="ground_data_source">Ground Layout Source</label>
+                        <select class="form-select form-select-sm" id="conf-ground-source">
+                            <option value="simulator" data-i18n="source_simulator_ground">Simulator apt.dat / scenery</option>
+                            <option value="osm" data-i18n="source_osm">OpenStreetMap / Overpass</option>
+                        </select>
+                    </div>
+                    <div class="mt-2" id="osm-config-group">
+                        <label class="form-label small mb-0" data-i18n="osm_overpass_url">OSM Overpass API</label>
+                        <input type="text" class="form-control form-control-sm" id="conf-osm-overpass-url" placeholder="https://overpass-api.de/api/interpreter">
+                        <div class="form-text x-small text-muted" data-i18n="ground_data_hint">Choose simulator or third-party sources for airport frequencies and taxi/apron data.</div>
+                    </div>
 
                     <!-- Audio Settings -->
                     <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="audio_controls">Audio & Controls</h6>
@@ -199,7 +218,7 @@
                     <button class="btn btn-success" onclick="saveConfig()" data-i18n="save_settings">Save
                         Settings</button>
                     <button class="btn btn-secondary" onclick="loadConfig()" data-i18n="reload">Reload</button>
-                    <a href="/" class="btn btn-outline-primary" data-i18n="back_dashboard">Back to Dashboard</a>
+                    <button type="button" class="btn btn-outline-primary" onclick="goBackToDashboard()" data-i18n="back_dashboard">Back to Dashboard</button>
                 </div>
             </div>
         </div>
@@ -334,6 +353,9 @@
             document.getElementById('conf-sim-provider').value = data.simulator?.provider || 'auto';
             document.getElementById('conf-xplane-host').value = data.simulator?.xplane_host || '127.0.0.1';
             document.getElementById('conf-xplane-port').value = data.simulator?.xplane_web_port || data.simulator?.xplane_port || 8086;
+            document.getElementById('conf-frequency-source').value = data.navdata?.frequency_source || 'third_party';
+            document.getElementById('conf-ground-source').value = data.navdata?.ground_source || 'simulator';
+            document.getElementById('conf-osm-overpass-url').value = data.navdata?.osm_overpass_url || 'https://overpass-api.de/api/interpreter';
             document.getElementById('conf-radio-effect').checked = data.audio.radio_effect;
             document.getElementById('conf-stt-path').value = data.audio.stt_model_path || '';
             document.getElementById('conf-stt-language').value = data.audio.stt_language || 'en';
@@ -361,6 +383,7 @@
 
             toggleBaseUrl();
             toggleSimulatorFields();
+            toggleGroundSourceFields();
 
             // Restore PTT binding from storage if exists
             const savedBind = localStorage.getItem('ptt_binding');
@@ -402,6 +425,11 @@
                     provider: document.getElementById('conf-sim-provider').value,
                     xplane_host: document.getElementById('conf-xplane-host').value.trim() || '127.0.0.1',
                     xplane_web_port: parseInt(document.getElementById('conf-xplane-port').value || '8086', 10)
+                },
+                navdata: {
+                    frequency_source: document.getElementById('conf-frequency-source').value,
+                    ground_source: document.getElementById('conf-ground-source').value,
+                    osm_overpass_url: document.getElementById('conf-osm-overpass-url').value.trim() || 'https://overpass-api.de/api/interpreter'
                 },
                 audio: {
                     radio_effect: document.getElementById('conf-radio-effect').checked,
@@ -479,6 +507,7 @@
 
     document.getElementById('conf-provider').addEventListener('change', toggleBaseUrl);
     document.getElementById('conf-sim-provider').addEventListener('change', toggleSimulatorFields);
+    document.getElementById('conf-ground-source').addEventListener('change', toggleGroundSourceFields);
     function toggleBaseUrl() {
         const val = document.getElementById('conf-provider').value;
         document.getElementById('base-url-group').style.display = (val === 'openai_compatible') ? 'block' : 'none';
@@ -489,8 +518,21 @@
         document.getElementById('xplane-config-group').style.display = (val === 'xplane') ? 'block' : 'none';
     }
 
+    function toggleGroundSourceFields() {
+        const val = document.getElementById('conf-ground-source').value;
+        document.getElementById('osm-config-group').style.display = (val === 'osm') ? 'block' : 'none';
+    }
+
     function testAudio() {
         socket.emit('test_tts_trigger');
+    }
+
+    function goBackToDashboard() {
+        if (window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+        window.location.href = '/dashboard';
     }
 
     loadConfig();

@@ -332,8 +332,11 @@ class TTSEngine:
                 if icao and icao.upper().startswith('Z') and '\n\n' in text:
                     english_text, chinese_text = text.split('\n\n', 1)
                     english_audio = loop.run_until_complete(self._synthesize_audio(english_text, self.ENGLISH_VOICE))
+                    chinese_spoken = self._expand_chinese_digits_for_speech(
+                        self._normalize_text(chinese_text, self.CHINESE_VOICE)
+                    )
                     chinese_audio = loop.run_until_complete(
-                        self._synthesize_audio(self._normalize_text(chinese_text, self.CHINESE_VOICE), self.CHINESE_VOICE)
+                        self._synthesize_audio(chinese_spoken, self.CHINESE_VOICE)
                     )
                     full_audio = english_audio + chinese_audio
                     if full_audio:

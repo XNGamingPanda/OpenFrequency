@@ -78,6 +78,8 @@ class TrafficStateManager:
         self._stop_event = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self.enabled = config.get('traffic', {}).get('enabled', True)
+        self.self_managed_enabled = config.get('traffic', {}).get('self_managed_enabled', True)
+        self.export_limit = int(config.get('traffic', {}).get('export_limit', 63) or 63)
         
         print("TrafficStateManager: Initialized.")
     
@@ -102,6 +104,9 @@ class TrafficStateManager:
             if self.config.get('debug', {}).get('mock_mode', False):
                 self._generate_mock_traffic()
                 self._cleanup_stale()
+            elif self._should_use_self_managed_traffic():
+                self._generate_enhanced_mock_traffic()
+                self._cleanup_stale()
             elif self.sim_bridge and self.sim_bridge.connected:
                 try:
                     self._scan_traffic()
@@ -115,6 +120,14 @@ class TrafficStateManager:
                 last_bulk_update = now
             
             time.sleep(self.SCAN_INTERVAL)
+
+    def _should_use_self_managed_traffic(self) -> bool:
+        simulator_provider = ((self.config.get('simulator', {}) or {}).get('provider') or 'auto').lower()
+        if simulator_provider == 'xplane':
+            return self.self_managed_enabled
+        provider_obj = getattr(self.sim_bridge, 'provider', None)
+        provider_name = getattr(provider_obj, 'name', '').lower() if provider_obj else ''
+        return self.self_managed_enabled and provider_name == 'x-plane'
             
     def _generate_mock_traffic(self):
         """Generate simulated traffic for testing Radar/Chatter."""
@@ -322,6 +335,28 @@ class TrafficStateManager:
                 # Also emit directly to Socket.IO for frontend
                 if self.socketio:
                     self.socketio.emit('traffic_update', traffic_list)
+
+    def get_export_targets(self, limit=None):
+        limit = int(limit or self.export_limit or 63)
+        targets = []
+        with self.lock:
+            for idx, (callsign, ac) in enumerate(sorted(self.aircraft.items()), start=1):
+                if idx > limit:
+                    break
+                targets.append({
+                    'slot': idx,
+                    'mode_s_id': self._mode_s_id_for_callsign(callsign),
+                    'flight_id': callsign[:7],
+                    'latitude': ac.latitude,
+                    'longitude': ac.longitude,
+                    'altitude_ft': ac.altitude,
+                    'heading_deg': ac.heading,
+                    'groundspeed_kt': ac.airspeed,
+                    'vertical_speed_fpm': ac.vertical_speed,
+                    'on_ground': ac.on_ground,
+                    'state': ac.state.name,
+                })
+        return targets
     
     def update_aircraft(self, callsign: str, data: Dict[str, Any]):
         """
@@ -487,6 +522,10 @@ class TrafficStateManager:
         ]
         hash_val = int(hashlib.md5(callsign.encode()).hexdigest(), 16)
         return voices[hash_val % len(voices)]
+
+    def _mode_s_id_for_callsign(self, callsign: str) -> int:
+        hash_val = int(hashlib.md5(callsign.encode()).hexdigest(), 16)
+        return 1 + (hash_val % 16777214)
     
     def _haversine_nm(self, lat1, lon1, lat2, lon2) -> float:
         """Calculate distance between two points in nautical miles."""

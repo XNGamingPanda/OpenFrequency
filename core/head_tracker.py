@@ -83,6 +83,7 @@ class HeadTracker:
         self.cap = None
         self.mp_face_mesh = None
         self.face_mesh = None
+        self.backend_name = None
         
         # Smoothing filters
         self.yaw_filter = OneEuroFilter()
@@ -129,15 +130,32 @@ class HeadTracker:
         try:
             import mediapipe as mp
             import cv2
-            self.mp_face_mesh = mp.solutions.face_mesh
-            self.face_mesh = self.mp_face_mesh.FaceMesh(
-                max_num_faces=1,
-                refine_landmarks=True,
-                min_detection_confidence=0.5,
-                min_tracking_confidence=0.5
-            )
+            if hasattr(mp, 'solutions') and hasattr(mp.solutions, 'face_mesh'):
+                self.mp_face_mesh = mp.solutions.face_mesh
+                self.face_mesh = self.mp_face_mesh.FaceMesh(
+                    max_num_faces=1,
+                    refine_landmarks=True,
+                    min_detection_confidence=0.5,
+                    min_tracking_confidence=0.5
+                )
+                self.backend_name = "mediapipe.solutions.face_mesh"
+            else:
+                print(
+                    "HeadTracker: This MediaPipe build does not expose 'mediapipe.solutions.face_mesh'. "
+                    "Head tracking is disabled on this environment instead of crashing."
+                )
+                print(
+                    "HeadTracker: Install a MediaPipe build with the legacy solutions API, "
+                    "or update the head tracker to the Tasks Face Landmarker pipeline."
+                )
+                self.enabled = False
+                return
         except ImportError as e:
             print(f"HeadTracker: Missing dependency ({e}). Run: pip install mediapipe opencv-python")
+            return
+        except Exception as e:
+            print(f"HeadTracker: Failed to initialize MediaPipe backend - {e}")
+            self.enabled = False
             return
         
         self.cap = cv2.VideoCapture(self.camera_index)
@@ -158,7 +176,7 @@ class HeadTracker:
         self.thread = threading.Thread(target=self._tracking_loop, daemon=True)
         self.thread.start()
         
-        print(f"HeadTracker: Started with camera {self.camera_index} ({w}x{h})")
+        print(f"HeadTracker: Started with camera {self.camera_index} ({w}x{h}) using {self.backend_name}")
     
     def stop(self):
         """Stop head tracking."""
@@ -167,7 +185,13 @@ class HeadTracker:
             self.thread.join(timeout=2)
         if self.cap:
             self.cap.release()
+        if self.face_mesh:
+            try:
+                self.face_mesh.close()
+            except Exception:
+                pass
         self.cap = None
+        self.face_mesh = None
         print("HeadTracker: Stopped")
     
     def _tracking_loop(self):

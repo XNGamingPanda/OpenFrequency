@@ -22,6 +22,7 @@ from core.traffic_manager import TrafficStateManager
 from core.chatter_generator import ChatterGenerator
 from core.atis_generator import ATISGenerator
 from core.airport_frequency_service import AirportFrequencyService
+from core.ground_data_service import GroundDataService
 from core.self_check import self_check, download_ffmpeg, download_whisper_model
 from core.career import CareerProfile  # Career Mode
 from core.crew_manager import CrewManager  # Crew Manager (FO + Purser)
@@ -30,8 +31,23 @@ from flask_socketio import SocketIO, join_room, leave_room, emit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'opensky_secret_key'
-socketio = SocketIO(app, cors_allowed_origins="*")
+
+def _select_socketio_async_mode():
+    preferred = os.environ.get('OPENFREQUENCY_SOCKETIO_ASYNC_MODE', 'threading').strip().lower()
+    if preferred == 'gevent':
+        try:
+            import gevent  # noqa: F401
+            print("System: Using Socket.IO async_mode='gevent'")
+            return 'gevent'
+        except Exception as e:
+            print(f"System: gevent unavailable, falling back to threading - {e}")
+
+    print("System: Using Socket.IO async_mode='threading'")
+    return 'threading'
+
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_select_socketio_async_mode())
 # auth_manager will be initialized after config is loaded
+traffic_manager = None
 
 # --- Environment Setup ---
 # Check for local ffmpeg
@@ -149,6 +165,9 @@ career_evaluator = CareerEvaluator(config, career_profile, socketio)
 career_evaluator.start()
 airport_frequency_service = AirportFrequencyService(config)
 airport_frequency_service.load()
+ground_data_service = GroundDataService(config, airport_frequency_service=airport_frequency_service)
+event_bus.on('config_updated', airport_frequency_service.update_config)
+event_bus.on('config_updated', ground_data_service.update_config)
 
 # --- Auth Manager (uses config) ---
 auth_manager = AuthManager(config, CONFIG_PATH)
@@ -283,6 +302,20 @@ def refresh_airport_data():
         logic_manager._refresh_nearby_airports(force=True)
 
     return jsonify({"status": "success"})
+
+@app.route('/api/xplane/traffic_targets')
+def get_xplane_traffic_targets():
+    global traffic_manager
+    if traffic_manager is None:
+        return jsonify({"targets": [], "count": 0, "source": "unavailable"})
+
+    limit = request.args.get('limit', default=63, type=int)
+    targets = traffic_manager.get_export_targets(limit=limit)
+    return jsonify({
+        "targets": targets,
+        "count": len(targets),
+        "source": "openfrequency_self_managed"
+    })
 
 @app.route('/api/locales/<locale>')
 def get_locale(locale):
@@ -873,9 +906,9 @@ if __name__ == '__main__':
     from core.head_tracker import HeadTracker
     from core.emergency_director import EmergencyDirector
     
-    logic_manager = LogicManager(config, socketio, airport_frequency_service=airport_frequency_service)
+    logic_manager = LogicManager(config, socketio, airport_frequency_service=airport_frequency_service, ground_service=ground_data_service)
     sim_bridge = SimBridge(config, shared_context, context_lock, event_bus)
-    nav_manager = NavManager(config, shared_context, context_lock, event_bus)
+    nav_manager = NavManager(config, shared_context, context_lock, event_bus, ground_service=ground_data_service, airport_frequency_service=airport_frequency_service)
     stt_module = STTLocal(config, event_bus)
     llm_client = LLMClient(config, shared_context, context_lock, event_bus)
     tts_engine = TTSEngine(config, socketio)
@@ -945,7 +978,7 @@ if __name__ == '__main__':
         if action:
             event_bus.emit('cabin_intercom', action)
             # Also trigger CrewManager module
-            if action in ['status', 'chat', 'boarding', 'deboarding', 'stop_ambience']:
+            if action in ['boarding', 'deboarding', 'stop_ambience', 'welcome', 'safety_demo', 'takeoff_prep', 'climb_service', 'descent', 'arrival_prep', 'turbulence']:
                 event_bus.emit('cabin_crew_request', action)
     
     @socketio.on('cabin_chat')
@@ -959,6 +992,8 @@ if __name__ == '__main__':
     def handle_crew_message(data):
         """Handle pilot to crew messages (from channel selector)."""
         # data = {'text': str, 'target': 'fo' | 'purser' | 'all'}
+        if 'logic_manager' in globals():
+            logic_manager.intercom_target = 'CABIN'
         event_bus.emit('crew_message', data)
 
     def handle_simulator_failure_event(data):

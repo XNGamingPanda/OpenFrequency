@@ -207,6 +207,14 @@
                 "simulator_provider": "Simulator Provider",
                 "xplane_host": "X-Plane Host",
                 "xplane_port": "X-Plane Port",
+                "frequency_data_source": "Frequency Data Source",
+                "ground_data_source": "Ground Layout Source",
+                "source_ourairports": "OurAirports / Third-party",
+                "source_simulator": "Simulator Native Data",
+                "source_simulator_ground": "Simulator apt.dat / scenery",
+                "source_osm": "OpenStreetMap / Overpass",
+                "osm_overpass_url": "OSM Overpass API",
+                "ground_data_hint": "Choose simulator or third-party sources for airport frequencies and taxi/apron data.",
                 "career_btn": "🎖️ Career",
                 "clear_track_btn": "🗑️ Clear",
                 "cabin_status_btn": "👩‍✈️ Crew Status",
@@ -222,7 +230,8 @@
                 "level_high": "High (Mayday!)",
                 "btn_boarding": "🛫 Boarding",
                 "btn_deboarding": "🛬 Deboarding",
-                "btn_stop_sound": "🔇 Stop Sound"
+                "btn_stop_sound": "🔇 Stop Sound",
+                "cabin_media_title": "Cabin Media"
             },
             "zh": {
                 "system_config": "系统设置",
@@ -339,7 +348,8 @@
                 "level_high": "高 (Mayday!)",
                 "btn_boarding": "🛫 登机",
                 "btn_deboarding": "🛬 下机",
-                "btn_stop_sound": "🔇 停止音效"
+                "btn_stop_sound": "🔇 停止音效",
+                "cabin_media_title": "客舱媒体"
             },
             "ja": {
                 "system_config": "システム設定",
@@ -457,10 +467,68 @@
                 "level_high": "高 (メーデー!)",
                 "btn_boarding": "🛫 搭乗",
                 "btn_deboarding": "🛬 降機",
-                "btn_stop_sound": "🔇 音停止"
+                "btn_stop_sound": "🔇 音停止",
+                "cabin_media_title": "客室メディア"
             }
         };
         window.TRANSLATIONS = TRANSLATIONS;
+        Object.assign(TRANSLATIONS.en, {
+            frequency_data_source: "Frequency Data Source",
+            ground_data_source: "Ground Layout Source",
+            source_ourairports: "OurAirports / Third-party",
+            source_simulator: "Simulator Native Data",
+            source_simulator_ground: "Simulator apt.dat / scenery",
+            source_osm: "OpenStreetMap / Overpass",
+            osm_overpass_url: "OSM Overpass API",
+            ground_data_hint: "Choose simulator or third-party sources for airport frequencies and taxi/apron data.",
+            crew_direct_hint: "Crew mode sends typed messages directly to the crew.",
+            cabin_announcements: "Cabin Announcements",
+            cabin_welcome: "Welcome",
+            cabin_safety: "Safety Demo",
+            cabin_departure: "Departure Prep",
+            cabin_service: "Service",
+            cabin_turbulence: "Turbulence",
+            cabin_descent: "Descent",
+            cabin_arrival: "Arrival Prep"
+        });
+        Object.assign(TRANSLATIONS.zh, {
+            frequency_data_source: "频率数据来源",
+            ground_data_source: "地面布局来源",
+            source_ourairports: "OurAirports / 第三方",
+            source_simulator: "模拟器原生数据",
+            source_simulator_ground: "模拟器 apt.dat / 场景",
+            source_osm: "OpenStreetMap / Overpass",
+            osm_overpass_url: "OSM Overpass API",
+            ground_data_hint: "可分别选择机场频率与滑行/停机坪数据来自模拟器或第三方。",
+            crew_direct_hint: "切换到机组模式后，输入框会直接发送给机组。",
+            cabin_announcements: "机舱广播",
+            cabin_welcome: "欢迎广播",
+            cabin_safety: "安全演示",
+            cabin_departure: "起飞前准备",
+            cabin_service: "客舱服务",
+            cabin_turbulence: "颠簸提示",
+            cabin_descent: "下降广播",
+            cabin_arrival: "到达前准备"
+        });
+        Object.assign(TRANSLATIONS.ja, {
+            frequency_data_source: "周波数データソース",
+            ground_data_source: "地上レイアウトソース",
+            source_ourairports: "OurAirports / サードパーティ",
+            source_simulator: "シミュレーター標準データ",
+            source_simulator_ground: "シミュレーター apt.dat / シーナリー",
+            source_osm: "OpenStreetMap / Overpass",
+            osm_overpass_url: "OSM Overpass API",
+            ground_data_hint: "空港周波数と滑行路・駐機場データのソースを個別に選択できます。",
+            crew_direct_hint: "クルーモードでは、入力したメッセージが直接クルーに送られます。",
+            cabin_announcements: "客室アナウンス",
+            cabin_welcome: "歓迎案内",
+            cabin_safety: "安全デモ",
+            cabin_departure: "出発前準備",
+            cabin_service: "機内サービス",
+            cabin_turbulence: "乱気流案内",
+            cabin_descent: "降下案内",
+            cabin_arrival: "到着前準備"
+        });
 
 
         function applyLanguage(lang) {
