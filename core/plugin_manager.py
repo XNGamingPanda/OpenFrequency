@@ -162,6 +162,16 @@ class PluginManager:
                 self._plugins[plugin_id]['instance'] = instance
                 self._plugins[plugin_id]['error']    = None
 
+            # ── Register plugin cabin media ─────────────────────────────────
+            cabin_entries = manifest.get('cabin_media', [])
+            if cabin_entries:
+                try:
+                    from .cabin_media_manager import cabin_media_manager
+                    cabin_media_manager.register_plugin_media(plugin_dir, cabin_entries)
+                    print(f"PluginManager: Registered {len(cabin_entries)} cabin media from '{plugin_id}'")
+                except Exception as cm_err:
+                    print(f"PluginManager: Cabin media registration failed for '{plugin_id}': {cm_err}")
+
             print(f"PluginManager: Loaded '{instance.plugin_name}' v{instance.version}")
         except Exception as e:
             self._set_error(plugin_id, str(e))
@@ -345,6 +355,13 @@ class PluginManager:
         for inst in self._instances():
             try:
                 inst.on_chat_message(sender, text)
+            except Exception:
+                pass
+
+    def hook_cabin_media_play(self, media_id: str):
+        for inst in self._instances():
+            try:
+                inst.on_cabin_media_play(media_id)
             except Exception:
                 pass
 

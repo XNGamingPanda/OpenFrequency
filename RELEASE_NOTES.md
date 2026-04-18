@@ -1,3 +1,71 @@
+# OpenFrequency v3.9-beta Release Notes
+
+## 2026-04-18 Update
+
+> **Release Date**: 2026-04-18
+> **Version**: **v3.9-beta**
+> **Status**: **Beta**
+
+This release brings cloud-connected telemetry and auto-update infrastructure, international language support for non-Chinese ATC comms, traffic-aware automatic workload management, automatic SimConnect SDK bundling, a new radar vectoring panel, and a WiX 4 MSI installer pipeline.
+
+<!-- sha256sum placeholder — filled by CI -->
+<!-- zh -->
+此版本新增云端崩溃上报、自动检测更新、国际非英语 ATC 通话开关、流量自适应待机、SimConnect 自动打包、雷达引导面板以及 WiX 4 MSI 安装程序。
+<!-- /zh -->
+
+### Cloud Services & Auto-Update
+
+- **Crash reporting**: Unhandled exceptions and thread crashes are silently captured, PII-sanitized, and (with user consent) uploaded to the OpenFrequency cloud for analysis. Opt-out available in Settings → Privacy & Updates.
+- **Manual log upload**: Users can click "Upload Recent Crash" in Settings to manually send a sanitized crash report or log excerpt at any time.
+- **Auto-update check**: OpenFrequency checks for a new release 8 seconds after startup and whenever the user clicks "Check for Updates" in Settings.
+- **In-app download**: New releases are downloaded directly inside the app with a progress bar; SHA-256 checksum is verified before the installer is launched.
+- **China download acceleration**: All version metadata and release assets are proxied through the OpenFrequency Cloudflare Workers endpoint to improve download speeds.
+- **Feedback form**: A built-in feedback form in Settings lets users submit bug reports or suggestions without leaving the app.
+- **Privacy**: API keys, Bearer tokens, Windows user paths, and email addresses are stripped from all uploads. Sim telemetry (aircraft, airport, phase) is included only when "Include sim info" is enabled.
+
+### International ATC Language Support
+
+- **Non-English ATC toggle**: A new "Allow non-English ATC comms (international flights)" switch in Settings lets the AI respond in the local language for non-Chinese international airports. Disabled by default; labelled as non-realistic.
+- **Japanese language path**: When Japanese STT language is active and the toggle is on, ATC and crew use Japanese phrasing.
+- **Unchanged ICAO default**: International flights with the toggle off continue to use standard English-only ICAO phraseology.
+
+### Traffic-Aware Auto-Busy / Standby
+
+- **Auto-busy level**: When "Auto Busy Level" is enabled, the workload simulator derives `silent / low / medium / high` from the live nearby aircraft count (0 / 1–3 / 4–10 / 11+).
+- **Live dashboard indicator**: The Settings page shows the current effective busy level and aircraft count, updated in real time via Socket.IO.
+- **Traffic thresholds**: Standby probability and ignore probability are now traffic-density-aware, reducing unnecessary ATC responses in very quiet airspace.
+
+### SimConnect SDK Auto-Bundling
+
+- **Automatic DLL inclusion**: The `SimConnect.dll` shipped inside the `SimConnect` PyPI package is now automatically collected and bundled at build time. No manual download or PATH setup required.
+- **Graceful fallback**: If `SimConnect` is not installed in the build environment, packaging still succeeds — the connector is simply unavailable at runtime.
+
+### Radar Vector Follow Panel
+
+- **New 📡 Radar Follow panel** on the dashboard: a toggle switch enables radar vectoring mode.
+- **Manual vector inputs**: HDG, ALT, and SPD fields with ▶ send buttons let controllers issue individual vectors; Enter key also triggers send.
+- **Socket events**: `set_radar_vector_mode` and `manual_radar_vector` events are dispatched to the backend for integration with the ATC logic engine.
+
+### Plugin System
+
+- **Plugin API**: `OpenFrequencyPlugin` base class with lifecycle hooks (`on_load`, `on_unload`, `on_event`, `on_config_update`).
+- **Plugin Manager**: Discovers and dynamically loads plugins from the `plugins/` directory; supports manifest-based metadata.
+- **Addon Installer**: One-click DLC / FlyByWire A32NX installer accessible from the Plugins page.
+
+### MSI Installer Pipeline
+
+- **WiX 4 MSI**: `installer/OpenFrequency.wxs` defines a full per-machine MSI with Start Menu + Desktop shortcuts, major-upgrade support, and Programs & Features entry.
+- **Build script**: `installer/build_installer.ps1` reads `version.txt`, runs PyInstaller, then produces `dist/OpenFrequency-{version}-Setup.msi` in one command.
+- **Version injection**: `$(env.OF_VERSION)` is passed from the build script to WiX via `-d` flag; `version.txt` is the single source of truth.
+
+### SHA-256 Checksums
+
+```
+<!-- sha256 block inserted by release workflow -->
+```
+
+---
+
 # OpenFrequency v3.5-beta Release Notes
 
 ## 2026-04-07 Update
