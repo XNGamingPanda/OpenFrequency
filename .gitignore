@@ -83,3 +83,5 @@ test_wavs/
 Thumbs.db
 .DS_Store
 .claude
+# Build virtual environment
+.venv_build/

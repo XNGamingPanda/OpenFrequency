@@ -159,12 +159,38 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        "pytest",
-        "tkinter",
-        "IPython",
-        "notebook",
-        # installer/ is never imported — keep the exclude list explicit
+        # ── Dev / test tooling ───────────────────────────────────────────────
+        "pytest", "unittest", "doctest",
+        "IPython", "notebook", "jupyter",
+        "tkinter", "_tkinter",
+
+        # ── Deep learning / ML (not used at runtime) ────────────────────────
+        # These can sneak in via transitive imports if installed in the env.
+        # Explicitly excluding them keeps the output lean.
+        "torch", "torchvision", "torchaudio",
+        "paddle", "paddleocr", "paddlex", "paddlepaddle",
+        "tensorflow", "keras",
+        "sklearn", "scikit_learn",
+        "transformers", "accelerate", "tokenizers", "datasets",
+        "diffusers", "timm",
+        "scipy",
+        "xgboost", "lightgbm",
+        "spacy", "nltk", "gensim",
+
+        # ── Optional / heavy visualisation ──────────────────────────────────
+        # Imported inside try/except in black_box.py — safe to exclude.
+        "matplotlib", "pandas",
+
+        # ── Unused UI toolkits ───────────────────────────────────────────────
+        "pywebview", "wx", "PyQt5", "PyQt6", "PySide2", "PySide6",
+        "pyautogui",           # only used in optional flight-report screenshot
+
+        # ── Build-only artefacts ─────────────────────────────────────────────
         "installer",
+
+        # ── Rarely-needed stdlib heavy modules ───────────────────────────────
+        "test", "xmlrpc", "lib2to3",
+        "ensurepip", "distutils",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
