@@ -90,47 +90,9 @@
         border-left: 4px solid #f59e0b;
     }
 
-    /* ── Radar Vector Panel ─────────────────────────────────────────────────── */
-    #radar-vector-panel {
-        border: 1px solid rgba(13, 110, 253, 0.3);
-        border-radius: 0.5rem;
-        background: rgba(248, 249, 250, 0.95);
-    }
-    body.dark-mode #radar-vector-panel {
-        background: #1a1f27;
-        border-color: rgba(96, 165, 250, 0.35);
-        color: #e8eaf0;
-    }
-    #radar-follow-toggle:checked + label {
-        background-color: #0d6efd;
-        color: #fff;
-        border-color: #0d6efd;
-    }
-    .rv-input-group label {
-        font-size: 0.72rem;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: #6c757d;
-    }
-    body.dark-mode .rv-input-group label { color: #9aa0a8; }
 </style>
 <div class="row h-100">
-    <!-- Header Row (Full Width) -->
-    <div class="col-12 mb-3">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <!-- Status or other info could go here -->
-            </div>
-            <div>
-                {% if can_interact %}
-                <a href="/plugins" class="btn btn-outline-secondary btn-sm me-1">🧩 Plugins</a>
-                <a href="/settings" class="btn btn-outline-secondary btn-sm" data-i18n="settings_btn">⚙️ Settings</a>
-                {% endif %}
-            </div>
-        </div>
-        <div id="career-readiness-alert" class="alert alert-warning mt-2 mb-0"></div>
-    </div>
+    <div id="career-readiness-alert" class="alert alert-warning mt-2 mb-0"></div>
 
     <!-- Left Column: Gauges + Map -->
     <div class="col-lg-7 d-flex flex-column h-100">
@@ -217,47 +179,26 @@
 
             <!-- CPDLC Pane -->
             <div class="tab-pane fade h-100 w-100 position-relative" id="cpdlc-pane" role="tabpanel">
-                <div class="p-3 h-100 d-flex flex-column">
-                    <!-- Session header -->
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <strong>CPDLC Data Link</strong>
-                        <div class="d-flex gap-2 align-items-center">
-                            <span id="cpdlc-status-badge" class="badge bg-secondary">OFFLINE</span>
-                            <input id="cpdlc-facility-input" class="form-control form-control-sm" style="width:90px"
-                                placeholder="Facility" value="">
-                            <button class="btn btn-sm btn-success" onclick="cpdlcLogon()">LOGON</button>
-                            <button class="btn btn-sm btn-danger" onclick="cpdlcLogoff()">LOGOFF</button>
-                        </div>
+                <div class="p-2 h-100 d-flex flex-column" style="font-size:0.85rem;">
+                    <!-- Logon row -->
+                    <div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
+                        <input type="text" id="hoppie-logon" class="form-control form-control-sm" style="width:130px;" placeholder="Logon code">
+                        <input type="text" id="hoppie-station" class="form-control form-control-sm" style="width:90px;" placeholder="Station (e.g. EHAM)">
+                        <button class="btn btn-sm btn-success" onclick="hoppieLogon()" id="hoppie-logon-btn">Connect</button>
+                        <button class="btn btn-sm btn-outline-danger d-none" onclick="hoppieLogoff()" id="hoppie-logoff-btn">Disconnect</button>
+                        <span id="hoppie-status" class="badge bg-secondary">Offline</span>
                     </div>
-
-                    <!-- Message history -->
-                    <div id="cpdlc-log" class="flex-grow-1 overflow-auto border rounded bg-white p-2 mb-2 font-monospace"
-                        style="font-size:0.78rem; min-height:120px;">
-                        <div class="text-muted small">No CPDLC messages yet.</div>
+                    <!-- Message log -->
+                    <div id="cpdlc-log" class="flex-grow-1 overflow-auto border rounded p-2 mb-2 bg-light" style="font-family:monospace;font-size:0.78rem;min-height:100px;max-height:300px;">
+                        <div class="text-muted" id="cpdlc-log-empty">No CPDLC messages. Connect via Hoppie ACARS to begin.</div>
                     </div>
-
-                    <!-- Quick uplink responses (shown when a pending uplink arrives) -->
-                    <div id="cpdlc-ack-row" class="d-flex gap-2 mb-2 d-none">
-                        <span class="small text-muted me-1">Respond:</span>
-                        <button class="btn btn-xs btn-outline-success btn-sm" onclick="cpdlcRespond('WILCO')">WILCO</button>
-                        <button class="btn btn-xs btn-outline-danger  btn-sm" onclick="cpdlcRespond('UNABLE')">UNABLE</button>
-                        <button class="btn btn-xs btn-outline-warning btn-sm" onclick="cpdlcRespond('STANDBY')">STANDBY</button>
-                        <button class="btn btn-xs btn-outline-secondary btn-sm" onclick="cpdlcRespond('ROGER')">ROGER</button>
-                    </div>
-
-                    <!-- Compose downlink -->
+                    <!-- Send row -->
                     <div class="d-flex gap-2">
-                        <select id="cpdlc-msg-type" class="form-select form-select-sm" style="width:auto; flex:0 0 auto;">
-                            <option value="FREE_TEXT">Free Text</option>
-                            <option value="REQUEST_CLIMB">Request Climb</option>
-                            <option value="REQUEST_DESCENT">Request Descent</option>
-                            <option value="REQUEST_LEVEL">Request Level</option>
-                            <option value="REQUEST_DIRECT">Request Direct To</option>
-                            <option value="REQUEST_FREQ">Request Freq Change</option>
-                            <option value="POSITION_REPORT">Position Report</option>
-                        </select>
-                        <input id="cpdlc-msg-text" class="form-control form-control-sm" placeholder="Level / waypoint / free text">
-                        <button class="btn btn-sm btn-primary" onclick="cpdlcSend()">SEND</button>
+                        <input type="text" id="cpdlc-send-input" class="form-control form-control-sm flex-grow-1" placeholder="Free-text TELEX / CPDLC message" disabled>
+                        <button class="btn btn-sm btn-primary" onclick="hoppieSend()" id="hoppie-send-btn" disabled>Send</button>
+                    </div>
+                    <div class="form-text x-small text-muted mt-1">
+                        Powered by <a href="https://www.hoppie.nl/acars/" target="_blank">Hoppie's ACARS</a>. Register a logon code at hoppie.nl.
                     </div>
                 </div>
             </div>
@@ -335,75 +276,6 @@
                     data-i18n="btn_deboarding">Deboarding</button>
                 <button class="btn btn-outline-dark btn-sm" type="button" onclick="sendCabinIntercom('stop_ambience')"
                     data-i18n="btn_stop_sound">Stop Audio</button>
-            </div>
-        </div>
-
-        <!-- ── Radar Vector Panel ────────────────────────────────────────── -->
-        <div id="radar-vector-panel" class="mb-2 p-2 shadow-sm">
-            <!-- Header: toggle + label -->
-            <div class="d-flex align-items-center justify-content-between mb-1">
-                <div class="d-flex align-items-center gap-2">
-                    <span class="fw-semibold" style="font-size:0.85rem;">📡 Radar Follow</span>
-                    <span id="rv-status-badge" class="badge bg-secondary" style="font-size:0.68rem;">OFF</span>
-                </div>
-                <div class="form-check form-switch mb-0">
-                    <input class="form-check-input" type="checkbox" id="radar-follow-toggle"
-                        onchange="onRadarFollowToggle(this.checked)" style="cursor:pointer;">
-                    <label class="form-check-label" for="radar-follow-toggle" style="cursor:pointer;font-size:0.8rem;">Enable</label>
-                </div>
-            </div>
-            <!-- Manual vector inputs -->
-            <div id="rv-manual-panel" class="d-none">
-                <div class="d-flex gap-2 mb-1">
-                    <div class="rv-input-group flex-fill">
-                        <label>HDG°</label>
-                        <div class="input-group input-group-sm">
-                            <input type="number" id="rv-hdg" class="form-control" min="0" max="360" step="1" placeholder="360">
-                            <button class="btn btn-outline-primary btn-sm" onclick="sendManualVector('heading')" title="Set heading">▶</button>
-                        </div>
-                    </div>
-                    <div class="rv-input-group flex-fill">
-                        <label>ALT ft</label>
-                        <div class="input-group input-group-sm">
-                            <input type="number" id="rv-alt" class="form-control" min="0" max="60000" step="100" placeholder="10000">
-                            <button class="btn btn-outline-primary btn-sm" onclick="sendManualVector('altitude')" title="Set altitude">▶</button>
-                        </div>
-                    </div>
-                    <div class="rv-input-group flex-fill">
-                        <label>SPD kt</label>
-                        <div class="input-group input-group-sm">
-                            <input type="number" id="rv-spd" class="form-control" min="0" max="600" step="1" placeholder="250">
-                            <button class="btn btn-outline-primary btn-sm" onclick="sendManualVector('speed')" title="Set speed">▶</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="text-muted" style="font-size:0.7rem;">
-                    🛩️ Vectors are applied to autopilot via SimConnect / X-Plane Web API. ATC instructions are also auto-applied when Radar Follow is on.
-                </div>
-            </div>
-        </div>
-
-        <!-- ── Quick Reply Panel ──────────────────────────────────────────── -->
-        <div class="card mb-2 shadow-sm" id="quick-reply-panel">
-            <div class="card-header py-1 px-2 d-flex justify-content-between align-items-center"
-                style="cursor:pointer;" onclick="toggleQuickReply()">
-                <small class="fw-semibold">⚡ Quick Reply</small>
-                <div class="d-flex align-items-center gap-2">
-                    <!-- Variable input row (shown when a template needs extra vars) -->
-                    <div id="qr-var-row" class="d-none d-flex gap-1 align-items-center">
-                        <input id="qr-var-input" class="form-control form-control-sm"
-                            style="width:100px; font-size:0.75em;" placeholder="value">
-                        <button class="btn btn-xs btn-outline-primary btn-sm" onclick="sendQrWithVar(event)">OK</button>
-                        <button class="btn btn-xs btn-outline-secondary btn-sm" onclick="cancelQrVar(event)">✕</button>
-                    </div>
-                    <small id="qr-chevron" class="text-muted">▾</small>
-                </div>
-            </div>
-            <div class="card-body p-2" id="quick-reply-body">
-                <!-- Category tabs -->
-                <div class="d-flex gap-1 flex-wrap mb-2" id="qr-category-tabs"></div>
-                <!-- Template buttons (filtered by active category) -->
-                <div class="d-flex gap-1 flex-wrap" id="qr-buttons"></div>
             </div>
         </div>
 
@@ -1472,85 +1344,54 @@
         `;
     });
 
-    // ── CPDLC ─────────────────────────────────────────────────────────────────
-    let _cpdlcPendingUplinkMrn = null;
+    // ── Hoppie ACARS / CPDLC ───────────────────────────────────────────────
+    let hoppieConnected = false;
+    let hoppieLogonCode = '';
+    let hoppieCallsign = '';
+    let hoppiePollTimer = null;
 
-    function cpdlcLogon() {
-        const fac = document.getElementById('cpdlc-facility-input').value.trim().toUpperCase() || 'ATC';
-        socket.emit('cpdlc_logon', { facility: fac });
+    function hoppieLogon() {
+        const logon = document.getElementById('hoppie-logon').value.trim();
+        const station = document.getElementById('hoppie-station').value.trim().toUpperCase();
+        if (!logon) { alert('Enter your Hoppie logon code.'); return; }
+        hoppieLogonCode = logon;
+        hoppieCallsign = (window.currentCallsign || 'OFTEST').toUpperCase();
+        socket.emit('hoppie_logon', { logon, callsign: hoppieCallsign, station });
     }
-    function cpdlcLogoff() { socket.emit('cpdlc_logoff', {}); }
-
-    function cpdlcSend() {
-        const msgType = document.getElementById('cpdlc-msg-type').value;
-        const raw     = document.getElementById('cpdlc-msg-text').value.trim().toUpperCase();
-        if (!raw) return;
-
-        const payload = { msg_type: msgType };
-        if (msgType === 'FREE_TEXT')        payload.text      = raw;
-        else if (msgType === 'REQUEST_CLIMB'  ||
-                 msgType === 'REQUEST_DESCENT' ||
-                 msgType === 'REQUEST_LEVEL')  payload.level     = raw;
-        else if (msgType === 'REQUEST_DIRECT') payload.waypoint  = raw;
-        else if (msgType === 'REQUEST_FREQ')   payload.freq      = raw;
-        else payload.text = raw;
-
-        socket.emit('cpdlc_send', payload);
-        document.getElementById('cpdlc-msg-text').value = '';
+    function hoppieLogoff() {
+        socket.emit('hoppie_logoff', {});
     }
-
-    function cpdlcRespond(response) {
-        if (_cpdlcPendingUplinkMrn === null) return;
-        socket.emit('cpdlc_respond', { uplink_mrn: _cpdlcPendingUplinkMrn, response });
-        _cpdlcPendingUplinkMrn = null;
-        document.getElementById('cpdlc-ack-row').classList.add('d-none');
+    function hoppieSend() {
+        const text = document.getElementById('cpdlc-send-input').value.trim();
+        const station = document.getElementById('hoppie-station').value.trim().toUpperCase();
+        if (!text || !station) return;
+        socket.emit('hoppie_send', { to: station, text });
+        document.getElementById('cpdlc-send-input').value = '';
     }
-
-    function _cpdlcAppendMsg(msg) {
+    function cpdlcAppendMessage(dir, from, to, text, ts) {
         const log = document.getElementById('cpdlc-log');
-        const isFirst = log.querySelector('.text-muted.small');
-        if (isFirst) isFirst.remove();
-
-        const div = document.createElement('div');
-        div.className = msg.direction === 'D' ? 'text-primary mb-1' : 'text-success mb-1';
-        const time = new Date(msg.timestamp * 1000).toISOString().slice(11, 19) + 'Z';
-        const dir  = msg.direction === 'D' ? '▶ PILOT' : '◀ ATC';
-        div.innerHTML = `<span class="text-muted">[${time}]</span> <b>${dir}</b> MRN${msg.mrn}: ${msg.text}`
-                      + (msg.status && msg.status !== 'PENDING' ? ` <span class="badge bg-secondary">${msg.status}</span>` : '');
-        log.appendChild(div);
+        document.getElementById('cpdlc-log-empty')?.remove();
+        const time = ts ? new Date(ts * 1000).toLocaleTimeString() : new Date().toLocaleTimeString();
+        const row = document.createElement('div');
+        row.className = 'mb-1';
+        const arrow = dir === 'in' ? '⬇' : '⬆';
+        const color = dir === 'in' ? 'text-primary' : 'text-success';
+        row.innerHTML = `<span class="${color} fw-bold">${arrow} [${time}] ${from}→${to}:</span> <span>${text}</span>`;
+        log.appendChild(row);
         log.scrollTop = log.scrollHeight;
     }
-
-    socket.on('cpdlc_downlink', (msg) => { _cpdlcAppendMsg(msg); });
-
-    socket.on('cpdlc_uplink', (msg) => {
-        _cpdlcAppendMsg(msg);
-        // Show acknowledge buttons for uplinks that need a pilot response
-        if (['WILCO','UNABLE','STANDBY'].includes(msg.status)) return; // already terminal
-        _cpdlcPendingUplinkMrn = msg.mrn;
-        document.getElementById('cpdlc-ack-row').classList.remove('d-none');
+    socket.on('hoppie_status', d => {
+        hoppieConnected = d.connected;
+        document.getElementById('hoppie-status').textContent = d.connected ? 'Online' : 'Offline';
+        document.getElementById('hoppie-status').className = 'badge ' + (d.connected ? 'bg-success' : 'bg-secondary');
+        document.getElementById('hoppie-logon-btn').classList.toggle('d-none', d.connected);
+        document.getElementById('hoppie-logoff-btn').classList.toggle('d-none', !d.connected);
+        document.getElementById('cpdlc-send-input').disabled = !d.connected;
+        document.getElementById('hoppie-send-btn').disabled = !d.connected;
+        if (d.message) cpdlcAppendMessage('in', 'SYSTEM', 'YOU', d.message, null);
     });
-
-    socket.on('cpdlc_session', (info) => {
-        const badge = document.getElementById('cpdlc-status-badge');
-        if (info.active) {
-            badge.textContent = `ONLINE · ${info.facility}`;
-            badge.className = 'badge bg-success';
-        } else {
-            badge.textContent = 'OFFLINE';
-            badge.className = 'badge bg-secondary';
-        }
-    });
-
-    socket.on('cpdlc_history', (data) => {
-        const log = document.getElementById('cpdlc-log');
-        log.innerHTML = '';
-        (data.messages || []).forEach(_cpdlcAppendMsg);
-    });
-
-    // Request history on tab show
-    document.getElementById('cpdlc-tab').addEventListener('shown.bs.tab', () => {
-        socket.emit('cpdlc_history', {});
+    socket.on('hoppie_message', d => {
+        cpdlcAppendMessage(d.dir || 'in', d.from, d.to, d.packet, d.ts);
     });
 
     // ── LLM model badge ───────────────────────────────────────────────────────
@@ -1565,168 +1406,6 @@
         badge.style.fontSize = '0.68em';
     });
 
-    // ── Quick Reply panel ─────────────────────────────────────────────────────
-    let _qrTemplates  = [];
-    let _qrCategories = {};
-    let _qrActiveCategory = null;
-    let _qrPendingTemplate = null;   // template waiting for var input
-
-    function toggleQuickReply() {
-        const body = document.getElementById('quick-reply-body');
-        const chev = document.getElementById('qr-chevron');
-        const hidden = body.style.display === 'none';
-        body.style.display = hidden ? 'block' : 'none';
-        chev.textContent = hidden ? '▾' : '▸';
-    }
-
-    async function loadQuickReplies() {
-        try {
-            const resp = await fetch('/quick_reply_templates');
-            const data = await resp.json();
-            _qrTemplates  = data.templates  || [];
-            _qrCategories = data.categories || {};
-            _renderQrCategories();
-        } catch (e) { console.warn('Quick reply templates unavailable', e); }
-    }
-
-    function _renderQrCategories() {
-        const tabContainer = document.getElementById('qr-category-tabs');
-        tabContainer.innerHTML = '';
-
-        // Collect categories actually present in templates
-        const cats = [...new Set(_qrTemplates.map(t => t.category))];
-        cats.forEach(cat => {
-            const info = _qrCategories[cat] || {};
-            const lang = localStorage.getItem('language') || 'en';
-            const label = (lang === 'zh' && info.label_zh) ? info.label_zh : (info.label || cat);
-            const btn = document.createElement('button');
-            btn.className = `btn btn-xs btn-outline-${info.color || 'secondary'} btn-sm`;
-            btn.style.fontSize = '0.72em';
-            btn.textContent = label;
-            btn.onclick = () => { _qrActiveCategory = cat; _renderQrButtons(); };
-            tabContainer.appendChild(btn);
-        });
-
-        // Select first category by default
-        if (cats.length) { _qrActiveCategory = cats[0]; _renderQrButtons(); }
-    }
-
-    function _renderQrButtons() {
-        const container = document.getElementById('qr-buttons');
-        container.innerHTML = '';
-
-        // Get current ATC role from the UI badge / context
-        const roleBadge = document.querySelector('.controller-badge, #controller-name, [data-controller]');
-        const currentRole = roleBadge ? roleBadge.textContent.trim() : '';
-
-        const lang = localStorage.getItem('language') || 'en';
-
-        _qrTemplates
-            .filter(t => t.category === _qrActiveCategory)
-            .forEach(t => {
-                // Role filter: only show if applicable (loose match)
-                const roleMatch = !t.roles || t.roles.length === 0
-                    || t.roles.some(r => !currentRole || currentRole.includes(r) || r.includes(currentRole.split(' ').pop()));
-
-                const label = (lang === 'zh' && t.label_zh) ? t.label_zh : t.label;
-                const btn = document.createElement('button');
-                btn.className = `btn btn-sm btn-outline-secondary`;
-                btn.style.fontSize = '0.75em';
-                btn.textContent = label;
-                btn.title = t.template_en || '';
-                btn.onclick = () => _qrActivate(t);
-                container.appendChild(btn);
-            });
-    }
-
-    function _qrActivate(template) {
-        // If template has dynamic variables beyond callsign/freq/runway (auto-filled),
-        // check if any placeholder is still empty after auto-fill
-        const needs = (template.variables || []).filter(v =>
-            !['callsign', 'freq', 'role', 'qnh'].includes(v)
-        );
-        if (needs.length > 0) {
-            // Show inline var input
-            _qrPendingTemplate = template;
-            const row = document.getElementById('qr-var-row');
-            const inp = document.getElementById('qr-var-input');
-            inp.placeholder = needs.join(' / ');
-            inp.value = '';
-            row.classList.remove('d-none');
-            inp.focus();
-        } else {
-            socket.emit('quick_reply', { template_id: template.id, vars: {} });
-        }
-    }
-
-    function sendQrWithVar(event) {
-        event.stopPropagation();
-        if (!_qrPendingTemplate) return;
-        const raw = document.getElementById('qr-var-input').value.trim();
-        const needs = (_qrPendingTemplate.variables || []).filter(v =>
-            !['callsign', 'freq', 'role', 'qnh'].includes(v)
-        );
-        const vars = {};
-        // Assign raw value to all needed vars (simple single-input approach)
-        needs.forEach(k => vars[k] = raw);
-        socket.emit('quick_reply', { template_id: _qrPendingTemplate.id, vars });
-        cancelQrVar(event);
-    }
-
-    function cancelQrVar(event) {
-        event.stopPropagation();
-        _qrPendingTemplate = null;
-        document.getElementById('qr-var-row').classList.add('d-none');
-    }
-
-    // Load on page ready
-    loadQuickReplies();
-
-    // Refresh button list when frequency / controller changes (role may change)
-    socket.on('frequency_update', () => {
-        if (_qrActiveCategory) _renderQrButtons();
-    });
-
-    // ── Radar Vector ─────────────────────────────────────────────────────────
-    let _radarFollowEnabled = false;
-
-    function onRadarFollowToggle(enabled) {
-        _radarFollowEnabled = enabled;
-        socket.emit('set_radar_vector_mode', { enabled });
-        const badge = document.getElementById('rv-status-badge');
-        const panel = document.getElementById('rv-manual-panel');
-        if (enabled) {
-            badge.textContent = 'ON';
-            badge.className = 'badge bg-success';
-            panel.classList.remove('d-none');
-        } else {
-            badge.textContent = 'OFF';
-            badge.className = 'badge bg-secondary';
-            panel.classList.add('d-none');
-        }
-    }
-
-    function sendManualVector(type) {
-        const inputMap = { heading: 'rv-hdg', altitude: 'rv-alt', speed: 'rv-spd' };
-        const el = document.getElementById(inputMap[type]);
-        const value = parseFloat(el.value);
-        if (isNaN(value)) {
-            el.classList.add('is-invalid');
-            setTimeout(() => el.classList.remove('is-invalid'), 1200);
-            return;
-        }
-        socket.emit('manual_radar_vector', { type, value });
-        el.classList.add('is-valid');
-        setTimeout(() => el.classList.remove('is-valid'), 1000);
-    }
-
-    // Allow Enter key to submit manual vector inputs
-    ['rv-hdg', 'rv-alt', 'rv-spd'].forEach((id, idx) => {
-        const typeMap = ['heading', 'altitude', 'speed'];
-        document.getElementById(id).addEventListener('keydown', e => {
-            if (e.key === 'Enter') sendManualVector(typeMap[idx]);
-        });
-    });
 
     // ── Streaming audio (local TTS backend) ──────────────────────────────────
     const _streamBufs = [];   // ordered list of pending Uint8Array chunks

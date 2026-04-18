@@ -781,6 +781,53 @@ def api_upload_recent_crash():
     return jsonify({'ok': False, 'message': 'Upload failed — check Workers URL in settings.'}), 502
 
 
+@app.route('/api/models/download_stt', methods=['POST'])
+def api_download_stt():
+    import threading
+    def _dl():
+        import urllib.request
+        url = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.en.tar.bz2'
+        models_dir = os.path.join(os.path.dirname(__file__), 'models')
+        os.makedirs(models_dir, exist_ok=True)
+        try:
+            dest = os.path.join(models_dir, 'sherpa-onnx-whisper-tiny.en.tar.bz2')
+            urllib.request.urlretrieve(url, dest)
+            import tarfile
+            with tarfile.open(dest) as tf:
+                tf.extractall(models_dir)
+        except Exception as e:
+            print(f'STT download error: {e}')
+    threading.Thread(target=_dl, daemon=True).start()
+    return jsonify({'status': 'ok', 'message': 'Downloading Whisper tiny.en model to ./models/ ...'})
+
+@app.route('/api/models/download_tts', methods=['POST'])
+def api_download_tts():
+    import threading
+    data = request.json or {}
+    engine = data.get('engine', 'kokoro')
+    def _dl():
+        models_dir = os.path.join(os.path.dirname(__file__), 'models')
+        os.makedirs(models_dir, exist_ok=True)
+        try:
+            import urllib.request
+            if engine == 'kokoro':
+                for name, url in [
+                    ('kokoro-v0_19.onnx', 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/kokoro-v0_19.onnx'),
+                    ('voices.bin', 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/voices.bin'),
+                ]:
+                    urllib.request.urlretrieve(url, os.path.join(models_dir, name))
+            elif engine == 'piper':
+                for name, url in [
+                    ('en_US-arctic-medium.onnx', 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/arctic/medium/en_US-arctic-medium.onnx'),
+                    ('en_US-arctic-medium.onnx.json', 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/arctic/medium/en_US-arctic-medium.onnx.json'),
+                ]:
+                    urllib.request.urlretrieve(url, os.path.join(models_dir, name))
+        except Exception as e:
+            print(f'TTS download error: {e}')
+    threading.Thread(target=_dl, daemon=True).start()
+    engine_name = 'Kokoro-ONNX' if engine == 'kokoro' else 'Piper TTS'
+    return jsonify({'status': 'ok', 'message': f'Downloading {engine_name} model to ./models/ ...'})
+
 @app.route('/api/feedback', methods=['POST'])
 def api_submit_feedback():
     """Forward user feedback to Cloudflare Workers (token stays server-side)."""
@@ -1544,6 +1591,32 @@ if __name__ == '__main__':
         extra_vars  = data.get('vars', {})
         if template_id:
             logic_manager.handle_quick_reply(template_id, extra_vars or None)
+
+    # ── Hoppie ACARS socket handlers ──────────────────────────────────────────
+    @socketio.on('hoppie_logon')
+    def handle_hoppie_logon(data):
+        from core.hoppie_acars import hoppie_client
+        logon = data.get('logon', '')
+        callsign = data.get('callsign', 'OFTEST')
+        station = data.get('station', '')
+        result = hoppie_client.logon(logon, callsign)
+        emit('hoppie_status', {'connected': result, 'message': 'Connected to Hoppie ACARS' if result else 'Logon failed — check your code at hoppie.nl'})
+        if result:
+            hoppie_client.start_polling(socketio)
+
+    @socketio.on('hoppie_logoff')
+    def handle_hoppie_logoff(data):
+        from core.hoppie_acars import hoppie_client
+        hoppie_client.logoff()
+        emit('hoppie_status', {'connected': False, 'message': 'Disconnected'})
+
+    @socketio.on('hoppie_send')
+    def handle_hoppie_send(data):
+        from core.hoppie_acars import hoppie_client
+        to = data.get('to', '')
+        text = data.get('text', '')
+        ok = hoppie_client.send_telex(to, text)
+        emit('hoppie_message', {'dir': 'out', 'from': hoppie_client.callsign, 'to': to, 'packet': text, 'ts': None})
 
     @socketio.on('tune_frequency')
     def handle_tune_frequency(data):

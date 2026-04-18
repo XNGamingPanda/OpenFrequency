@@ -143,8 +143,8 @@
                         <div class="form-text x-small text-muted" data-i18n="ground_data_hint">Choose simulator or third-party sources for airport frequencies and taxi/apron data.</div>
                     </div>
 
-                    <!-- TTS Backend -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3">🔊 Text-to-Speech Engine</h6>
+                    <!-- TTS + STT Voice Engine -->
+                    <h6 class="border-bottom pb-1 mb-2 mt-3">🔊 Voice Engine (TTS / STT)</h6>
                     <div class="mb-2">
                         <label class="form-label small mb-0">TTS Backend</label>
                         <select class="form-select form-select-sm" id="conf-tts-backend"
@@ -156,7 +156,8 @@
                     <div id="local-tts-group" style="display:none;">
                         <div class="mb-2">
                             <label class="form-label small mb-0">Local Engine</label>
-                            <select class="form-select form-select-sm" id="conf-tts-local-engine">
+                            <select class="form-select form-select-sm" id="conf-tts-local-engine"
+                                onchange="updateTtsModelPlaceholder()">
                                 <option value="kokoro">Kokoro-ONNX (pip install kokoro-onnx)</option>
                                 <option value="piper">Piper TTS (pip install piper-tts)</option>
                             </select>
@@ -164,17 +165,40 @@
                         <div class="mb-2">
                             <label class="form-label small mb-0">Model File Path</label>
                             <input type="text" class="form-control form-control-sm" id="conf-tts-local-model"
-                                placeholder="e.g. ./models/kokoro-v0_19.onnx">
+                                placeholder="./models/kokoro-v0_19.onnx">
                         </div>
                         <div class="mb-2" id="kokoro-voices-group">
                             <label class="form-label small mb-0">Voices File (Kokoro only)</label>
                             <input type="text" class="form-control form-control-sm" id="conf-tts-local-voices"
                                 placeholder="e.g. ./models/voices.bin">
                         </div>
+                        <div class="mb-2">
+                            <button class="btn btn-sm btn-outline-primary mt-1" onclick="downloadTtsModel()">⬇ Download TTS Model</button><span id="tts-dl-status" class="small text-muted ms-2"></span>
+                        </div>
                         <div class="form-text x-small text-muted mb-2">
                             Local TTS streams audio sentence-by-sentence for lower latency.
                             Kokoro supports English voices; for Chinese/Japanese, Edge-TTS is still recommended.
                         </div>
+                    </div>
+
+                    <!-- STT Settings -->
+                    <div class="mb-2 mt-2">
+                        <label class="form-label small mb-0" data-i18n="stt_model_path">STT Model Path</label>
+                        <input type="text" class="form-control form-control-sm" id="conf-stt-path"
+                            placeholder="./models/sherpa-onnx-whisper-tiny.en">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="stt_language">STT Language</label>
+                        <select class="form-select form-select-sm" id="conf-stt-language">
+                            <option value="auto" data-i18n="stt_auto">Auto Detect</option>
+                            <option value="en">English</option>
+                            <option value="zh">Chinese (中文)</option>
+                            <option value="ja">Japanese (日本語)</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="downloadSttModel()">⬇ Download STT Model</button>
+                        <span id="stt-dl-status" class="small text-muted ms-2"></span>
                     </div>
 
                     <!-- Audio Settings -->
@@ -261,20 +285,6 @@
                         </select>
                     </div>
 
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="stt_model_path">STT Model Path</label>
-                        <input type="text" class="form-control form-control-sm" id="conf-stt-path">
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="stt_language">STT Language</label>
-                        <select class="form-select form-select-sm" id="conf-stt-language">
-                            <option value="auto" data-i18n="stt_auto">Auto Detect</option>
-                            <option value="en">English</option>
-                            <option value="zh">Chinese (中文)</option>
-                            <option value="ja">Japanese (日本語)</option>
-                        </select>
-                    </div>
-
                     <!-- Privacy & Updates -->
                     <h6 class="border-bottom pb-1 mb-2 mt-3">☁️ Privacy &amp; Updates</h6>
 
@@ -298,17 +308,6 @@
                         </div>
                     </div>
 
-                    <!-- Manual crash upload -->
-                    <div class="mb-2">
-                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="uploadRecentCrash()">
-                                📤 Upload Recent Crash Log
-                            </button>
-                            <span id="crash-upload-status" class="small text-muted"></span>
-                        </div>
-                        <div id="recent-crash-info" class="form-text x-small text-muted mt-1"></div>
-                    </div>
-
                     <!-- Auto update -->
                     <div class="mb-3">
                         <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -320,14 +319,21 @@
                         <div id="update-info-box" class="alert alert-info alert-sm mt-2 d-none p-2" style="font-size:0.82rem;"></div>
                     </div>
 
-                    <!-- Manual feedback -->
+                    <!-- Combined crash upload + feedback -->
                     <div class="mb-2">
                         <a class="btn btn-sm btn-outline-secondary collapsed" data-bs-toggle="collapse"
                             href="#feedback-collapse" role="button" aria-expanded="false">
-                            💬 Submit Feedback / Bug Report
+                            📤 Report / Feedback
                         </a>
                         <div class="collapse mt-2" id="feedback-collapse">
                             <div class="card card-body p-2" style="font-size:0.85rem;">
+                                <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="uploadRecentCrash()">
+                                        📤 Upload Recent Crash Log
+                                    </button>
+                                    <span id="crash-upload-status" class="small text-muted"></span>
+                                </div>
+                                <div id="recent-crash-info" class="form-text x-small text-muted mb-2"></div>
                                 <div class="mb-2">
                                     <label class="form-label small mb-0">Type</label>
                                     <select class="form-select form-select-sm" id="fb-type">
@@ -368,7 +374,7 @@
                                     </div>
                                 </div>
                                 <div class="d-flex gap-2 align-items-center">
-                                    <button class="btn btn-sm btn-primary" onclick="submitFeedback()">Send Feedback</button>
+                                    <button class="btn btn-sm btn-primary" onclick="submitFeedback()">Send Report</button>
                                     <span id="fb-status" class="small text-muted"></span>
                                 </div>
                             </div>
@@ -732,8 +738,18 @@
     }
 
     function testAudio() {
+        const btn = document.querySelector('[onclick="testAudio()"]');
+        if (btn) { btn.textContent = '⏳ Testing...'; btn.disabled = true; }
         socket.emit('test_tts_trigger');
+        // Reset button after 4 seconds
+        setTimeout(() => {
+            if (btn) { btn.textContent = '🔊 Test Audio'; btn.disabled = false; }
+        }, 4000);
     }
+    socket.on('tts_start', () => {
+        const btn = document.querySelector('[onclick="testAudio()"]');
+        if (btn && btn.disabled) { btn.textContent = '🔊 Playing...'; }
+    });
 
     function goBackToDashboard() {
         if (window.history.length > 1) {
@@ -887,6 +903,34 @@
             statusEl.className = 'small text-danger';
             statusEl.textContent = 'Network error.';
         }
+    }
+
+    function updateTtsModelPlaceholder() {
+        const engine = document.getElementById('conf-tts-local-engine')?.value || 'kokoro';
+        const modelInput = document.getElementById('conf-tts-local-model');
+        if (modelInput) {
+            modelInput.placeholder = engine === 'kokoro' ? './models/kokoro-v0_19.onnx' : './models/en_US-arctic-medium.onnx';
+        }
+    }
+
+    async function downloadSttModel() {
+        const statusEl = document.getElementById('stt-dl-status');
+        statusEl.textContent = 'Starting download...';
+        try {
+            const r = await fetch('/api/models/download_stt', { method: 'POST' });
+            const d = await r.json();
+            statusEl.textContent = d.message || (d.status === 'ok' ? 'Download started!' : 'Error');
+        } catch(e) { statusEl.textContent = 'Error: ' + e.message; }
+    }
+    async function downloadTtsModel() {
+        const engine = document.getElementById('conf-tts-local-engine')?.value || 'kokoro';
+        const statusEl = document.getElementById('tts-dl-status');
+        statusEl.textContent = 'Starting download...';
+        try {
+            const r = await fetch('/api/models/download_tts', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({engine}) });
+            const d = await r.json();
+            statusEl.textContent = d.message || (d.status === 'ok' ? 'Download started!' : 'Error');
+        } catch(e) { statusEl.textContent = 'Error: ' + e.message; }
     }
 
     // Live auto-busy status from server
