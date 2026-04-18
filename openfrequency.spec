@@ -190,7 +190,8 @@ a = Analysis(
 
         # ── Rarely-needed stdlib heavy modules ───────────────────────────────
         "test", "xmlrpc", "lib2to3",
-        "ensurepip", "distutils",
+        "ensurepip",
+        # NOTE: do NOT exclude distutils — PyInstaller uses it internally
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
