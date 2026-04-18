@@ -88,7 +88,8 @@ Write-Host "  Root    : $RepoRoot"        -ForegroundColor White
 if (-not $SkipVenv) {
     Step "Setting up build virtual environment"
 
-    $PythonExe = (Get-Command python -ErrorAction SilentlyContinue)?.Source
+    $PythonCmd = Get-Command python -ErrorAction SilentlyContinue
+    $PythonExe = if ($PythonCmd) { $PythonCmd.Source } else { $null }
     if (-not $PythonExe) { FAIL "python not found on PATH." }
     INFO "Using Python: $PythonExe ($(python --version))"
 
@@ -106,6 +107,7 @@ if (-not $SkipVenv) {
     INFO "Installing / updating requirements.txt ..."
     & $VenvPip install --upgrade pip --quiet
     & $VenvPip install -r (Join-Path $RepoRoot "requirements.txt") --quiet
+    & $VenvPip install -r (Join-Path $RepoRoot "requirements-build.txt") --quiet
     & $VenvPip install pyinstaller --quiet
     OK "Dependencies ready."
 } else {
@@ -163,7 +165,8 @@ Write-Host "  (paste this into RELEASE_NOTES.md)" -ForegroundColor Gray
 if ($BuildMsi) {
     Step "Building MSI with WiX 4"
 
-    $WixExe = (Get-Command wix -ErrorAction SilentlyContinue)?.Source
+    $WixCmd = Get-Command wix -ErrorAction SilentlyContinue
+    $WixExe = if ($WixCmd) { $WixCmd.Source } else { $null }
     if (-not $WixExe) {
         WARN "WiX not found. Install with: dotnet tool install --global wix"
         WARN "Skipping MSI build."

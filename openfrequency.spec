@@ -52,7 +52,7 @@ datas += collect_tree("static", excludes={"cabin_media"})
 # data/ includes quick_reply_templates.json, chatter_templates.json, etc.
 # Exclude build-only artefacts and runtime-generated caches.
 datas += collect_tree("data",    excludes={"reports", "storage", "ground_cache", "__pycache__"})
-datas += collect_tree("models")
+datas += collect_tree("models",  excludes={"sherpa-onnx-whisper-small", "whisper-small", "sherpa-onnx-whisper-tiny.en"})
 datas += collect_tree("ffmpeg")
 datas += collect_tree("plugins", excludes={"__pycache__"})
 # installer/ is build-tooling only — NOT bundled into the exe.
@@ -123,6 +123,9 @@ _hidden = [
     "pystray",
     "pystray._win32",
 
+    # ── UI ───────────────────────────────────────────────────────────────────
+    "webview",
+
     # ── New core modules (loaded via EventBus; may not be auto-detected) ─────
     "core.quick_reply",       # quick-reply template engine
     "core.cpdlc_manager",     # CPDLC data-link session manager
@@ -182,7 +185,7 @@ a = Analysis(
         "matplotlib", "pandas",
 
         # ── Unused UI toolkits ───────────────────────────────────────────────
-        "pywebview", "wx", "PyQt5", "PyQt6", "PySide2", "PySide6",
+        "wx", "PyQt5", "PyQt6", "PySide2", "PySide6",
         "pyautogui",           # only used in optional flight-report screenshot
 
         # ── Build-only artefacts ─────────────────────────────────────────────

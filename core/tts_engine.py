@@ -333,6 +333,10 @@ class TTSEngine:
             "pipe:1",
         ]
 
+        kwargs = {}
+        if sys.platform == 'win32':
+            kwargs['creationflags'] = 0x08000000
+
         try:
             completed = subprocess.run(
                 cmd,
@@ -340,6 +344,7 @@ class TTSEngine:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 check=True,
+                **kwargs
             )
             return completed.stdout or audio_bytes
         except Exception as e:
@@ -610,6 +615,9 @@ class TTSEngine:
                     loop.run_until_complete(self.speak_async(text, icao_override=icao))
                 loop.close()
                 if icao:
+                    # Estimate audio playback duration so ATIS doesn't loop instantaneously
+                    estimated_duration = len(text) * 0.08 + 2.0
+                    time.sleep(estimated_duration)
                     event_bus.emit('atis_played', icao)
             except Exception as e:
                 print(f"TTSEngine ATIS Error in thread: {e}")
