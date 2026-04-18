@@ -73,10 +73,26 @@
                         <div class="form-text x-small text-muted" data-i18n="api_key_hint">Existing key is hidden. Leave as ******
                             to keep current.</div>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="model_name">Model Name</label>
-                        <input type="text" class="form-control form-control-sm" id="conf-model">
+
+                    <!-- Dual Model -->
+                    <div class="mb-1">
+                        <label class="form-label small mb-0">⚡ Fast Model
+                            <span class="text-muted" style="font-size:0.75em;">— readbacks, simple acks</span>
+                        </label>
+                        <input type="text" class="form-control form-control-sm" id="conf-model-fast"
+                            placeholder="e.g. gemini-2.0-flash">
                     </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">🧠 Thinking Model
+                            <span class="text-muted" style="font-size:0.75em;">— clearances, emergencies, routing</span>
+                        </label>
+                        <input type="text" class="form-control form-control-sm" id="conf-model-thinking"
+                            placeholder="e.g. gemini-2.0-flash-thinking-exp-01-21">
+                        <div class="form-text x-small text-muted">Leave either field empty to use the same model for both tiers.</div>
+                    </div>
+                    <!-- Legacy single model (hidden but kept for backward compat) -->
+                    <input type="hidden" id="conf-model">
+
                     <div class="mb-2" id="base-url-group">
                         <label class="form-label small mb-0" data-i18n="base_url">Base URL (Local/Ollama)</label>
                         <input type="text" class="form-control form-control-sm" id="conf-base-url"
@@ -127,6 +143,40 @@
                         <div class="form-text x-small text-muted" data-i18n="ground_data_hint">Choose simulator or third-party sources for airport frequencies and taxi/apron data.</div>
                     </div>
 
+                    <!-- TTS Backend -->
+                    <h6 class="border-bottom pb-1 mb-2 mt-3">🔊 Text-to-Speech Engine</h6>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">TTS Backend</label>
+                        <select class="form-select form-select-sm" id="conf-tts-backend"
+                            onchange="toggleLocalTtsFields()">
+                            <option value="edge">Edge-TTS (Microsoft Cloud, recommended)</option>
+                            <option value="local">Local TTS (offline, streaming)</option>
+                        </select>
+                    </div>
+                    <div id="local-tts-group" style="display:none;">
+                        <div class="mb-2">
+                            <label class="form-label small mb-0">Local Engine</label>
+                            <select class="form-select form-select-sm" id="conf-tts-local-engine">
+                                <option value="kokoro">Kokoro-ONNX (pip install kokoro-onnx)</option>
+                                <option value="piper">Piper TTS (pip install piper-tts)</option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0">Model File Path</label>
+                            <input type="text" class="form-control form-control-sm" id="conf-tts-local-model"
+                                placeholder="e.g. ./models/kokoro-v0_19.onnx">
+                        </div>
+                        <div class="mb-2" id="kokoro-voices-group">
+                            <label class="form-label small mb-0">Voices File (Kokoro only)</label>
+                            <input type="text" class="form-control form-control-sm" id="conf-tts-local-voices"
+                                placeholder="e.g. ./models/voices.bin">
+                        </div>
+                        <div class="form-text x-small text-muted mb-2">
+                            Local TTS streams audio sentence-by-sentence for lower latency.
+                            Kokoro supports English voices; for Chinese/Japanese, Edge-TTS is still recommended.
+                        </div>
+                    </div>
+
                     <!-- Audio Settings -->
                     <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="audio_controls">Audio & Controls</h6>
                     <div class="mb-2">
@@ -151,12 +201,35 @@
                         </div>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="traffic_density">Traffic Density</label>
+                        <label class="form-label small mb-0" data-i18n="traffic_density">Traffic Density (Fallback)</label>
                         <select class="form-select form-select-sm" id="conf-busy-level">
                             <option value="low" data-i18n="density_low">Low (Lazy Afternoon)</option>
                             <option value="medium" data-i18n="density_medium">Medium (Standard)</option>
                             <option value="high" data-i18n="density_high">High (Busy Hub)</option>
                         </select>
+                        <div class="form-text x-small text-muted">Used when Auto Busy is off or no traffic data is available.</div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="conf-auto-busy" checked>
+                            <label class="form-check-label small" for="conf-auto-busy">
+                                🤖 Auto Busy Level — derive from real nearby aircraft count
+                            </label>
+                        </div>
+                        <div id="auto-busy-status" class="form-text x-small text-muted mt-1"></div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="conf-allow-intl-non-english">
+                            <label class="form-check-label small" for="conf-allow-intl-non-english">
+                                🌐 Allow non-English comms outside Chinese airspace
+                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">Not realistic</span>
+                            </label>
+                        </div>
+                        <div class="form-text x-small text-muted">
+                            When off, ATC uses English-only (ICAO standard) outside Chinese/Japanese airspace.
+                            Turn on to use your configured language everywhere.
+                        </div>
                     </div>
 
                     <!-- Security Settings -->
@@ -200,6 +273,106 @@
                             <option value="zh">Chinese (中文)</option>
                             <option value="ja">Japanese (日本語)</option>
                         </select>
+                    </div>
+
+                    <!-- Privacy & Updates -->
+                    <h6 class="border-bottom pb-1 mb-2 mt-3">☁️ Privacy &amp; Updates</h6>
+
+                    <!-- Crash telemetry toggle -->
+                    <div class="mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="conf-telemetry-enabled">
+                            <label class="form-check-label small" for="conf-telemetry-enabled">
+                                Auto-report crashes to help improve OpenFrequency
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mt-1">
+                            <input class="form-check-input" type="checkbox" id="conf-telemetry-sim-info">
+                            <label class="form-check-label small" for="conf-telemetry-sim-info">
+                                Include sim/LLM provider info in crash reports
+                            </label>
+                        </div>
+                        <div class="form-text x-small text-muted mt-1">
+                            No API keys, passwords, or personal info are ever sent.
+                            Crash logs are always saved locally regardless of this setting.
+                        </div>
+                    </div>
+
+                    <!-- Manual crash upload -->
+                    <div class="mb-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="uploadRecentCrash()">
+                                📤 Upload Recent Crash Log
+                            </button>
+                            <span id="crash-upload-status" class="small text-muted"></span>
+                        </div>
+                        <div id="recent-crash-info" class="form-text x-small text-muted mt-1"></div>
+                    </div>
+
+                    <!-- Auto update -->
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-outline-primary" onclick="checkForUpdates()">
+                                🔄 Check for Updates
+                            </button>
+                            <span id="update-check-status" class="small text-muted"></span>
+                        </div>
+                        <div id="update-info-box" class="alert alert-info alert-sm mt-2 d-none p-2" style="font-size:0.82rem;"></div>
+                    </div>
+
+                    <!-- Manual feedback -->
+                    <div class="mb-2">
+                        <a class="btn btn-sm btn-outline-secondary collapsed" data-bs-toggle="collapse"
+                            href="#feedback-collapse" role="button" aria-expanded="false">
+                            💬 Submit Feedback / Bug Report
+                        </a>
+                        <div class="collapse mt-2" id="feedback-collapse">
+                            <div class="card card-body p-2" style="font-size:0.85rem;">
+                                <div class="mb-2">
+                                    <label class="form-label small mb-0">Type</label>
+                                    <select class="form-select form-select-sm" id="fb-type">
+                                        <option value="bug">🐛 Bug Report</option>
+                                        <option value="suggestion">💡 Feature Suggestion</option>
+                                        <option value="crash">💥 Crash Follow-up</option>
+                                        <option value="other">📝 Other</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-0">Title <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-sm" id="fb-title"
+                                        placeholder="Brief description of the issue" maxlength="100">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-0">Details</label>
+                                    <textarea class="form-control form-control-sm" id="fb-description" rows="3"
+                                        placeholder="Steps to reproduce, expected vs actual behavior, etc." maxlength="2000"></textarea>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-0">Recent Crash ID (auto-filled)</label>
+                                    <input type="text" class="form-control form-control-sm" id="fb-crash-id"
+                                        placeholder="Leave blank if not crash-related">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-0">Contact (optional)</label>
+                                    <input type="text" class="form-control form-control-sm" id="fb-contact"
+                                        placeholder="Email or GitHub handle for follow-up">
+                                </div>
+                                <div class="mb-2 d-flex gap-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="fb-include-log" checked>
+                                        <label class="form-check-label small" for="fb-include-log">Attach log excerpt</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="fb-include-config">
+                                        <label class="form-check-label small" for="fb-include-config">Attach config summary</label>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <button class="btn btn-sm btn-primary" onclick="submitFeedback()">Send Feedback</button>
+                                    <span id="fb-status" class="small text-muted"></span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- UI Settings -->
@@ -349,7 +522,15 @@
             document.getElementById('conf-provider').value = data.connection?.provider || 'gemini';
             document.getElementById('conf-api-key').value = data.connection?.api_key || '';
             document.getElementById('conf-model').value = data.connection?.model || '';
+            document.getElementById('conf-model-fast').value = data.connection?.model_fast || data.connection?.model || '';
+            document.getElementById('conf-model-thinking').value = data.connection?.model_thinking || '';
             document.getElementById('conf-base-url').value = data.connection?.base_url || '';
+            // TTS backend
+            document.getElementById('conf-tts-backend').value = data.audio?.tts_backend || 'edge';
+            document.getElementById('conf-tts-local-engine').value = data.audio?.tts_local_engine || 'kokoro';
+            document.getElementById('conf-tts-local-model').value = data.audio?.tts_local_model || '';
+            document.getElementById('conf-tts-local-voices').value = data.audio?.tts_local_voices || '';
+            toggleLocalTtsFields();
             document.getElementById('conf-sim-provider').value = data.simulator?.provider || 'auto';
             document.getElementById('conf-xplane-host').value = data.simulator?.xplane_host || '127.0.0.1';
             document.getElementById('conf-xplane-port').value = data.simulator?.xplane_web_port || data.simulator?.xplane_port || 8086;
@@ -360,6 +541,8 @@
             document.getElementById('conf-stt-path').value = data.audio.stt_model_path || '';
             document.getElementById('conf-stt-language').value = data.audio.stt_language || 'en';
             document.getElementById('conf-busy-level').value = data.immersion.busy_level || 'medium';
+            document.getElementById('conf-auto-busy').checked = data.immersion?.auto_busy_level !== false;
+            document.getElementById('conf-allow-intl-non-english').checked = data.immersion?.allow_non_english_intl || false;
             // Security Mode from Config
             if (data.security && data.security.mode) {
                 document.getElementById('conf-security-mode').value = data.security.mode;
@@ -380,6 +563,12 @@
                 const isDark = localStorage.getItem('dark_mode') === '1' || (data.ui && data.ui.dark_mode);
                 darkModeCheckbox.checked = isDark;
             }
+
+            // Cloud / Privacy
+            document.getElementById('conf-telemetry-enabled').checked = data.cloud?.telemetry_enabled || false;
+            document.getElementById('conf-telemetry-sim-info').checked = data.cloud?.include_sim_info !== false;
+            // Pre-fill latest crash ID into feedback form
+            fetchRecentCrashId();
 
             toggleBaseUrl();
             toggleSimulatorFields();
@@ -418,7 +607,9 @@
                 connection: {
                     provider: document.getElementById('conf-provider').value,
                     api_key: document.getElementById('conf-api-key').value,
-                    model: document.getElementById('conf-model').value,
+                    model: document.getElementById('conf-model-fast').value || document.getElementById('conf-model').value,
+                    model_fast: document.getElementById('conf-model-fast').value,
+                    model_thinking: document.getElementById('conf-model-thinking').value,
                     base_url: document.getElementById('conf-base-url').value
                 },
                 simulator: {
@@ -434,15 +625,27 @@
                 audio: {
                     radio_effect: document.getElementById('conf-radio-effect').checked,
                     stt_model_path: document.getElementById('conf-stt-path').value,
-                    stt_language: document.getElementById('conf-stt-language').value
+                    stt_language: document.getElementById('conf-stt-language').value,
+                    tts_backend: document.getElementById('conf-tts-backend').value,
+                    tts_local_engine: document.getElementById('conf-tts-local-engine').value,
+                    tts_local_model: document.getElementById('conf-tts-local-model').value,
+                    tts_local_voices: document.getElementById('conf-tts-local-voices').value
                 },
-                immersion: { busy_level: document.getElementById('conf-busy-level').value },
+                immersion: {
+                    busy_level: document.getElementById('conf-busy-level').value,
+                    auto_busy_level: document.getElementById('conf-auto-busy').checked,
+                    allow_non_english_intl: document.getElementById('conf-allow-intl-non-english').checked,
+                },
                 security: { mode: document.getElementById('conf-security-mode').value },
                 emergency: {
                     level: document.getElementById('conf-emergency-level').value,
                     enabled: true
                 },
-                ui: { dark_mode: document.getElementById('conf-dark-mode')?.checked || false }
+                ui: { dark_mode: document.getElementById('conf-dark-mode')?.checked || false },
+                cloud: {
+                    telemetry_enabled: document.getElementById('conf-telemetry-enabled').checked,
+                    include_sim_info: document.getElementById('conf-telemetry-sim-info').checked
+                }
             };
 
             console.log("Saving config:", newConfig);
@@ -523,6 +726,11 @@
         document.getElementById('osm-config-group').style.display = (val === 'osm') ? 'block' : 'none';
     }
 
+    function toggleLocalTtsFields() {
+        const val = document.getElementById('conf-tts-backend').value;
+        document.getElementById('local-tts-group').style.display = (val === 'local') ? 'block' : 'none';
+    }
+
     function testAudio() {
         socket.emit('test_tts_trigger');
     }
@@ -533,6 +741,160 @@
             return;
         }
         window.location.href = '/dashboard';
+    }
+
+    // ── Privacy & Updates helpers ─────────────────────────────────────────────
+
+    async function fetchRecentCrashId() {
+        try {
+            const res = await fetch('/api/telemetry/recent_crashes');
+            if (!res.ok) return;
+            const crashes = await res.json();
+            if (crashes.length > 0) {
+                const c = crashes[0];
+                document.getElementById('fb-crash-id').value = c.crash_id || '';
+                document.getElementById('recent-crash-info').textContent =
+                    `Recent crash: ${c.exception_type || 'Error'} at ${c.timestamp_utc ? c.timestamp_utc.slice(0,19).replace('T',' ') : '?'} UTC`;
+            }
+        } catch (e) { /* no crash logs, ignore */ }
+    }
+
+    async function uploadRecentCrash() {
+        const btn = event.target;
+        const statusEl = document.getElementById('crash-upload-status');
+        btn.disabled = true;
+        statusEl.textContent = 'Uploading…';
+        try {
+            const res = await fetch('/api/telemetry/upload_recent', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok && data.ok) {
+                statusEl.className = 'small text-success';
+                statusEl.textContent = data.message || 'Uploaded successfully.';
+            } else {
+                statusEl.className = 'small text-danger';
+                statusEl.textContent = data.message || 'Upload failed.';
+            }
+        } catch (e) {
+            statusEl.className = 'small text-danger';
+            statusEl.textContent = 'Network error.';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function checkForUpdates() {
+        const btn = event.target;
+        const statusEl = document.getElementById('update-check-status');
+        const infoBox = document.getElementById('update-info-box');
+        btn.disabled = true;
+        statusEl.textContent = 'Checking…';
+        infoBox.className = 'alert alert-info alert-sm mt-2 d-none p-2';
+        try {
+            const res = await fetch('/api/update/check', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || res.statusText);
+            if (data.update_available) {
+                statusEl.className = 'small text-primary fw-semibold';
+                statusEl.textContent = `v${data.latest} available!`;
+                infoBox.className = 'alert alert-success alert-sm mt-2 p-2';
+                const notes = (localStorage.getItem('language') === 'zh' ? data.release_notes_zh : data.release_notes_en) || data.release_notes_en || '';
+                infoBox.innerHTML = `
+                    <strong>New version: v${data.latest}</strong><br>
+                    <small>${notes.slice(0, 300).replace(/\n/g, '<br>')}${notes.length > 300 ? '…' : ''}</small><br>
+                    <div class="mt-2 d-flex gap-2">
+                        <button class="btn btn-sm btn-success" onclick="startDownloadUpdate()">⬇️ Download &amp; Install</button>
+                    </div>`;
+                infoBox.style.fontSize = '0.82rem';
+            } else {
+                statusEl.className = 'small text-success';
+                statusEl.textContent = `Up to date (v${data.current})`;
+            }
+        } catch (e) {
+            statusEl.className = 'small text-danger';
+            statusEl.textContent = 'Check failed: ' + e.message;
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function startDownloadUpdate() {
+        const infoBox = document.getElementById('update-info-box');
+        infoBox.innerHTML = `
+            <strong>Downloading update…</strong>
+            <div class="progress mt-2" style="height:8px;">
+                <div id="update-dl-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                    style="width:0%" role="progressbar"></div>
+            </div>
+            <small id="update-dl-label" class="text-muted">0%</small>`;
+
+        // Wire socket events for progress
+        const s = window.socket;
+        s.on('update_download_progress', d => {
+            const pct = Math.round(d.percent || 0);
+            document.getElementById('update-dl-bar').style.width = pct + '%';
+            const speed = d.speed_kbps ? ` · ${(d.speed_kbps/1024).toFixed(1)} MB/s` : '';
+            const eta = d.eta_seconds ? ` · ETA ${d.eta_seconds}s` : '';
+            document.getElementById('update-dl-label').textContent = `${pct}%${speed}${eta}`;
+        });
+        s.once('update_download_complete', d => {
+            infoBox.innerHTML = `<strong>✅ Download complete!</strong> Launching installer…<br>
+                <small class="text-muted">${d.filename}</small>`;
+            s.emit('install_update', {});
+        });
+        s.once('update_download_failed', d => {
+            infoBox.className = 'alert alert-danger alert-sm mt-2 p-2';
+            infoBox.innerHTML = `<strong>❌ Download failed:</strong> ${d.reason || 'Unknown error'}`;
+        });
+
+        s.emit('start_update_download', {});
+    }
+
+    async function submitFeedback() {
+        const statusEl = document.getElementById('fb-status');
+        const title = document.getElementById('fb-title').value.trim();
+        if (!title) {
+            statusEl.className = 'small text-danger';
+            statusEl.textContent = 'Title is required.';
+            return;
+        }
+        statusEl.className = 'small text-muted';
+        statusEl.textContent = 'Sending…';
+        try {
+            const res = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: document.getElementById('fb-type').value,
+                    title,
+                    description: document.getElementById('fb-description').value.trim(),
+                    crash_id: document.getElementById('fb-crash-id').value.trim(),
+                    contact: document.getElementById('fb-contact').value.trim(),
+                    include_log: document.getElementById('fb-include-log').checked,
+                    include_config: document.getElementById('fb-include-config').checked
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.ok) {
+                statusEl.className = 'small text-success';
+                statusEl.textContent = `Sent! Feedback ID: ${data.feedback_id}`;
+                document.getElementById('fb-title').value = '';
+                document.getElementById('fb-description').value = '';
+            } else {
+                statusEl.className = 'small text-danger';
+                statusEl.textContent = data.message || 'Failed to send.';
+            }
+        } catch (e) {
+            statusEl.className = 'small text-danger';
+            statusEl.textContent = 'Network error.';
+        }
+    }
+
+    // Live auto-busy status from server
+    if (window.socket) {
+        window.socket.on('busy_level_update', d => {
+            const el = document.getElementById('auto-busy-status');
+            if (el) el.textContent = `Current: ${d.level}  ·  ${d.count} aircraft nearby`;
+        });
     }
 
     loadConfig();

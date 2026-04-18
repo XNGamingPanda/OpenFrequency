@@ -41,6 +41,24 @@ class InstructionExtractor:
 
     @classmethod
     def _add_altitude(cls, cards, text):
+        # China metric RVSM: "M840", "M8400", "8400M", "8400米", "climb to M890"
+        metric = re.search(
+            r"\b(?:m(\d{3,5})|(\d{3,5})[m米])\b",
+            text,
+        )
+        if metric:
+            raw = metric.group(1) or metric.group(2)
+            val = int(raw)
+            # CAAC abbreviated: M840 = 8400 m (3-digit code × 10 = metres)
+            # Full form: M8400 or 8400M/8400米 = 8400 m directly
+            if val < 1000:
+                val_m = val * 10    # abbreviated: M840 → 8400 m
+            else:
+                val_m = val         # full form: 8400
+            # Store as CAAC abbreviated string M840
+            cards.append(cls._card("ALT", f"M{val_m // 10}", "Altitude (米)"))
+            return
+
         fl = re.search(r"\b(?:fl|flight level)\s?(\d{2,3})\b", text)
         if fl:
             cards.append(cls._card("ALT", f"FL{fl.group(1)}", "Altitude"))

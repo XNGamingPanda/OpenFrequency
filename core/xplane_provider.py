@@ -29,6 +29,18 @@ class XPlaneProvider(SimProvider):
         'aircraft_description': 'sim/aircraft/view/acf_descrip',
     }
 
+    # TCAS target arrays — LiveTraffic and other AI traffic plugins inject here
+    TCAS_DREFS = {
+        'lat':       'sim/cockpit2/tcas/targets/position/lat',
+        'lon':       'sim/cockpit2/tcas/targets/position/lon',
+        'ele':       'sim/cockpit2/tcas/targets/position/ele',       # elevation in metres MSL
+        'vvi':       'sim/cockpit2/tcas/targets/position/vvi',       # vertical speed m/s
+        'psi':       'sim/cockpit2/tcas/targets/position/psi',       # true heading degrees
+        'speed':     'sim/cockpit2/tcas/targets/position/groundspeed', # m/s
+        'on_ground': 'sim/cockpit2/tcas/targets/position/weight_on_wheels',
+        'flight_id': 'sim/cockpit2/tcas/targets/flight_id',
+    }
+
     FAILURE_DREFS = {
         'TOGGLE_ENGINE1_FAILURE': [
             ('sim/operation/failures/rel_engfai0', 6),
@@ -205,8 +217,10 @@ class XPlaneProvider(SimProvider):
         self._set_dref('transponder', code)
 
     def set_com1_frequency(self, frequency: float):
-        freq_hz = int(round(float(frequency) * 1_000_000))
-        return self._set_dref('com1', freq_hz)
+        # X-Plane Web API returns com1_frequency_hz_833 in kHz units (e.g. 118025 for 118.025 MHz).
+        # Send kHz to stay consistent with how get_com1_frequency reads it.
+        freq_khz = int(round(float(frequency) * 1000))
+        return self._set_dref('com1', freq_khz)
 
     def get_com1_frequency(self) -> float:
         raw = self._get_dref('com1', 0)
@@ -229,6 +243,77 @@ class XPlaneProvider(SimProvider):
             'aircraft_type': icao or description,
         }
 
+    # ── Autopilot write-back (radar vectoring) ────────────────────────────────
+
+    # Datarefs used to command the X-Plane default autopilot.
+    # Note: aircraft with custom avionics (FBW, ZIBO) may ignore these.
+    _AP_DREFS = {
+        'heading_bug':    'sim/autopilot/heading_mag',       # degrees magnetic
+        'altitude_target':'sim/autopilot/altitude',           # feet MSL
+        'speed_target':   'sim/autopilot/airspeed',           # knots IAS
+        'ap_state':       'sim/cockpit/autopilot/autopilot_state',
+        'hnav_armed':     'sim/cockpit2/autopilot/heading_mode',
+        'alt_armed':      'sim/cockpit2/autopilot/altitude_mode',
+        'speed_armed':    'sim/cockpit2/autopilot/speed_mode',
+    }
+
+    def set_autopilot_heading(self, heading_deg: float) -> bool:
+        """Set heading bug and engage heading hold."""
+        try:
+            hdg_id  = self._get_dataref_id(self._AP_DREFS['heading_bug'])
+            self._request('PATCH', f'/datarefs/{hdg_id}/value',
+                          json={'data': float(heading_deg % 360)})
+            # Engage heading hold via command
+            self._xp_command('sim/autopilot/heading')
+            return True
+        except Exception as e:
+            print(f"XPlaneProvider: set_autopilot_heading failed - {e}")
+            return False
+
+    def set_autopilot_altitude(self, altitude_ft: float) -> bool:
+        """Set altitude target and engage altitude hold."""
+        try:
+            alt_id = self._get_dataref_id(self._AP_DREFS['altitude_target'])
+            self._request('PATCH', f'/datarefs/{alt_id}/value',
+                          json={'data': float(altitude_ft)})
+            self._xp_command('sim/autopilot/altitude_hold')
+            return True
+        except Exception as e:
+            print(f"XPlaneProvider: set_autopilot_altitude failed - {e}")
+            return False
+
+    def set_autopilot_speed(self, speed_kt: float) -> bool:
+        """Set airspeed target and engage autothrottle / speed hold."""
+        try:
+            spd_id = self._get_dataref_id(self._AP_DREFS['speed_target'])
+            self._request('PATCH', f'/datarefs/{spd_id}/value',
+                          json={'data': float(speed_kt)})
+            self._xp_command('sim/autopilot/autothrottle_toggle')
+            return True
+        except Exception as e:
+            print(f"XPlaneProvider: set_autopilot_speed failed - {e}")
+            return False
+
+    def _xp_command(self, command_path: str):
+        """Send an X-Plane command (begin+end = single press)."""
+        try:
+            # Look up the command dataref ID via the commands endpoint
+            resp = self.session.get(
+                f"{self.base_url}/commands",
+                params={'filter[name]': command_path},
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json().get('data', [])
+            if data:
+                cmd_id = data[0]['id']
+                self.session.post(
+                    f"{self.base_url}/commands/{cmd_id}/activate",
+                    timeout=self.timeout,
+                )
+        except Exception:
+            pass
+
     def trigger_event(self, event_name: str):
         if event_name not in self.FAILURE_DREFS:
             return False
@@ -236,3 +321,73 @@ class XPlaneProvider(SimProvider):
         for dref_name, value in self.FAILURE_DREFS[event_name]:
             ok = self._set_dref(dref_name, value) or ok
         return ok
+
+    def get_traffic_targets(self) -> list:
+        """Read TCAS target arrays (populated by LiveTraffic and other AI traffic plugins)."""
+        if not self._connected:
+            return []
+        try:
+            results = {}
+            for key, dref_name in self.TCAS_DREFS.items():
+                dataref_id = self._get_dataref_id(dref_name)
+                result = self._request('GET', f'/datarefs/{dataref_id}/value')
+                raw = result.get('data', result)
+                # TCAS datarefs are arrays; normalise to list
+                if isinstance(raw, list):
+                    results[key] = raw
+                elif isinstance(raw, dict) and 'value' in raw:
+                    v = raw['value']
+                    results[key] = v if isinstance(v, list) else [v]
+                else:
+                    results[key] = []
+
+            if not results.get('lat'):
+                return []
+
+            targets = []
+            n = len(results['lat'])
+            for i in range(n):
+                def _f(key, idx):
+                    arr = results.get(key, [])
+                    return arr[idx] if idx < len(arr) else 0
+
+                lat = float(_f('lat', i))
+                lon = float(_f('lon', i))
+                # Slots with lat==0 and lon==0 are empty
+                if lat == 0.0 and lon == 0.0:
+                    continue
+
+                ele_m = float(_f('ele', i))
+                alt_ft = ele_m * 3.28084
+                vvi_ms = float(_f('vvi', i))
+                vs_fpm = vvi_ms * 196.85          # m/s → fpm
+                spd_ms = float(_f('speed', i))
+                spd_kt = spd_ms * 1.94384         # m/s → knots
+                hdg = float(_f('psi', i))
+                on_ground = bool(_f('on_ground', i))
+
+                # flight_id is an array of char arrays or a flat string list
+                raw_id = results.get('flight_id', [])
+                if i < len(raw_id):
+                    fid = raw_id[i]
+                    callsign = ''.join(fid).strip() if isinstance(fid, list) else str(fid).strip()
+                else:
+                    callsign = f'TCAS{i+1:02d}'
+
+                if not callsign:
+                    callsign = f'TCAS{i+1:02d}'
+
+                targets.append({
+                    'callsign': callsign,
+                    'latitude': lat,
+                    'longitude': lon,
+                    'altitude': alt_ft,
+                    'heading': hdg,
+                    'airspeed': spd_kt,
+                    'vertical_speed': vs_fpm,
+                    'on_ground': on_ground,
+                })
+            return targets
+        except Exception as e:
+            print(f"XPlaneProvider: get_traffic_targets failed - {e}")
+            return []

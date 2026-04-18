@@ -6,6 +6,7 @@ from .context import shared_context, context_lock, event_bus
 from .immersion.workload_sim import WorkloadSimulator
 from .taxi_router import TaxiRouter
 from .instruction_extractor import InstructionExtractor
+from .quick_reply import QuickReplyEngine
 
 class LogicManager:
     """
@@ -46,6 +47,15 @@ class LogicManager:
             'approach': False    # 下降中移交进场
         }
         self.last_vs = 0  # 上一次垂直速度，用于判断爬升/下降
+        self._was_on_ground = True  # Track ground→air transition for flight plan display
+
+        # Radar vector mode: when True, ATC heading/altitude/speed cards are
+        # automatically applied to the simulator's autopilot.
+        self.radar_vector_mode = False
+        self._sim_bridge = None  # injected by app.py after SimBridge starts
+
+        # Plugin manager reference (injected by app.py)
+        self._plugin_manager = None
         
         # Defer log file creation to start() to avoid double initialization
         self.log_dir = os.environ.get("OPENFREQUENCY_LOG_DIR", "logs")
@@ -76,6 +86,8 @@ class LogicManager:
         event_bus.on('metar_fetch_request', self._handle_metar_fetch_request)
         event_bus.on('external_chat_log', self._handle_external_chat_log)
         event_bus.on('config_updated', self._handle_config_updated)
+        # Auto-busy: keep workload_sim in sync with nearby traffic count
+        event_bus.on('traffic_update', self._on_traffic_update)
         
         # Start Infinite Pattern Loop if enabled
         if self.infinite_pattern and self.scheduler:
@@ -255,9 +267,28 @@ class LogicManager:
         self.config = new_config
         if self.ground_service:
             self.ground_service.update_config(new_config)
+        # Re-read auto_busy setting when config changes
+        imm = new_config.get('immersion', {})
+        self.workload_sim.auto_busy  = imm.get('auto_busy_level', True)
+        self.workload_sim.busy_level = imm.get('busy_level', 'medium')
+
+    def _on_traffic_update(self, traffic_list):
+        """Keep workload simulator in sync with real nearby aircraft count."""
+        count = len(traffic_list) if isinstance(traffic_list, list) else 0
+        self.workload_sim.update_traffic_count(count)
+        # Emit effective busy level to dashboard so it can be shown in UI
+        if self.socketio:
+            self.socketio.emit('busy_level_update', {
+                'count': count,
+                'level': self.workload_sim.effective_busy_level,
+                'auto': self.workload_sim.auto_busy,
+            })
 
     def on_flight_plan_loaded(self, flight_plan):
         self._refresh_nearby_airports(force=True)
+        # Push to dashboard immediately so it shows even before takeoff
+        if flight_plan.get('destination', 'N/A') != 'N/A' or flight_plan.get('origin', 'N/A') != 'N/A':
+            self.socketio.emit('flight_plan_update', flight_plan)
 
     def _refresh_nearby_airports(self, force=False):
         if not self.airport_frequency_service:
@@ -368,6 +399,14 @@ class LogicManager:
         with context_lock:
             shared_context['navigation']['ground_layout_summary'] = summary
             shared_context['navigation']['current_taxi_path'] = route.get('taxiways', []) if route else []
+
+        # Push suggested taxi route to the dashboard for visual highlighting
+        if route and route.get('taxiways'):
+            self.socketio.emit('suggested_taxi_route', {
+                'airport_ident': airport_ident,
+                'taxiways': route.get('taxiways', []),
+                'target_runway': route.get('target_runway') or route.get('end_node', ''),
+            })
         return summary
 
     def _format_channel_key(self, airport_ident, frequency_mhz, role):
@@ -462,6 +501,7 @@ class LogicManager:
             return
 
         self.socketio.emit('stop_active_audio', {'reason': 'frequency_change'})
+        event_bus.emit('atis_stop')
         self._restore_channel_history(self.active_channel_key)
         self.previous_controller_name = self.channel_controllers.get(self.active_channel_key, current_controller)
         self._refresh_ground_context(freq_entry['airport_ident'] if freq_entry else airport_ident)
@@ -599,6 +639,13 @@ class LogicManager:
             alt = ac_data.get('altitude', 0)
             on_ground = ac_data.get('on_ground', True)
             current_controller = shared_context['atc_state'].get('current_controller', '')
+
+            # Detect ground→air transition: push flight plan to dashboard when airborne
+            if self._was_on_ground and not on_ground:
+                fp = shared_context.get('flight_plan', {})
+                if fp.get('destination', 'N/A') != 'N/A' or fp.get('origin', 'N/A') != 'N/A':
+                    self.socketio.emit('flight_plan_update', fp)
+            self._was_on_ground = on_ground
             
             # 起飞后移交离场 (高度 > 1500ft, 爬升中, 未触发过)
             if (not on_ground and alt > 1500 and vs > 200 and 
@@ -698,30 +745,75 @@ class LogicManager:
         print(f"LogicManager: ATC ignored '{original_text}'. Pilot should try again.")
 
     def process_llm_request(self, text):
-        """Sends the request to the LLM."""
+        """Sends the request to the LLM (or fast-tracks via quick reply template)."""
         print(f"LogicManager: Processing LLM request for '{text}'")
         with context_lock:
             current_controller = shared_context['atc_state'].get('current_controller', '')
             current_airport = shared_context['environment'].get('current_airport') or shared_context['environment'].get('nearest_airport')
+            ctx_snapshot = dict(shared_context)
+
         if 'Ground' in current_controller:
             self._refresh_ground_context(current_airport)
-        # Pass recent history (exclude the very last one if it is the current message to avoid duplication in prompt, 
-        # but simpler to just pass last 10 and let LLMClient handle formatting)
-        # actually, let's just pass the last 6 messages for context
+
+        # ── Plugin hook: pilot input ─────────────────────────────────────────
+        if self._plugin_manager:
+            text = self._plugin_manager.hook_pilot_input(text) or text
+
+        # ── Quick reply auto-match (acknowledgements only) ───────────────────
+        # Detect pilot speech that is purely a readback / roger / wilco and
+        # respond instantly with a template, skipping the LLM call entirely.
+        stt_lang = self._config_audio_lang()
+        qr_ctx = QuickReplyEngine.build_context_from_shared(ctx_snapshot)
+        quick = QuickReplyEngine.auto_match(text, current_controller, qr_ctx, lang=stt_lang)
+        if quick:
+            print(f"LogicManager: Quick reply matched → '{quick[:60]}'")
+            self.on_llm_response(quick, None)
+            return
+
+        # ── Normal LLM path ─────────────────────────────────────────────────
         history = list(self.message_history)[-6:]
         event_bus.emit('llm_request', text, history)
+
+    def _config_audio_lang(self) -> str:
+        """Return 'en'/'zh'/'ja' for quick-reply template selection."""
+        lang = self.config.get('audio', {}).get('stt_language', 'en')
+        return lang if lang in ('en', 'zh', 'ja') else 'en'
+
+    def handle_quick_reply(self, template_id: str, extra_vars: dict | None = None):
+        """
+        Called by the Flask socket handler when the UI sends a quick-reply
+        template ID.  Renders the template and emits it as an ATC response
+        without invoking the LLM.
+        """
+        with context_lock:
+            ctx_snap = dict(shared_context)
+        qr_ctx = QuickReplyEngine.build_context_from_shared(ctx_snap)
+        if extra_vars:
+            qr_ctx.update(extra_vars)
+        lang = self._config_audio_lang()
+        text = QuickReplyEngine.render(template_id, qr_ctx, lang=lang)
+        if text:
+            self.on_llm_response(text, None)
 
     def on_llm_response(self, text, action):
         """Handles the generated response from the LLM."""
         print(f"LogicManager: LLM response: '{text}' (Action: {action})")
-        
-        # If LLM decides to be silent (e.g. implied readback confirmation), skip broadcast
+
         if not text or not text.strip():
             print("LogicManager: Received empty response (Silence).")
             return
 
+        # ── Plugin hook: allow plugins to modify ATC text ─────────────────
+        if self._plugin_manager:
+            text = self._plugin_manager.hook_atc_response(text, action) or text
+
         sender = self._get_current_sender_name()
         self._broadcast_chat(sender, text)
+
+        # ── Plugin hook: chat message logged ─────────────────────────────
+        if self._plugin_manager:
+            self._plugin_manager.hook_chat_message(sender, text)
+
         event_bus.emit('atc_instruction_issued', text, action, shared_context)
         self._emit_instruction_cards(text, sender)
         event_bus.emit('tts_request', text)
@@ -735,6 +827,87 @@ class LogicManager:
             'cards': cards,
             'source_text': text,
         })
+        self._update_issued_instructions(cards, text)
+
+        # ── Radar vector mode: apply AP commands to simulator ─────────────
+        if self.radar_vector_mode and self._sim_bridge:
+            self._apply_radar_vectors(cards)
+
+    def _apply_radar_vectors(self, cards: list):
+        """Push heading / altitude / speed cards to the simulator autopilot."""
+        sb = self._sim_bridge
+        for card in cards:
+            t, v = card['type'], card['value']
+            try:
+                if t == 'HDG':
+                    sb.set_autopilot_heading(float(v))
+                elif t == 'ALT':
+                    # v may be 'FL350', 'M840', or plain '15000'
+                    alt_ft = self._parse_alt_to_feet(v)
+                    if alt_ft is not None:
+                        sb.set_autopilot_altitude(alt_ft)
+                elif t == 'SPD':
+                    sb.set_autopilot_speed(float(v))
+            except Exception as e:
+                print(f"LogicManager: radar vector apply error ({t}={v}): {e}")
+
+    @staticmethod
+    def _parse_alt_to_feet(value: str) -> float | None:
+        """Convert FL350 / M840 / 15000 to feet."""
+        import re
+        v = str(value).strip().upper()
+        m = re.match(r'^FL(\d+)$', v)
+        if m:
+            return float(m.group(1)) * 100
+        m = re.match(r'^M(\d{3,5})$', v)
+        if m:
+            metres = float(m.group(1))
+            if metres < 1000:
+                metres *= 10          # M840 → 8400 m
+            return metres * 3.28084
+        try:
+            return float(v)
+        except ValueError:
+            return None
+
+    # Card-type → issued_instructions key mapping
+    _CARD_TO_ISSUED = {
+        'SQ':    'squawk',
+        'ALT':   'cleared_altitude',
+        'HDG':   'assigned_heading',
+        'SPD':   'assigned_speed',
+        'QNH':   'altimeter',
+        'ALTIM': 'altimeter',
+        'APP':   'approach_clearance',
+        'TAXI':  'taxi_route',
+    }
+
+    def _update_issued_instructions(self, cards, raw_text):
+        """Update shared_context issued_instructions from freshly extracted cards."""
+        import re
+        updates = {}
+        for card in cards:
+            key = self._CARD_TO_ISSUED.get(card['type'])
+            if key:
+                updates[key] = card['value']
+
+        # Also try to detect departure runway / SID from clearance text
+        raw_lower = raw_text.lower()
+        rwy_m = re.search(r'\brunway\s+(\d{1,2}[lrc]?)\b', raw_lower)
+        if rwy_m:
+            updates['departure_runway'] = rwy_m.group(1).upper()
+
+        sid_m = re.search(r'\bvia\s+([A-Z]{2,6}\d[A-Z]?)\b', raw_text, re.IGNORECASE)
+        if sid_m:
+            updates['sid'] = sid_m.group(1).upper()
+
+        if not updates:
+            return
+        with context_lock:
+            issued = shared_context['atc_state'].setdefault('issued_instructions', {})
+            issued.update(updates)
+            # Keep last_instruction in sync for legacy consumers
+            shared_context['atc_state']['last_instruction'] = raw_text
 
     def on_sim_status(self, data):
         """Handles sim connection status updates."""

@@ -6,8 +6,10 @@
     "connection": {
         "provider": "gemini",
         "api_key": "YOUR_API_KEY_HERE",
-        "model": "gemini-2.0-flash-exp",
-        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"
+        "model": "gemini-2.0-flash",
+        "model_fast": "gemini-2.0-flash",
+        "model_thinking": "gemini-2.0-flash-thinking-exp-01-21",
+        "base_url": ""
     },
     "audio": {
         "input_device": "default",
@@ -15,7 +17,11 @@
         "push_to_talk": true,
         "radio_effect": true,
         "stt_model_path": "./models/sherpa-onnx-whisper-small",
-        "stt_language": "en"
+        "stt_language": "en",
+        "tts_backend": "edge",
+        "tts_local_engine": "kokoro",
+        "tts_local_model": "./models/kokoro-v0_19.onnx",
+        "tts_local_voices": "./models/voices.bin"
     },
     "simbrief": {
         "username": ""
@@ -23,5 +29,9 @@
     "immersion": {
         "busy_level": "medium",
         "bg_chatter": true
+    },
+    "cloud": {
+        "telemetry_enabled": false,
+        "include_sim_info": true
     }
 }

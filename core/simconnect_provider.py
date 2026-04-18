@@ -122,8 +122,46 @@ class SimConnectProvider(SimProvider):
             except Exception as e:
                 print(f"SimConnectProvider: Failed to set COM1 - {e}")
     
+    # ── Autopilot write-back (radar vectoring) ────────────────────────────────
+
+    def _trigger(self, event_name: str, value: int = 0) -> bool:
+        """Internal helper: trigger a SimConnect event with an optional integer value."""
+        if not self.sc:
+            return False
+        try:
+            from SimConnect import AircraftEvents
+            ae = AircraftEvents(self.sc)
+            ev = ae.find(event_name)
+            if ev:
+                ev.trigger(value)
+                return True
+        except Exception as e:
+            print(f"SimConnectProvider: Failed to trigger {event_name}({value}) - {e}")
+        return False
+
+    def set_autopilot_heading(self, heading_deg: float) -> bool:
+        """Set heading bug (degrees) and engage heading hold mode."""
+        hdg = int(round(heading_deg)) % 360
+        self._trigger('HEADING_BUG_SET', hdg)
+        self._trigger('AP_HDG_HOLD_ON')
+        return True
+
+    def set_autopilot_altitude(self, altitude_ft: float) -> bool:
+        """Set altitude target (feet) and engage altitude hold."""
+        alt = int(round(altitude_ft))
+        self._trigger('AP_ALT_VAR_SET_ENGLISH', alt)
+        self._trigger('AP_PANEL_ALTITUDE_HOLD')
+        return True
+
+    def set_autopilot_speed(self, speed_kt: float) -> bool:
+        """Set IAS target (knots) and engage autothrottle speed hold."""
+        spd = int(round(speed_kt))
+        self._trigger('AP_SPD_VAR_SET', spd)
+        self._trigger('AUTO_THROTTLE_ARM')
+        return True
+
     # ===== EVENTS =====
-    
+
     def trigger_event(self, event_name: str):
         """Trigger a SimConnect event."""
         if self.sc:

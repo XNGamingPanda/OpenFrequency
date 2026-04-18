@@ -30,7 +30,20 @@ shared_context = {
         "current_frequency": 0.0,
         "current_frequency_label": "",
         "current_frequency_role": "",
-        "current_channel_key": ""
+        "current_channel_key": "",
+        # Issued instructions that persist across frequency changes so every
+        # controller always knows what has already been assigned to this aircraft.
+        "issued_instructions": {
+            "squawk": None,          # e.g. "2411"
+            "cleared_altitude": None, # e.g. "FL350" or "5000"
+            "assigned_heading": None, # e.g. "090"
+            "assigned_speed": None,   # e.g. "250"
+            "altimeter": None,        # e.g. "1013" or "29.92"
+            "approach_clearance": None, # e.g. "ILS RWY 34L"
+            "taxi_route": None,       # e.g. "A B1 RWY34L"
+            "departure_runway": None, # e.g. "34L"
+            "sid": None,              # e.g. "ELKAP1D"
+        }
     },
     "navigation": {
         "current_taxi_path": []
@@ -42,7 +55,8 @@ shared_context = {
         "route": "N/A",
         "cruise_alt": 0,
         "flight_number": "N/A"
-    }
+    },
+    "flight_rules": "IFR"  # "IFR" or "VFR"
 }
 
 context_lock = threading.Lock()

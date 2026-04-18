@@ -1,5 +1,7 @@
 import sherpa_onnx
 import os
+import subprocess
+import sys
 import soundfile as sf
 import tempfile
 import time
@@ -85,8 +87,15 @@ class STTLocal:
             
             wav_path = tmp_path + ".wav"
             
-            # Simple conversion using system ffmpeg (assumed in path)
-            os.system(f'ffmpeg -y -i "{tmp_path}" -ar 16000 -ac 1 "{wav_path}" > nul 2>&1')
+            # Convert using ffmpeg without spawning a visible CMD window
+            kwargs = {}
+            if sys.platform == 'win32':
+                kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW
+            subprocess.run(
+                ['ffmpeg', '-y', '-i', tmp_path, '-ar', '16000', '-ac', '1', wav_path],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                **kwargs
+            )
             
             if os.path.exists(wav_path):
                 s = self.recognizer.create_stream()

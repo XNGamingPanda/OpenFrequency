@@ -4,6 +4,9 @@ from google import genai
 from google.genai import types
 import openai
 
+from core.china_airspace import is_in_china_airspace, build_china_rvsm_prompt_block
+from core.cpdlc_manager import cpdlc_manager
+
 class LLMClient:
     ROLE_RULES = {
         "Ground": {
@@ -53,10 +56,17 @@ class LLMClient:
         conn_config = config.get('connection', {})
         self.provider = conn_config.get('provider', 'google_genai')
         self.api_key = conn_config.get('api_key', '')
-        self.model = conn_config.get('model', 'gemini-3-flash-preview')
+        # Dual-model support:
+        #   model_fast    — lightweight, low-latency (readbacks, simple instructions)
+        #   model_thinking — full reasoning model (clearances, emergencies, complex routing)
+        #   model          — legacy fallback used when fast/thinking not configured
+        self.model         = conn_config.get('model', 'gemini-2.0-flash')
+        self.model_fast    = conn_config.get('model_fast') or self.model
+        self.model_thinking= conn_config.get('model_thinking') or self.model
         self.base_url = conn_config.get('base_url', None)
 
-        print(f"LLMClient Debug: Provider='{self.provider}', API_Key_Present={bool(self.api_key)}, Model='{self.model}'")
+        print(f"LLMClient Debug: Provider='{self.provider}', API_Key_Present={bool(self.api_key)}, "
+              f"Model(fast)='{self.model_fast}', Model(thinking)='{self.model_thinking}'")
         
         self.client = None
         self.openai_client = None
@@ -90,10 +100,13 @@ class LLMClient:
         conn_config = new_config.get('connection', {})
         self.provider = conn_config.get('provider', 'google_genai')
         self.api_key = conn_config.get('api_key', '')
-        self.model = conn_config.get('model', 'gemini-3-flash-preview')
+        self.model          = conn_config.get('model', 'gemini-2.0-flash')
+        self.model_fast     = conn_config.get('model_fast') or self.model
+        self.model_thinking = conn_config.get('model_thinking') or self.model
         self.base_url = conn_config.get('base_url', None)
 
-        print(f"LLMClient Update Debug: Provider='{self.provider}', API_Key_Present={bool(self.api_key)}, Model='{self.model}'")
+        print(f"LLMClient Update: Provider='{self.provider}', "
+              f"fast='{self.model_fast}', thinking='{self.model_thinking}'")
 
         self.client = None
         self.openai_client = None
@@ -215,6 +228,35 @@ class LLMClient:
         qnh = context_copy['environment']['qnh']
         nearest_airport = context_copy['environment'].get('nearest_airport', 'N/A')
         current_alt = context_copy['aircraft'].get('altitude', 0)
+        flight_rules = context_copy.get('flight_rules', 'IFR')
+
+        # Build "previously issued instructions" block — persists across frequency changes
+        issued = context_copy.get('atc_state', {}).get('issued_instructions', {})
+        issued_lines = []
+        _label_map = {
+            'squawk':           ('Squawk',           'Set transponder to this code'),
+            'cleared_altitude': ('Cleared altitude',  'Aircraft is cleared to this altitude/FL'),
+            'assigned_heading': ('Assigned heading',  'Aircraft is flying this heading'),
+            'assigned_speed':   ('Assigned speed',    'Aircraft is maintaining this speed'),
+            'altimeter':        ('Altimeter',         'Altimeter setting already provided'),
+            'approach_clearance':('Approach',         'Approach clearance already issued'),
+            'taxi_route':       ('Taxi route',        'Ground taxi route already issued'),
+            'departure_runway': ('Departure runway',  'Runway already assigned'),
+            'sid':              ('SID',               'Departure procedure already issued'),
+        }
+        for field, (lbl, _hint) in _label_map.items():
+            val = issued.get(field)
+            if val:
+                issued_lines.append(f"  - {lbl}: {val}")
+
+        if issued_lines:
+            issued_text = (
+                "PREVIOUSLY ISSUED INSTRUCTIONS FOR THIS AIRCRAFT "
+                "(DO NOT re-issue unless pilot explicitly requests a change):\n"
+                + "\n".join(issued_lines)
+            )
+        else:
+            issued_text = ""
         
         # Flight Plan Info (condensed - only show essentials, not full route)
         fp = context_copy.get('flight_plan', {})
@@ -318,27 +360,70 @@ class LLMClient:
         - Do not mention internal node IDs to the pilot; convert the path to taxiway names, runway holding point, and runway crossing instructions.
         """
         
+        # ── China Metric RVSM block ───────────────────────────────────────────
+        lat = context_copy['aircraft'].get('latitude', 0.0)
+        lon = context_copy['aircraft'].get('longitude', 0.0)
+        heading = context_copy['aircraft'].get('heading', 0)
+        in_china = is_in_china_airspace(lat, lon)
+        if in_china:
+            china_rvsm_block = build_china_rvsm_prompt_block(track_deg=float(heading))
+        else:
+            china_rvsm_block = ""
+
+        # ── CPDLC block (only for Center / high-altitude roles) ───────────────
+        _cpdlc_roles = ('Center', 'Oceanic', 'CZQX', 'CZEG', 'CZWG', 'CZUL')
+        if any(r in role for r in _cpdlc_roles) or cpdlc_manager.session_active:
+            cpdlc_block = cpdlc_manager.build_prompt_block()
+        else:
+            cpdlc_block = ""
+
         # NOTE: History is now passed separately as messages, not embedded here
         # This saves token costs by using proper role-based messaging
         
         # Language-specific prompt injection
         stt_lang = self.config.get('audio', {}).get('stt_language', 'auto')
-        
-        if stt_lang == 'ja':
+        allow_intl_non_english = self.config.get('immersion', {}).get('allow_non_english_intl', False)
+
+        # Determine whether non-English comms are appropriate for current position
+        use_native_lang = in_china or allow_intl_non_english
+
+        if stt_lang == 'ja' and use_native_lang:
             # Japanese mode: Full Japanese ATC experience
             language_instruction = """
         6. LANGUAGE: Reply in JAPANESE (日本語) ONLY.
            - Use standard Japanese aviation phraseology.
            - Example: "JAL123, 離陸を許可します。滑走路34L。"
         """
-        else:
-            # Default: Chinese/English bilingual
+        elif use_native_lang:
+            # Chinese/English bilingual (China domestic or user opted in internationally)
             language_instruction = """
         3. Reply in the SAME LANGUAGE as the user (Chinese/English).
            - Chinese: "国航1024, 地面风310, 8节..."
            - English: "CCA1024, Wind 310 at 8 knots..."
         """
+        else:
+            # International standard: English only (ICAO realistic)
+            language_instruction = """
+        3. LANGUAGE: Reply in ENGLISH ONLY. Use standard ICAO phraseology.
+           - Example: "CCA1024, wind 310 at 8 knots, runway 36L, cleared for takeoff."
+           - Do NOT reply in Chinese, Japanese, or any other language.
+        """
         
+        # VFR-specific guidance rules
+        if flight_rules == 'VFR':
+            clearance_rule = """4. VFR OPERATIONS (pilot is flying VFR):
+           - Do NOT issue IFR clearance or squawk codes (unless explicitly asked).
+           - Use "VFR flight following" or "traffic advisories" instead of radar vectors.
+           - Tower: issue "cleared for takeoff, make [left/right] traffic" or "cleared to land".
+           - Departure/Approach: provide traffic advisories, altitude advisories, and frequency handoffs.
+           - Center/Unicom: advise known traffic and weather; pilot is responsible for own navigation.
+           - If weather appears IMC (low visibility/ceiling), advise the pilot and recommend IFR pickup.
+           - Do NOT assign SIDs/STARs or complex instrument procedures."""
+        else:
+            clearance_rule = """4. IFR CLEARANCE RULE: When giving IFR clearance, ONLY say:
+           - "Cleared to [DESTINATION] via [SID] departure, runway [RWY]. Squawk [CODE]."
+           - Do NOT read out the full route waypoints. The SID name is enough."""
+
         prompt = f"""
         You are an advanced ATC AI.
         Role: {role} (Responsible for: Clearing, Ground Ops, Tower Control, or Approach/Center based on freq).
@@ -347,39 +432,97 @@ class LLMClient:
         Current Altitude: {current_alt} ft
         Tuned Frequency: {current_frequency or 'N/A'} MHz
         Tuned Channel: {current_frequency_label}
-        
+        Flight Rules: {flight_rules}
+
         DISPLAYED ROLE: {role}
-        
+
         RULES FOR THIS POST:
         DUTIES: {self._get_role_rules(role)['duties']}
         TABOOS: {self._get_role_rules(role)['taboos']}
-        
+
         Current Weather (METAR):
         {metar}
-        
+
         {fp_text}
-        
+
         {freq_text}
-        
+
         {emergency_help}
 
         {ground_help}
-        
+
+        {issued_text}
+
+        {china_rvsm_block}
+
+        {cpdlc_block}
+
         CRITICAL RULES:
         1. Address the pilot by callsign '{callsign}' at the START of your message. Do NOT repeat it at the end.
         2. USE REAL WEATHER data from the METAR above.
         {language_instruction}
-        4. IFR CLEARANCE RULE: When giving IFR clearance, ONLY say:
-           - "Cleared to [DESTINATION] via [SID] departure, runway [RWY]. Squawk [CODE]."
-           - Do NOT read out the full route waypoints. The SID name is enough.
+        {clearance_rule}
         5. Output JSON: {{"text": "...", "action": "NONE"}}
-        6. READBACK HANDLING: If the pilot's readback is CORRECT, you do NOT need to say "Readback correct" every time. 
+        6. READBACK HANDLING: If the pilot's readback is CORRECT, you do NOT need to say "Readback correct" every time.
            - You may return an empty string "" for text to remain silent (simulate 'click' acknowledgment).
            - Or just reply with the callsign "{callsign}" to acknowledge.
            - ONLY correct them if the readback is WRONG.
         7. PROACTIVE HANDOFFS: If pilot is in wrong airspace for your role, proactively suggest handoff with frequency.
+        8. CONTINUITY: Use the PREVIOUSLY ISSUED INSTRUCTIONS above as the authoritative record.
+           - Do NOT re-assign a squawk/altitude/heading unless the pilot explicitly asks for a change.
+           - If the pilot asks "what was my squawk?" or similar, refer to the previously issued value.
+           - When handing off to the next controller, assume they already received those instructions.
         """
         return prompt.strip()
+
+    # ── Dual-model routing ────────────────────────────────────────────────────
+
+    # Keywords that signal a COMPLEX request requiring the thinking model
+    _THINKING_PATTERNS = [
+        r'\b(emergency|mayday|pan.pan|declare)\b',
+        r'\b(clearance|ifr clearance|cleared to|departure clearance)\b',
+        r'\b(fl\d{2,3}|flight level)\b',
+        r'\b(deviat|divert|unable|reroute|re-route)\b',
+        r'\b(sid|star|approach|ils|rnav|vor approach)\b',
+        r'\b(squawk|transponder)\b',
+        r'\b(hold(ing)?( pattern| instructions)?)\b',
+        r'\b(airspace|restricted|temporary flight restriction)\b',
+    ]
+
+    import re as _re
+
+    @classmethod
+    def _classify_complexity(cls, text: str) -> str:
+        """
+        Return 'thinking' for complex requests that benefit from a reasoning
+        model, or 'fast' for simple acknowledgements / readbacks.
+        """
+        if not text:
+            return 'fast'
+        lower = text.lower()
+
+        import re
+        # Check thinking patterns first — even short messages can be complex
+        # (e.g. "descend FL150", "mayday mayday")
+        for pat in cls._THINKING_PATTERNS:
+            if re.search(pat, lower):
+                return 'thinking'
+
+        # Very short messages with no thinking keywords → fast
+        if len(text.split()) <= 5:
+            return 'fast'
+
+        return 'fast'
+
+    def _select_model(self, user_text: str | None, is_proactive: bool) -> str:
+        """Pick model_fast or model_thinking based on request complexity."""
+        if is_proactive:
+            # Proactive ATC messages (handoffs, alerts) use thinking model
+            return self.model_thinking
+        complexity = self._classify_complexity(user_text or '')
+        model = self.model_fast if complexity == 'fast' else self.model_thinking
+        print(f"LLMClient: Complexity='{complexity}' → model='{model}'")
+        return model
 
     def _get_role_rules(self, full_role_name):
         """Extracts 'Ground', 'Tower', etc from 'ZBAA Ground' and returns rules."""
@@ -466,65 +609,58 @@ class LLMClient:
         
         print(f"LLMClient: Sending request to {self.model}...")
         
+        # Pick fast or thinking model based on request complexity
+        active_model = self._select_model(user_text, is_proactive)
+        # Emit which model tier is being used so the dashboard can show it
+        self.bus.emit('llm_model_selected', active_model)
+
         response_text = ""
         try:
             if self.client:
                 # Google GenAI - Build proper contents with history
-                # Format: system prompt as first content, then history as user/model turns
                 contents = []
-                
-                # System instruction
                 contents.append(types.Content(
                     role="user",
                     parts=[types.Part(text=system_prompt)]
                 ))
-                
-                # Add history as proper turns (saves tokens vs embedding in prompt)
                 for msg in history:
                     role = "user" if msg.get('sender') == 'Pilot' else "model"
                     contents.append(types.Content(
                         role=role,
                         parts=[types.Part(text=msg.get('text', ''))]
                     ))
-                
-                # Add current user input
                 if user_text and not is_proactive:
                     contents.append(types.Content(
                         role="user",
                         parts=[types.Part(text=f"User said: {user_text}")]
                     ))
-                
-                # Conditional config based on model
+
                 gen_config_args = {}
-                if "gemma" not in self.model.lower():
+                if "gemma" not in active_model.lower() and "thinking" not in active_model.lower():
                     gen_config_args["response_mime_type"] = "application/json"
                 else:
-                    print(f"LLMClient: Model '{self.model}' detected. Disabling strict JSON mode enforcement.")
+                    print(f"LLMClient: Model '{active_model}' — JSON mode disabled.")
 
                 response = self.client.models.generate_content(
-                    model=self.model,
+                    model=active_model,
                     contents=contents,
                     config=types.GenerateContentConfig(**gen_config_args)
                 )
                 response_text = response.text
-                
+
             elif self.openai_client:
-                # OpenAI / Compatible API Call - Use proper messages array
                 messages = [{"role": "system", "content": system_prompt}]
-                
-                # Add history as proper user/assistant turns
                 for msg in history:
                     role = "user" if msg.get('sender') == 'Pilot' else "assistant"
                     messages.append({"role": role, "content": msg.get('text', '')})
-                
-                # Add current user input
                 if user_text and not is_proactive:
                     messages.append({"role": "user", "content": user_text})
-                
+
+                use_json = ("json" in active_model.lower() or "gpt" in active_model.lower())
                 response = self.openai_client.chat.completions.create(
-                    model=self.model,
+                    model=active_model,
                     messages=messages,
-                    response_format={"type": "json_object"} if "json" in self.model.lower() or "gpt" in self.model.lower() else None
+                    response_format={"type": "json_object"} if use_json else None
                 )
                 response_text = response.choices[0].message.content
 

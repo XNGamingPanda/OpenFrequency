@@ -96,38 +96,55 @@ class TrafficStateManager:
     def _loop(self):
         """Main scanning loop."""
         last_bulk_update = 0
-        
+        self._xplane_tcas_failed = False  # flip to True only after confirmed failure
+
         while not self._stop_event.is_set():
             now = time.time()
-            
+
             # 1. Scan / Update Traffic
             if self.config.get('debug', {}).get('mock_mode', False):
                 self._generate_mock_traffic()
                 self._cleanup_stale()
-            elif self._should_use_self_managed_traffic():
-                self._generate_enhanced_mock_traffic()
-                self._cleanup_stale()
+            elif self._is_xplane():
+                # X-Plane: try real TCAS first, fall back to mock only if unavailable
+                if self.sim_bridge and self.sim_bridge.connected and not self._xplane_tcas_failed:
+                    try:
+                        self._scan_xplane_tcas()
+                        self._cleanup_stale()
+                    except Exception as e:
+                        print(f"TrafficStateManager: X-Plane TCAS scan failed ({e}), falling back to mock")
+                        self._xplane_tcas_failed = True
+                        self._generate_enhanced_mock_traffic()
+                        self._cleanup_stale()
+                else:
+                    self._generate_enhanced_mock_traffic()
+                    self._cleanup_stale()
             elif self.sim_bridge and self.sim_bridge.connected:
                 try:
                     self._scan_traffic()
                     self._cleanup_stale()
                 except Exception as e:
                     print(f"TrafficStateManager Error: {e}")
-            
+
             # 2. Bulk Event Emission (1Hz)
             if now - last_bulk_update > 1.0:
                 self._emit_bulk_update()
                 last_bulk_update = now
-            
+
             time.sleep(self.SCAN_INTERVAL)
 
-    def _should_use_self_managed_traffic(self) -> bool:
+    def _is_xplane(self) -> bool:
+        """Return True when the active simulator is X-Plane."""
         simulator_provider = ((self.config.get('simulator', {}) or {}).get('provider') or 'auto').lower()
         if simulator_provider == 'xplane':
-            return self.self_managed_enabled
+            return True
         provider_obj = getattr(self.sim_bridge, 'provider', None)
         provider_name = getattr(provider_obj, 'name', '').lower() if provider_obj else ''
-        return self.self_managed_enabled and provider_name == 'x-plane'
+        return 'x-plane' in provider_name
+
+    def _should_use_self_managed_traffic(self) -> bool:
+        """Kept for compatibility; internal logic now routes through _is_xplane()."""
+        return False
             
     def _generate_mock_traffic(self):
         """Generate simulated traffic for testing Radar/Chatter."""
@@ -271,6 +288,40 @@ class TrafficStateManager:
             print(f"TrafficStateManager: Scan error: {e}")
             self._generate_enhanced_mock_traffic()
     
+    def _scan_xplane_tcas(self):
+        """Read LiveTraffic / AI traffic from X-Plane TCAS target arrays via Web API."""
+        provider = getattr(self.sim_bridge, 'provider', None)
+        if provider is None or not provider.is_connected():
+            raise ConnectionError("X-Plane provider not connected")
+
+        if not hasattr(provider, 'get_traffic_targets'):
+            raise NotImplementedError("Provider does not support get_traffic_targets()")
+
+        targets = provider.get_traffic_targets()
+
+        if not targets:
+            # No targets yet — not an error; TCAS array may just be empty
+            return
+
+        seen_callsigns = set()
+        for t in targets:
+            callsign = t.get('callsign', '').strip()
+            if not callsign:
+                continue
+            seen_callsigns.add(callsign)
+            self.update_aircraft(callsign, {
+                'latitude':      t.get('latitude', 0),
+                'longitude':     t.get('longitude', 0),
+                'altitude':      t.get('altitude', 0),
+                'heading':       t.get('heading', 0),
+                'airspeed':      t.get('airspeed', 0),
+                'vertical_speed': t.get('vertical_speed', 0),
+                'on_ground':     t.get('on_ground', False),
+            })
+
+        # Mark aircraft no longer in TCAS as stale (last_seen update skipped)
+        # _cleanup_stale() will remove them after STALE_TIMEOUT seconds
+
     def _process_ai_object(self, ai_data):
         """Process a single AI aircraft object from SimConnect."""
         callsign = ai_data.get('callsign', ai_data.get('atc_id', 'UNKNOWN'))
