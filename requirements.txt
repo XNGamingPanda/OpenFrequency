@@ -32,3 +32,5 @@ pandas>=2.0.0
 Pillow>=10.0.0
 pygame>=2.5.0
 pystray>=0.19.5
+pywebview>=5.1
+pynput>=1.7.7

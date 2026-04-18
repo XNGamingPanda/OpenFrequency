@@ -4,6 +4,7 @@ import markdown
 import secrets
 import threading
 import time
+from io import BytesIO
 from flask import Flask, render_template, request, jsonify, redirect, make_response
 from flask_socketio import SocketIO, join_room, leave_room, emit
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -25,7 +26,13 @@ from core.airport_frequency_service import AirportFrequencyService
 from core.ground_data_service import GroundDataService
 from core.atc_monitor import ATCMonitor
 from core.aircraft_catalog import AircraftCatalog
-from core.self_check import self_check, download_ffmpeg, download_whisper_model
+from core.self_check import (
+    self_check,
+    download_ffmpeg,
+    download_whisper_model,
+    download_whisper_model_with_progress,
+    whisper_model_status,
+)
 from core.career import CareerProfile  # Career Mode
 from core.crew_manager import CrewManager  # Crew Manager (FO + Purser)
 from core.plugin_manager import PluginManager
@@ -33,8 +40,8 @@ from core.addon_installer import get_installer, load_dlc_catalog, current_progre
 from core import telemetry as _telemetry_mod
 from core import updater as _updater_mod
 from core import feedback as _feedback_mod
-from flask import Flask, render_template, request, jsonify, redirect, make_response
-from flask_socketio import SocketIO, join_room, leave_room, emit
+from core.version import APP_NAME, APP_VERSION, GITHUB_OWNER, GITHUB_REPO
+from core.update_checker import build_update_payload
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'opensky_secret_key'
@@ -55,6 +62,14 @@ def _select_socketio_async_mode():
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_select_socketio_async_mode())
 # auth_manager will be initialized after config is loaded
 traffic_manager = None
+model_download_lock = Lock()
+model_download_state = {
+    "status": "idle",
+    "progress": 0,
+    "message": "",
+    "started_at": None,
+    "finished_at": None,
+}
 
 # --- Environment Setup ---
 # Check for local ffmpeg
@@ -84,6 +99,40 @@ def _runtime_dir():
     return os.path.dirname(os.path.abspath(__file__))
 
 
+def _snapshot_model_download_state():
+    with model_download_lock:
+        return dict(model_download_state)
+
+
+def _set_model_download_state(**updates):
+    with model_download_lock:
+        model_download_state.update(updates)
+
+
+def _run_model_download():
+    def progress(percent, message):
+        _set_model_download_state(
+            status="downloading",
+            progress=int(percent),
+            message=message,
+        )
+
+    _set_model_download_state(
+        status="downloading",
+        progress=0,
+        message="Starting model download...",
+        started_at=time.time(),
+        finished_at=None,
+    )
+    success, message = download_whisper_model_with_progress(progress)
+    _set_model_download_state(
+        status="completed" if success else "error",
+        progress=100 if success else _snapshot_model_download_state().get("progress", 0),
+        message=message,
+        finished_at=time.time(),
+    )
+
+
 # Load config. Packaged builds keep config outside the exe so user secrets and
 # local settings are never bundled into the executable.
 CONFIG_PATH = os.environ.get("OPENFREQUENCY_CONFIG_PATH") or os.path.join(_runtime_dir(), 'config.json')
@@ -92,7 +141,7 @@ config = {}
 def load_config():
     global config
     if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+        with open(CONFIG_PATH, 'r', encoding='utf-8-sig') as f:
             config = json.load(f)
     else:
         print("Warning: config.json not found, using defaults.")
@@ -266,6 +315,14 @@ def check_access():
     if status == 'WAIT':
         return redirect('/waiting_room')
 
+
+@app.context_processor
+def inject_ui_preferences():
+    return {
+        "ui_preferences": config.get("ui", {}) or {},
+        "app_version": APP_VERSION,
+    }
+
 @app.route('/waiting_room')
 def waiting_room():
     return render_template('waiting_room.html')
@@ -319,6 +376,73 @@ def dashboard():
     
     return render_template('dashboard.html', can_interact=can_interact, permission=perm, flight_mode=mode)
 
+
+@app.route('/api/models/status')
+def model_status_api():
+    info = whisper_model_status()
+    info.update({
+        "download": _snapshot_model_download_state(),
+    })
+    return jsonify(info)
+
+
+@app.route('/api/desktop_ptt_status')
+def desktop_ptt_status_api():
+    status_path = os.path.join(_runtime_dir(), 'desktop_ptt_status.json')
+    if not os.path.exists(status_path):
+        return jsonify({
+            "enabled": False,
+            "recording": False,
+            "matched_device": "",
+            "last_upload_at": None,
+            "last_error": "",
+            "available": False,
+        })
+    try:
+        with open(status_path, 'r', encoding='utf-8') as f:
+            payload = json.load(f)
+    except Exception as e:
+        return jsonify({
+            "enabled": False,
+            "recording": False,
+            "matched_device": "",
+            "last_upload_at": None,
+            "last_error": str(e),
+            "available": False,
+        })
+    payload["available"] = True
+    return jsonify(payload)
+
+
+@app.route('/api/models/download', methods=['POST'])
+def model_download_api():
+    info = whisper_model_status()
+    if info.get("installed"):
+        _set_model_download_state(
+            status="completed",
+            progress=100,
+            message="Model already installed.",
+            finished_at=time.time(),
+        )
+        return jsonify({"success": True, "started": False, "message": "Model already installed."})
+
+    state = _snapshot_model_download_state()
+    if state.get("status") == "downloading":
+        return jsonify({"success": True, "started": False, "message": "Model download already in progress."})
+
+    worker = threading.Thread(target=_run_model_download, daemon=True, name="ModelDownloadThread")
+    worker.start()
+    return jsonify({"success": True, "started": True, "message": "Model download started."})
+
+
+@app.route('/api/update_status')
+def update_status_api():
+    return jsonify(build_update_payload(
+        owner=GITHUB_OWNER,
+        repo=GITHUB_REPO,
+        current_version=APP_VERSION,
+    ))
+
 @app.route('/get_my_permission')
 def get_my_permission():
     """Returns current user's permission level."""
@@ -336,6 +460,54 @@ def get_session_mode():
     return jsonify({"mode": mode})
 
 
+def _report_dir():
+    path = os.path.join(_runtime_dir(), 'data', 'reports')
+    os.makedirs(os.path.join(path, 'img'), exist_ok=True)
+    return path
+
+
+def _log_dir():
+    path = os.environ.get("OPENFREQUENCY_LOG_DIR", "logs")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _list_reports():
+    import glob
+    import datetime
+    reports = []
+    for path in sorted(glob.glob(os.path.join(_report_dir(), 'report_*.html')), key=os.path.getmtime, reverse=True):
+        name = os.path.basename(path)
+        modified_at = int(os.path.getmtime(path))
+        reports.append({
+            'filename': name,
+            'url': f"/reports/{name}",
+            'modified_at': modified_at,
+            'modified_label': datetime.datetime.fromtimestamp(modified_at).strftime('%Y-%m-%d %H:%M:%S'),
+        })
+    return reports
+
+
+def _list_logs():
+    import glob
+    import datetime
+    files = []
+    patterns = ('flight_log_*.txt', 'track_*.csv', 'cabin_*.csv', 'openfrequency_*.log')
+    for pattern in patterns:
+        for path in glob.glob(os.path.join(_log_dir(), pattern)):
+            name = os.path.basename(path)
+            modified_at = int(os.path.getmtime(path))
+            files.append({
+                'filename': name,
+                'url': f"/logs/{name}",
+                'modified_at': modified_at,
+                'modified_label': datetime.datetime.fromtimestamp(modified_at).strftime('%Y-%m-%d %H:%M:%S'),
+                'size': os.path.getsize(path),
+            })
+    files.sort(key=lambda item: item['modified_at'], reverse=True)
+    return files
+
+
 @app.route('/api/nearby_frequencies')
 def get_nearby_frequencies():
     with context_lock:
@@ -347,6 +519,21 @@ def get_nearby_frequencies():
         "active_channel_key": atc_state.get('current_channel_key', ''),
         "current_controller": atc_state.get('current_controller', 'N/A')
     })
+
+
+@app.route('/api/reports/list')
+def report_list_api():
+    return jsonify({'reports': _list_reports()})
+
+
+@app.route('/api/logs/list')
+def logs_list_api():
+    return jsonify({'logs': _list_logs()})
+
+
+@app.route('/history')
+def history_page():
+    return render_template('flight_history.html', reports=_list_reports(), logs=_list_logs())
 
 
 @app.route('/api/airport_data/refresh', methods=['POST'])
@@ -973,6 +1160,10 @@ def get_config_route():
     if 'connection' in config_safe and 'api_key' in config_safe['connection']:
         if config_safe['connection']['api_key'] and len(config_safe['connection']['api_key']) > 5:
              config_safe['connection']['api_key'] = "******"
+    if 'ai_routing' in config_safe:
+        for key in ('light_api_key', 'reasoning_api_key'):
+            if config_safe['ai_routing'].get(key) and len(config_safe['ai_routing'][key]) > 5:
+                config_safe['ai_routing'][key] = "******"
     return jsonify(config_safe)
 
 def update_recursive(d, u):
@@ -1006,6 +1197,10 @@ def save_settings():
         if new_config['connection']['api_key'] == "******":
             print("Security: Ignoring masked API key update.")
             del new_config['connection']['api_key']
+    if 'ai_routing' in new_config:
+        for key in ('light_api_key', 'reasoning_api_key'):
+            if key in new_config['ai_routing'] and new_config['ai_routing'][key] == "******":
+                del new_config['ai_routing'][key]
     
     # Recursively update the config
     config = update_recursive(config, new_config)
@@ -1159,6 +1354,22 @@ def handle_voice_data(blob):
     # In a real scenario, stt.transcribe would be called here.
     print("Received voice data from client.")
     stt_module.transcribe(blob)
+
+@app.route('/api/voice_data', methods=['POST'])
+def voice_data_api():
+    payload = request.get_data()
+    if not payload:
+        return jsonify({'success': False, 'message': 'No audio payload received.'}), 400
+    print("Received voice data from desktop launcher.")
+    stt_module.transcribe(payload)
+    return jsonify({'success': True})
+
+@app.route('/api/ptt_state', methods=['POST'])
+def ptt_state_api():
+    data = request.get_json(silent=True) or {}
+    active = bool(data.get('active'))
+    event_bus.emit('ptt_active' if active else 'ptt_released')
+    return jsonify({'success': True, 'active': active})
 
 @socketio.on('text_input')
 def handle_text_input(text):
@@ -1365,27 +1576,43 @@ def rescue_fix():
 @app.route('/report/latest')
 def report_latest():
     """Serve the latest flight report."""
-    import glob
-    reports = glob.glob('data/reports/report_*.html')
+    reports = [os.path.join(_report_dir(), item['filename']) for item in _list_reports()]
     if reports:
         latest = max(reports, key=os.path.getctime)
         with open(latest, 'r', encoding='utf-8') as f:
             return f.read()
     return "No flight report available yet.", 404
 
+
+@app.route('/api/flight/end', methods=['POST'])
+def end_current_flight():
+    if 'black_box' not in globals():
+        return jsonify({'success': False, 'message': 'Flight recorder unavailable.'}), 503
+    success, message = black_box.complete_current_flight()
+    status = 200 if success else 400
+    return jsonify({
+        'success': success,
+        'message': message,
+        'latest_report': black_box.last_report_url,
+    }), status
+
 @app.route('/report/img/<filename>')
 @app.route('/reports/<path:filename>')
 def serve_report(filename):
     """Serve generated flight reports."""
     from flask import send_from_directory
-    # Ensure we look in the correct absolute path
-    report_dir = os.path.join(os.getcwd(), 'data', 'reports')
-    return send_from_directory(report_dir, filename)
+    return send_from_directory(_report_dir(), filename)
 
 def report_image(filename):
     """Serve report images."""
     from flask import send_from_directory
-    return send_from_directory('data/reports/img', filename)
+    return send_from_directory(os.path.join(_report_dir(), 'img'), filename)
+
+
+@app.route('/logs/<path:filename>')
+def serve_log(filename):
+    from flask import send_from_directory
+    return send_from_directory(_log_dir(), filename)
 
 
 if __name__ == '__main__':
@@ -1394,7 +1621,7 @@ if __name__ == '__main__':
     host = os.environ.get("OPENFREQUENCY_HOST", "127.0.0.1" if packaged_mode else "0.0.0.0")
     port = int(os.environ.get("OPENFREQUENCY_PORT", "5000"))
 
-    print("--- Initializing OpenFrequency v3.5-beta ---")
+    print(f"--- Initializing {APP_NAME} v{APP_VERSION} ---")
     print(f"Debug: WERKZEUG_RUN_MAIN = {os.environ.get('WERKZEUG_RUN_MAIN')}")
     
     # 0. Environment Self-Check (only in worker process)
@@ -1404,7 +1631,7 @@ if __name__ == '__main__':
             print("⚠️ Environment check failed! Starting in rescue mode...")
             for e in errors:
                 print(f"  - {e['title']}: {e['message']}")
-            print("Open http://0.0.0.0:5000/rescue for repair options.")
+            print(f"Open http://{host}:{port}/rescue for repair options.")
     
     # 1. Initialize all core modules
     print("Initializing modules...")
@@ -1413,7 +1640,6 @@ if __name__ == '__main__':
     from core.black_box import BlackBox
     from core.flight_analyzer import FlightAnalyzer
     # from core.flight_report import FlightReport  # Deprecated in favor of BlackBox v2
-    from core.head_tracker import HeadTracker
     from core.emergency_director import EmergencyDirector
     
     logic_manager = LogicManager(config, socketio, airport_frequency_service=airport_frequency_service, ground_service=ground_data_service)
@@ -1453,7 +1679,6 @@ if __name__ == '__main__':
     black_box = BlackBox(config)
     flight_analyzer = FlightAnalyzer(config, socketio)
     # flight_report = FlightReport(config, socketio, black_box) # Disabled
-    head_tracker = HeadTracker(config, socketio)
     emergency_director = EmergencyDirector(config, socketio)
     
     # --- Crew Manager (Replaces CabinCrew and old Purser) ---
@@ -1698,6 +1923,8 @@ if __name__ == '__main__':
             result['ok'] = ok
 
     event_bus.on('simulator_failure_event', handle_simulator_failure_event)
+    event_bus.on('flight_report_ready', lambda data: socketio.emit('flight_report_ready', data))
+    event_bus.on('flight_arrival_ready', lambda data: socketio.emit('flight_arrival_ready', data))
 
     # Feature 2.4: Debug Kit Runtime Updates
     @socketio.on('update_debug_config')
@@ -1758,7 +1985,6 @@ if __name__ == '__main__':
         sim_bridge.start()
         nav_manager.start()
         traffic_manager.start()
-        head_tracker.start()
         emergency_director.start()
 
         # Initialize and start the scheduler

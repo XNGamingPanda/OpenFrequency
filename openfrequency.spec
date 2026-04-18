@@ -21,6 +21,10 @@ def collect_tree(relative_path, excludes=()):
         rel_parts = {part.lower() for part in rel.parts}
         if rel_parts & exclude_parts:
             continue
+        normalized = "/".join(part.lower() for part in rel.parts)
+        if relative_path == "ffmpeg":
+            if normalized != "ffmpeg/bin/ffmpeg.exe":
+                continue
         if "test_wavs" in rel_parts:
             continue
         if path.name.lower() in {"config.json", "llm_error.txt", "tmp_dashboard.js", "debug_tts.mp3"}:
@@ -44,7 +48,7 @@ except Exception:
 datas += _sc_datas
 
 datas += collect_tree("templates")
-datas += collect_tree("static")
+datas += collect_tree("static", excludes={"cabin_media"})
 # data/ includes quick_reply_templates.json, chatter_templates.json, etc.
 # Exclude build-only artefacts and runtime-generated caches.
 datas += collect_tree("data",    excludes={"reports", "storage", "ground_cache", "__pycache__"})
@@ -146,7 +150,7 @@ _hidden = [
 ]
 
 a = Analysis(
-    ["desktop_launcher.py"],
+    ["launcher.py"],
     pathex=[str(ROOT)],
     binaries=_sc_binaries,          # SimConnect.dll and any other native libs
     datas=datas,

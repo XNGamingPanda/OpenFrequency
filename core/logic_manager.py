@@ -7,19 +7,24 @@ from .immersion.workload_sim import WorkloadSimulator
 from .taxi_router import TaxiRouter
 from .instruction_extractor import InstructionExtractor
 from .quick_reply import QuickReplyEngine
+from .atc_intent_router import ATCIntentRouter
+from .atc_template_responder import ATCTemplateResponder
 
 class LogicManager:
     """
     The central coordinator. Does not own other modules.
     It subscribes to events on the EventBus and emits data to the UI via SocketIO.
     """
-    def __init__(self, config, socketio, airport_frequency_service=None, ground_service=None):
+    def __init__(self, config, socketio, airport_frequency_service=None, ground_service=None, llm_client=None):
         self.config = config
         self.socketio = socketio
         self.airport_frequency_service = airport_frequency_service
         self.ground_service = ground_service
+        self.llm_client = llm_client
         self.taxi_router = TaxiRouter(ground_service) if ground_service else None
         self.workload_sim = WorkloadSimulator(config)
+        self.intent_router = ATCIntentRouter(config, llm_client)
+        self.template_responder = ATCTemplateResponder(airport_frequency_service)
         self.scheduler = None
         self.last_freq = 0.0
         self.message_history = [] # Buffer for chat log
@@ -67,6 +72,11 @@ class LogicManager:
         self.scheduler = scheduler
         print("LogicManager: Scheduler set.")
 
+    def set_llm_client(self, llm_client):
+        self.llm_client = llm_client
+        self.intent_router = ATCIntentRouter(self.config, llm_client)
+        self.template_responder = ATCTemplateResponder(self.airport_frequency_service)
+
     def start(self):
         """
         Subscribes to events on the event bus.
@@ -83,6 +93,7 @@ class LogicManager:
         event_bus.on('llm_response_generated', self.on_llm_response)
         event_bus.on('sim_connection_status', self.on_sim_status)
         event_bus.on('flight_plan_loaded', self.on_flight_plan_loaded)
+        event_bus.on('flight_started', self.on_flight_started)
         event_bus.on('metar_fetch_request', self._handle_metar_fetch_request)
         event_bus.on('external_chat_log', self._handle_external_chat_log)
         event_bus.on('config_updated', self._handle_config_updated)
@@ -263,8 +274,20 @@ class LogicManager:
     def _handle_external_chat_log(self, sender, text):
         self._broadcast_chat(sender, text)
 
+    def on_flight_started(self, data):
+        origin = (data or {}).get('origin') or shared_context.get('flight_plan', {}).get('origin') or 'N/A'
+        destination = (data or {}).get('destination') or shared_context.get('flight_plan', {}).get('destination') or 'N/A'
+        try:
+            import datetime
+            ts = datetime.datetime.now().strftime("%H:%M:%S")
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                f.write(f"[{ts}] SYSTEM: Flight Started | Route: {origin} -> {destination}\n")
+        except Exception as e:
+            print(f"LogicManager: Failed to write flight start route to log: {e}")
+
     def _handle_config_updated(self, new_config):
         self.config = new_config
+        self.intent_router.update_config(new_config)
         if self.ground_service:
             self.ground_service.update_config(new_config)
         # Re-read auto_busy setting when config changes

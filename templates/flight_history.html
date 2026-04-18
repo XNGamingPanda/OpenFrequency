@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .history-shell {
+        max-width: 1160px;
+        margin: 0 auto;
+    }
+
+    .history-hero {
+        background: linear-gradient(135deg, #0f172a 0%, #1d3557 55%, #274c77 100%);
+        color: #fff;
+        border-radius: 24px;
+        padding: 1.6rem 1.8rem;
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+    }
+
+    .history-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .history-card {
+        border: 0;
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.10);
+    }
+
+    .history-card .card-header {
+        border-bottom: 0;
+        padding: 1rem 1.1rem;
+    }
+
+    .history-list a {
+        border: 0;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        padding: 1rem 0;
+    }
+
+    .history-list a:last-child {
+        border-bottom: 0;
+    }
+
+    .history-name {
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .history-meta {
+        font-size: 0.86rem;
+        color: #64748b;
+    }
+
+    body.dark-mode .history-hero {
+        background: linear-gradient(135deg, #111827 0%, #1f2937 60%, #334155 100%);
+    }
+
+    body.dark-mode .history-card {
+        background: #16213e !important;
+    }
+
+    body.dark-mode .history-card .card-header {
+        background: #1e293b !important;
+        color: #f8fafc;
+    }
+
+    body.dark-mode .history-name {
+        color: #f8fafc;
+    }
+
+    body.dark-mode .history-meta {
+        color: #94a3b8;
+    }
+
+    body.dark-mode .history-list a {
+        border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+
+    @media (max-width: 900px) {
+        .history-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="history-shell py-2">
+    <div class="history-hero mb-4 d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div>
+            <div class="small text-uppercase opacity-75">OpenFrequency</div>
+            <h2 class="mb-2" data-i18n="history_title">Flight History</h2>
+            <div class="opacity-75" data-i18n="history_subtitle">Review generated analysis reports from previous sessions.</div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="/dashboard" class="btn btn-light btn-sm" data-i18n="back_dashboard">Back to Dashboard</a>
+            <a href="/settings" class="btn btn-outline-light btn-sm" data-i18n="settings_btn">Settings</a>
+        </div>
+    </div>
+
+    <div class="history-grid">
+        <div class="card history-card">
+            <div class="card-header bg-white">
+                <strong data-i18n="history_reports">Reports</strong>
+            </div>
+            <div class="card-body">
+                {% if reports %}
+                <div class="history-list">
+                    {% for report in reports %}
+                    <a class="d-flex justify-content-between align-items-start gap-3 text-decoration-none" href="{{ report.url }}" target="_blank" rel="noopener noreferrer">
+                        <div>
+                            <div class="history-name">{{ report.filename }}</div>
+                            <div class="history-meta">{{ report.modified_label }}</div>
+                        </div>
+                        <span class="badge text-bg-primary">HTML</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="history-meta" data-i18n="history_no_reports">No reports available yet.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card history-card">
+            <div class="card-header bg-white">
+                <strong>Report Data Sources</strong>
+            </div>
+            <div class="card-body">
+                <div class="history-name mb-2">Raw files are no longer the primary output.</div>
+                <div class="history-meta mb-3">
+                    Telemetry, landing data, screenshots, and generated charts are now folded into the HTML analysis report instead of being presented as a pile of downloads.
+                </div>
+                <div class="history-meta mb-2">Available raw artifacts: {{ logs|length }}</div>
+                <div class="history-meta">
+                    These files remain in the background for diagnostics and report generation, but the intended user-facing result is the integrated analysis report on the left.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

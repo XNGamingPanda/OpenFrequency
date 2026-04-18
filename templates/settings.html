@@ -93,10 +93,60 @@
                     <!-- Legacy single model (hidden but kept for backward compat) -->
                     <input type="hidden" id="conf-model">
 
+
                     <div class="mb-2" id="base-url-group">
                         <label class="form-label small mb-0" data-i18n="base_url">Base URL (Local/Ollama)</label>
                         <input type="text" class="form-control form-control-sm" id="conf-base-url"
                             placeholder="http://localhost:11434/v1">
+                    </div>
+                    <div class="card mt-3">
+                        <div class="card-body py-3">
+                            <h6 class="mb-3" data-i18n="ai_routing_title">AI Routing</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small mb-0" data-i18n="light_model_label">Light Model</label>
+                                    <input type="text" class="form-control form-control-sm" id="conf-light-model">
+                                    <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" id="conf-light-sync" checked>
+                                        <label class="form-check-label small" for="conf-light-sync" data-i18n="sync_primary_connection">Sync API Key / Base URL with primary connection</label>
+                                    </div>
+                                    <div id="light-override-group" class="mt-2 d-none">
+                                        <label class="form-label small mb-1" data-i18n="light_api_key">Light model API Key</label>
+                                        <input type="password" class="form-control form-control-sm mb-2" id="conf-light-api-key">
+                                        <label class="form-label small mb-1" data-i18n="light_base_url">Light model Base URL</label>
+                                        <input type="text" class="form-control form-control-sm mb-2" id="conf-light-base-url">
+                                        <label class="form-label small mb-1" data-i18n="light_provider">Light model Provider</label>
+                                        <select class="form-select form-select-sm" id="conf-light-provider">
+                                            <option value="gemini">Google Gemini (Cloud)</option>
+                                            <option value="openai_compatible">OpenAI Compatible (Ollama/Local)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small mb-0" data-i18n="reasoning_model_label">Reasoning Model</label>
+                                    <input type="text" class="form-control form-control-sm" id="conf-reasoning-model">
+                                    <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" id="conf-reasoning-sync" checked>
+                                        <label class="form-check-label small" for="conf-reasoning-sync" data-i18n="sync_primary_connection">Sync API Key / Base URL with primary connection</label>
+                                    </div>
+                                    <div id="reasoning-override-group" class="mt-2 d-none">
+                                        <label class="form-label small mb-1" data-i18n="reasoning_api_key">Reasoning model API Key</label>
+                                        <input type="password" class="form-control form-control-sm mb-2" id="conf-reasoning-api-key">
+                                        <label class="form-label small mb-1" data-i18n="reasoning_base_url">Reasoning model Base URL</label>
+                                        <input type="text" class="form-control form-control-sm mb-2" id="conf-reasoning-base-url">
+                                        <label class="form-label small mb-1" data-i18n="reasoning_provider">Reasoning model Provider</label>
+                                        <select class="form-select form-select-sm" id="conf-reasoning-provider">
+                                            <option value="gemini">Google Gemini (Cloud)</option>
+                                            <option value="openai_compatible">OpenAI Compatible (Ollama/Local)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small mb-0" data-i18n="light_conf_threshold">Light Model Confidence Threshold</label>
+                                    <input type="number" class="form-control form-control-sm" id="conf-light-threshold" min="0" max="1" step="0.01">
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Simulator Settings -->
@@ -225,7 +275,20 @@
                         </div>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="traffic_density">Traffic Density (Fallback)</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="conf-desktop-ptt-enabled">
+                            <label class="form-check-label small" for="conf-desktop-ptt-enabled" data-i18n="desktop_ptt_enabled">Desktop background PTT</label>
+                        </div>
+                        <div class="form-text x-small text-muted" data-i18n="desktop_ptt_hint">Keep desktop push-to-talk available after the window is hidden to tray.</div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" for="conf-desktop-ptt-key" data-i18n="desktop_ptt_key">Desktop PTT Hotkey</label>
+                        <input type="text" class="form-control form-control-sm" id="conf-desktop-ptt-key">
+                        <div id="desktop-ptt-summary" class="form-text x-small text-muted"></div>
+                        <div id="desktop-ptt-runtime" class="form-text x-small text-muted"></div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0" data-i18n="traffic_density">Traffic Density</label>
                         <select class="form-select form-select-sm" id="conf-busy-level">
                             <option value="low" data-i18n="density_low">Low (Lazy Afternoon)</option>
                             <option value="medium" data-i18n="density_medium">Medium (Standard)</option>
@@ -414,6 +477,99 @@
     let pttButtonIndex = -1;
     let isBinding = false;
     let ignoredButtons = new Set(); // Track buttons pressed when binding starts
+    let pttBindingConfig = null;
+    let desktopPttRuntimeTimer = null;
+    const SETTINGS_I18N = {
+        en: {
+            desktopPttKeyboard: 'Desktop PTT: Keyboard {key}',
+            desktopPttGamepad: 'Desktop PTT: {device} / Btn {btn} + {key}',
+            desktopPttNotRunning: 'Desktop backend PTT: Not running',
+            desktopPttEnabled: 'Desktop backend PTT: Enabled',
+            desktopPttDisabled: 'Desktop backend PTT: Disabled',
+            desktopPttDetected: 'Detected {device}',
+            desktopPttWaitingGamepad: 'Waiting for bound gamepad',
+            desktopPttHotkey: 'Hotkey {key}',
+            desktopPttRecording: 'Recording',
+            desktopPttError: 'Error: {error}',
+            desktopPttUnavailable: 'Desktop backend PTT: Status unavailable'
+        },
+        zh: {
+            desktopPttKeyboard: '桌面 PTT：键盘 {key}',
+            desktopPttGamepad: '桌面 PTT：{device} / 按钮 {btn} + {key}',
+            desktopPttNotRunning: '桌面后台 PTT：未运行',
+            desktopPttEnabled: '桌面后台 PTT：已启用',
+            desktopPttDisabled: '桌面后台 PTT：已禁用',
+            desktopPttDetected: '已检测到 {device}',
+            desktopPttWaitingGamepad: '等待已绑定的手柄',
+            desktopPttHotkey: '热键 {key}',
+            desktopPttRecording: '正在录音',
+            desktopPttError: '错误：{error}',
+            desktopPttUnavailable: '桌面后台 PTT：状态不可用'
+        },
+        ja: {
+            desktopPttKeyboard: 'デスクトップ PTT: キーボード {key}',
+            desktopPttGamepad: 'デスクトップ PTT: {device} / ボタン {btn} + {key}',
+            desktopPttNotRunning: 'デスクトップ背景 PTT: 未起動',
+            desktopPttEnabled: 'デスクトップ背景 PTT: 有効',
+            desktopPttDisabled: 'デスクトップ背景 PTT: 無効',
+            desktopPttDetected: '{device} を検出',
+            desktopPttWaitingGamepad: 'バインド済みゲームパッドを待機中',
+            desktopPttHotkey: 'ホットキー {key}',
+            desktopPttRecording: '録音中',
+            desktopPttError: 'エラー: {error}',
+            desktopPttUnavailable: 'デスクトップ背景 PTT: 状態を取得できません'
+        }
+    };
+
+    function settingsText(key, vars = {}) {
+        const lang = localStorage.getItem('language') || 'en';
+        let text = (SETTINGS_I18N[lang] || SETTINGS_I18N.en)[key] || SETTINGS_I18N.en[key] || key;
+        Object.entries(vars).forEach(([name, value]) => {
+            text = text.replaceAll(`{${name}}`, value ?? '');
+        });
+        return text;
+    }
+
+    function updateDesktopPttSummary() {
+        const summary = document.getElementById('desktop-ptt-summary');
+        if (!summary) return;
+        const key = document.getElementById('conf-desktop-ptt-key').value.trim() || 'space';
+        if (pttBindingConfig && pttBindingConfig.source === 'gamepad') {
+            const deviceName = pttBindingConfig.name || `Pad ${pttBindingConfig.gp}`;
+            summary.textContent = settingsText('desktopPttGamepad', { device: deviceName, btn: pttBindingConfig.btn, key });
+            return;
+        }
+        summary.textContent = settingsText('desktopPttKeyboard', { key });
+    }
+
+    async function refreshDesktopPttRuntime() {
+        const runtimeEl = document.getElementById('desktop-ptt-runtime');
+        if (!runtimeEl) return;
+        try {
+            const resp = await fetch('/api/desktop_ptt_status');
+            const data = await resp.json();
+            if (!data.available) {
+                runtimeEl.textContent = settingsText('desktopPttNotRunning');
+                return;
+            }
+            const parts = [];
+            parts.push(data.enabled ? settingsText('desktopPttEnabled') : settingsText('desktopPttDisabled'));
+            if (data.binding && data.binding.source === 'gamepad') {
+                parts.push(data.matched_device ? settingsText('desktopPttDetected', { device: data.matched_device }) : settingsText('desktopPttWaitingGamepad'));
+            } else {
+                parts.push(settingsText('desktopPttHotkey', { key: data.key_name || 'space' }));
+            }
+            if (data.recording) {
+                parts.push(settingsText('desktopPttRecording'));
+            }
+            if (data.last_error) {
+                parts.push(settingsText('desktopPttError', { error: data.last_error }));
+            }
+            runtimeEl.textContent = parts.join(' | ');
+        } catch (e) {
+            runtimeEl.textContent = settingsText('desktopPttUnavailable');
+        }
+    }
 
     function startBindingPTT() {
         isBinding = true;
@@ -460,6 +616,8 @@
 
         // Clear storage
         localStorage.removeItem('ptt_binding');
+        pttBindingConfig = null;
+        updateDesktopPttSummary();
     }
 
     function gamepadLoop() {
@@ -496,6 +654,8 @@
                         statusEl.className = "badge bg-success";
 
                         localStorage.setItem('ptt_binding', JSON.stringify({ gp: i, btn: b }));
+                        pttBindingConfig = { gp: i, btn: b, source: 'gamepad', name: gp.id || `Pad ${i}` };
+                        updateDesktopPttSummary();
                         return;
                     } else {
                         // Button released, remove from ignore list
@@ -531,6 +691,17 @@
             document.getElementById('conf-model-fast').value = data.connection?.model_fast || data.connection?.model || '';
             document.getElementById('conf-model-thinking').value = data.connection?.model_thinking || '';
             document.getElementById('conf-base-url').value = data.connection?.base_url || '';
+            document.getElementById('conf-light-model').value = data.ai_routing?.light_model || data.connection?.model || 'gemini-3.1-flash-lite-preview';
+            document.getElementById('conf-reasoning-model').value = data.ai_routing?.reasoning_model || 'gemini-3.1-pro-preview';
+            document.getElementById('conf-light-sync').checked = data.ai_routing?.light_sync_with_primary !== false;
+            document.getElementById('conf-reasoning-sync').checked = data.ai_routing?.reasoning_sync_with_primary !== false;
+            document.getElementById('conf-light-api-key').value = data.ai_routing?.light_api_key || '';
+            document.getElementById('conf-light-base-url').value = data.ai_routing?.light_base_url || '';
+            document.getElementById('conf-light-provider').value = data.ai_routing?.light_provider || data.connection?.provider || 'gemini';
+            document.getElementById('conf-reasoning-api-key').value = data.ai_routing?.reasoning_api_key || '';
+            document.getElementById('conf-reasoning-base-url').value = data.ai_routing?.reasoning_base_url || '';
+            document.getElementById('conf-reasoning-provider').value = data.ai_routing?.reasoning_provider || data.connection?.provider || 'gemini';
+            document.getElementById('conf-light-threshold').value = data.ai_routing?.light_confidence_threshold ?? 0.66;
             // TTS backend
             document.getElementById('conf-tts-backend').value = data.audio?.tts_backend || 'edge';
             document.getElementById('conf-tts-local-engine').value = data.audio?.tts_local_engine || 'kokoro';
@@ -544,6 +715,8 @@
             document.getElementById('conf-ground-source').value = data.navdata?.ground_source || 'simulator';
             document.getElementById('conf-osm-overpass-url').value = data.navdata?.osm_overpass_url || 'https://overpass-api.de/api/interpreter';
             document.getElementById('conf-radio-effect').checked = data.audio.radio_effect;
+            document.getElementById('conf-desktop-ptt-enabled').checked = data.audio.desktop_ptt_enabled !== false;
+            document.getElementById('conf-desktop-ptt-key').value = data.audio.desktop_ptt_key || 'space';
             document.getElementById('conf-stt-path').value = data.audio.stt_model_path || '';
             document.getElementById('conf-stt-language').value = data.audio.stt_language || 'en';
             document.getElementById('conf-busy-level').value = data.immersion.busy_level || 'medium';
@@ -569,6 +742,12 @@
                 const isDark = localStorage.getItem('dark_mode') === '1' || (data.ui && data.ui.dark_mode);
                 darkModeCheckbox.checked = isDark;
             }
+            if (data.ui?.language && document.getElementById('lang-selector')) {
+                document.getElementById('lang-selector').value = data.ui.language;
+                if (window.applyLanguage) {
+                    window.applyLanguage(data.ui.language);
+                }
+            }
 
             // Cloud / Privacy
             document.getElementById('conf-telemetry-enabled').checked = data.cloud?.telemetry_enabled || false;
@@ -577,13 +756,20 @@
             fetchRecentCrashId();
 
             toggleBaseUrl();
+            toggleRoutingOverrideFields();
             toggleSimulatorFields();
             toggleGroundSourceFields();
 
-            // Restore PTT binding from storage if exists
+            // Restore PTT binding from config, falling back to localStorage
             const savedBind = localStorage.getItem('ptt_binding');
-            if (savedBind) {
-                const b = JSON.parse(savedBind);
+            const effectiveBind = data.audio?.ptt_binding || (savedBind ? JSON.parse(savedBind) : null);
+            if (effectiveBind && effectiveBind.gp !== undefined && effectiveBind.btn !== undefined) {
+                const b = effectiveBind;
+                gamepadIndex = b.gp;
+                pttButtonIndex = b.btn;
+                pttBindingConfig = { gp: b.gp, btn: b.btn, source: b.source || 'gamepad' };
+                if (b.name) pttBindingConfig.name = b.name;
+                localStorage.setItem('ptt_binding', JSON.stringify({ gp: b.gp, btn: b.btn }));
                 const btn = document.getElementById('btn-bind-ptt');
                 btn.classList.replace('btn-outline-warning', 'btn-outline-success');
 
@@ -592,6 +778,8 @@
 
                 // Text update handled by i18n
             }
+            updateDesktopPttSummary();
+            refreshDesktopPttRuntime();
 
         } catch (e) {
             console.error("Failed to load config", e);
@@ -618,6 +806,19 @@
                     model_thinking: document.getElementById('conf-model-thinking').value,
                     base_url: document.getElementById('conf-base-url').value
                 },
+                ai_routing: {
+                    light_model: document.getElementById('conf-light-model').value.trim(),
+                    reasoning_model: document.getElementById('conf-reasoning-model').value.trim(),
+                    light_sync_with_primary: document.getElementById('conf-light-sync').checked,
+                    reasoning_sync_with_primary: document.getElementById('conf-reasoning-sync').checked,
+                    light_api_key: document.getElementById('conf-light-api-key').value,
+                    light_base_url: document.getElementById('conf-light-base-url').value.trim(),
+                    light_provider: document.getElementById('conf-light-provider').value,
+                    reasoning_api_key: document.getElementById('conf-reasoning-api-key').value,
+                    reasoning_base_url: document.getElementById('conf-reasoning-base-url').value.trim(),
+                    reasoning_provider: document.getElementById('conf-reasoning-provider').value,
+                    light_confidence_threshold: parseFloat(document.getElementById('conf-light-threshold').value || '0.66')
+                },
                 simulator: {
                     provider: document.getElementById('conf-sim-provider').value,
                     xplane_host: document.getElementById('conf-xplane-host').value.trim() || '127.0.0.1',
@@ -630,6 +831,9 @@
                 },
                 audio: {
                     radio_effect: document.getElementById('conf-radio-effect').checked,
+                    desktop_ptt_enabled: document.getElementById('conf-desktop-ptt-enabled').checked,
+                    desktop_ptt_key: document.getElementById('conf-desktop-ptt-key').value.trim() || 'space',
+                    ptt_binding: pttBindingConfig,
                     stt_model_path: document.getElementById('conf-stt-path').value,
                     stt_language: document.getElementById('conf-stt-language').value,
                     tts_backend: document.getElementById('conf-tts-backend').value,
@@ -647,7 +851,10 @@
                     level: document.getElementById('conf-emergency-level').value,
                     enabled: true
                 },
-                ui: { dark_mode: document.getElementById('conf-dark-mode')?.checked || false },
+                ui: {
+                    dark_mode: document.getElementById('conf-dark-mode')?.checked || false,
+                    language: document.getElementById('lang-selector')?.value || (localStorage.getItem('language') || 'en')
+                },
                 cloud: {
                     telemetry_enabled: document.getElementById('conf-telemetry-enabled').checked,
                     include_sim_info: document.getElementById('conf-telemetry-sim-info').checked
@@ -715,11 +922,28 @@
     }
 
     document.getElementById('conf-provider').addEventListener('change', toggleBaseUrl);
+    document.getElementById('conf-light-sync').addEventListener('change', toggleRoutingOverrideFields);
+    document.getElementById('conf-reasoning-sync').addEventListener('change', toggleRoutingOverrideFields);
     document.getElementById('conf-sim-provider').addEventListener('change', toggleSimulatorFields);
     document.getElementById('conf-ground-source').addEventListener('change', toggleGroundSourceFields);
+    document.getElementById('conf-desktop-ptt-key').addEventListener('input', updateDesktopPttSummary);
+    const langSelector = document.getElementById('lang-selector');
+    if (langSelector) {
+        langSelector.addEventListener('change', () => {
+            setTimeout(() => {
+                updateDesktopPttSummary();
+                refreshDesktopPttRuntime();
+            }, 0);
+        });
+    }
     function toggleBaseUrl() {
         const val = document.getElementById('conf-provider').value;
         document.getElementById('base-url-group').style.display = (val === 'openai_compatible') ? 'block' : 'none';
+    }
+
+    function toggleRoutingOverrideFields() {
+        document.getElementById('light-override-group').classList.toggle('d-none', document.getElementById('conf-light-sync').checked);
+        document.getElementById('reasoning-override-group').classList.toggle('d-none', document.getElementById('conf-reasoning-sync').checked);
     }
 
     function toggleSimulatorFields() {
@@ -942,5 +1166,8 @@
     }
 
     loadConfig();
+    refreshDesktopPttRuntime();
+    if (desktopPttRuntimeTimer) clearInterval(desktopPttRuntimeTimer);
+    desktopPttRuntimeTimer = setInterval(refreshDesktopPttRuntime, 3000);
 </script>
 {% endblock %}

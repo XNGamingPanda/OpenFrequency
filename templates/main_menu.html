@@ -10,143 +10,204 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            background: radial-gradient(circle at top, #163a63 0%, #10233e 45%, #0b1528 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            color: #fff;
+        }
+
+        .shell {
+            width: min(1120px, calc(100vw - 32px));
+        }
+
+        .brand-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .brand-title {
+            font-size: clamp(2.4rem, 5vw, 3.5rem);
+            font-weight: 800;
+            letter-spacing: .02em;
+        }
+
+        .brand-subtitle {
+            color: #c7d2e3;
+            font-size: 1.05rem;
+        }
+
+        .version-badge {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: rgba(245, 158, 11, .18);
+            color: #fbbf24;
+            padding: .45rem .9rem;
+            border-radius: 999px;
+            font-size: .9rem;
+        }
+
+        .settings-link {
+            position: absolute;
+            bottom: 18px;
+            right: 18px;
+            color: #cbd5e1;
+            text-decoration: none;
+        }
+
+        .mode-card,
+        .model-panel,
+        .session-alert {
+            background: rgba(255, 255, 255, .08);
+            border: 1px solid rgba(255, 255, 255, .16);
+            backdrop-filter: blur(10px);
+            border-radius: 22px;
+        }
+
+        .model-panel {
+            margin: 0 auto 1.75rem;
+            padding: 1.25rem 1.4rem;
+            display: none;
+        }
+
+        .model-panel.warn {
+            border-color: rgba(245, 158, 11, .45);
+            box-shadow: 0 16px 40px rgba(245, 158, 11, .08);
+        }
+
+        .model-panel.ok {
+            border-color: rgba(34, 197, 94, .40);
+            box-shadow: 0 16px 40px rgba(34, 197, 94, .08);
+        }
+
+        .model-panel p,
+        .model-panel li,
+        .model-panel small {
+            color: #d7e0ec;
+        }
+
+        .model-progress {
+            height: 10px;
+            background: rgba(255, 255, 255, .12);
+            border-radius: 999px;
+            overflow: hidden;
+            margin: .8rem 0 .5rem;
+        }
+
+        .model-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #38bdf8, #22c55e);
+            transition: width .25s ease;
         }
 
         .mode-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 3rem 2rem;
-            text-align: center;
+            min-height: 330px;
+            padding: 2.5rem 2rem;
+            transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
             cursor: pointer;
-            transition: all 0.3s ease;
-            min-height: 350px;
+            text-align: center;
             display: flex;
             flex-direction: column;
             justify-content: center;
         }
 
         .mode-card:hover {
-            transform: translateY(-8px);
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            transform: translateY(-6px);
+            box-shadow: 0 20px 42px rgba(0, 0, 0, .32);
         }
 
         .mode-card.free-flight:hover {
-            border-color: #3b82f6;
-            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.3);
+            border-color: rgba(56, 189, 248, .55);
         }
 
         .mode-card.career-mode:hover {
-            border-color: #f59e0b;
-            box-shadow: 0 20px 40px rgba(245, 158, 11, 0.3);
+            border-color: rgba(245, 158, 11, .55);
         }
 
         .mode-card.disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
+            opacity: .35;
             pointer-events: none;
         }
 
         .mode-icon {
-            font-size: 5rem;
-            margin-bottom: 1.5rem;
+            font-size: 4.5rem;
+            margin-bottom: 1rem;
         }
 
         .mode-title {
             font-size: 1.8rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
-            color: #fff;
+            font-weight: 700;
+            margin-bottom: .8rem;
         }
 
         .mode-desc {
-            color: #9ca3af;
-            font-size: 1rem;
-            line-height: 1.6;
-        }
-
-        .brand-header {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-
-        .brand-title {
-            font-size: 3rem;
-            font-weight: bold;
-            color: #fff;
-            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-        }
-
-        .brand-subtitle {
-            color: #9ca3af;
-            font-size: 1.2rem;
-        }
-
-        .version-badge {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(245, 158, 11, 0.2);
-            color: #f59e0b;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.9rem;
-        }
-
-        .settings-link {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            color: #9ca3af;
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .settings-link:hover {
-            color: #fff;
+            color: #d1d9e6;
+            line-height: 1.65;
         }
 
         .session-alert {
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .session-alert.free-flight {
-            border-color: #3b82f6;
-            background: rgba(59, 130, 246, 0.1);
-        }
-
-        .session-alert.career-mode {
-            border-color: #f59e0b;
-            background: rgba(245, 158, 11, 0.1);
+            padding: 1.8rem;
+            margin-bottom: 1.75rem;
         }
     </style>
 </head>
 
 <body>
-    <span class="version-badge">3.5-beta</span>
+    <span class="version-badge">{{ app_version }}</span>
 
-    <div class="container">
+    <div class="shell">
         <div class="brand-header">
-            <h1 class="brand-title">📡 OpenFrequency</h1>
+            <h1 class="brand-title">OpenFrequency</h1>
             <p class="brand-subtitle" data-i18n="main_menu_subtitle">The AI ATC for Everyone</p>
         </div>
 
-        <!-- Session State Display -->
+        <div id="model-panel" class="model-panel warn">
+            <div class="d-flex justify-content-between align-items-start gap-3">
+                <div>
+                    <h5 id="model-panel-title" class="mb-2">STT model not installed</h5>
+                    <p id="model-panel-message" class="mb-0"></p>
+                </div>
+                <button id="btn-model-dismiss" class="btn btn-sm btn-outline-light" type="button">Dismiss</button>
+            </div>
+            <div id="model-progress-wrapper" style="display:none;">
+                <div class="model-progress">
+                    <div id="model-progress-bar" class="model-progress-bar"></div>
+                </div>
+                <small id="model-progress-text"></small>
+            </div>
+            <div class="d-flex gap-2 flex-wrap mt-3">
+                <button id="btn-model-download" class="btn btn-primary">Download from official source</button>
+                <a id="btn-model-official" class="btn btn-outline-light" target="_blank" rel="noopener noreferrer">Official release</a>
+                <a id="btn-model-docs" class="btn btn-outline-light" target="_blank" rel="noopener noreferrer">Official docs</a>
+            </div>
+            <div class="mt-3">
+                <small id="model-install-path"></small>
+                <ul id="model-manual-steps" class="mt-2 mb-0 ps-3"></ul>
+            </div>
+        </div>
+
         <div id="session-panel"></div>
 
-        <!-- Mode Selection (hidden when session active) -->
+        <div id="update-panel" class="session-alert" style="display:none;">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                <div>
+                    <h5 id="update-title" class="mb-2">Update available</h5>
+                    <p id="update-message" class="mb-2"></p>
+                    <div id="update-asset" class="small text-light-emphasis"></div>
+                    <pre id="update-notes" class="small mt-3 mb-0 p-3 rounded" style="display:none;background:rgba(0,0,0,.22);color:#d7e0ec;white-space:pre-wrap;"></pre>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a id="btn-update-download" class="btn btn-primary" target="_blank" rel="noopener noreferrer">Download update</a>
+                    <button id="btn-update-later" class="btn btn-outline-light" type="button">Later</button>
+                    <button id="btn-update-skip" class="btn btn-outline-warning" type="button">Skip this version</button>
+                </div>
+            </div>
+        </div>
+
         <div id="mode-selection" class="row g-4 justify-content-center">
-            <!-- Free Flight Card -->
             <div class="col-md-5">
                 <div class="mode-card free-flight" id="card-free" onclick="startMode('free')">
                     <div class="mode-icon">✈️</div>
@@ -158,10 +219,9 @@
                 </div>
             </div>
 
-            <!-- Career Mode Card -->
             <div class="col-md-5">
                 <div class="mode-card career-mode" id="card-career" onclick="startMode('career')">
-                    <div class="mode-icon">💼</div>
+                    <div class="mode-icon">🎖</div>
                     <div class="mode-title" data-i18n="mode_career">Career Mode</div>
                     <p class="mode-desc" data-i18n="mode_career_desc">
                         Build your pilot career from student to captain.
@@ -180,112 +240,279 @@
     <script>
         const socket = io();
         let currentMode = null;
+        let modelStatusPoller = null;
+        let activeDownloadPoller = null;
+        const CURRENT_VERSION = "{{ app_version }}";
+        const UPDATE_SKIP_KEY = 'skip_update_version';
 
-        // Check session state on load
-        fetch('/api/session_mode')
-            .then(r => r.json())
-            .then(data => {
-                currentMode = data.mode;
-                updateUI();
-            })
-            .catch(() => updateUI());
-
-        function updateUI() {
-            const sessionPanel = document.getElementById('session-panel');
-            const modeSelection = document.getElementById('mode-selection');
-            const cardFree = document.getElementById('card-free');
-            const cardCareer = document.getElementById('card-career');
-
-            if (currentMode === 'free') {
-                // Free Flight active - show continue/end options, disable career
-                sessionPanel.innerHTML = `
-                    <div class="session-alert free-flight text-center text-white">
-                        <h4>✈️ <span data-i18n="session_active_free">Currently in Free Flight mode</span></h4>
-                        <div class="mt-3">
-                            <a href="/dashboard?mode=free" class="btn btn-primary btn-lg me-2">
-                                <span data-i18n="btn_continue">Continue Flight</span>
-                            </a>
-                            <button class="btn btn-outline-danger btn-lg" onclick="endSession()">
-                                <span data-i18n="btn_end_session">End Session</span>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                cardCareer.classList.add('disabled');
-            } else if (currentMode === 'career') {
-                // Career mode active - show dashboard/end options, disable free flight
-                sessionPanel.innerHTML = `
-                    <div class="session-alert career-mode text-center text-white">
-                        <h4>💼 <span data-i18n="session_active_career">Currently in Career mode</span></h4>
-                        <div class="mt-3">
-                            <a href="/career?mode=career" class="btn btn-success btn-lg me-2">
-                                <span data-i18n="btn_enter_dashboard">Enter Dashboard</span>
-                            </a>
-                            <button class="btn btn-outline-danger btn-lg" onclick="endSession()">
-                                <span data-i18n="btn_end_session">End Session</span>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                cardFree.classList.add('disabled');
-            } else {
-                // No active session - show both options
-                sessionPanel.innerHTML = '';
-                cardFree.classList.remove('disabled');
-                cardCareer.classList.remove('disabled');
+        const MODEL_I18N = {
+            en: {
+                missing_title: 'Speech model not installed',
+                missing_message: 'The main package no longer includes the STT model. Download the official model package now, or install it manually.',
+                installed_title: 'Speech model installed',
+                installed_message: 'The sherpa-onnx STT model is already installed.',
+                download_button: 'Download from official source',
+                official_release: 'Official release',
+                official_docs: 'Official docs',
+                progress_prefix: 'Download progress',
+                install_path: 'Install path',
+                dismiss: 'Dismiss',
+                step_1: 'Download sherpa-onnx-whisper-small.tar.bz2 from the official sherpa-onnx release page.',
+                step_2: 'Extract the archive.',
+                step_3: 'Place the extracted folder at .\\models\\sherpa-onnx-whisper-small.',
+                step_4: 'Keep the int8 ONNX files and token file directly inside that folder.',
+            },
+            zh: {
+                missing_title: '语音识别模型未安装',
+                missing_message: '主程序包不再内置 STT 模型。你可以直接从官方渠道下载，也可以手动下载后放到指定目录。',
+                installed_title: '语音识别模型已安装',
+                installed_message: 'sherpa-onnx 语音识别模型已经就绪。',
+                download_button: '从官方渠道下载',
+                official_release: '官方发布页',
+                official_docs: '官方说明',
+                progress_prefix: '下载进度',
+                install_path: '安装路径',
+                dismiss: '关闭',
+                step_1: '从 sherpa-onnx 官方发布页下载 sherpa-onnx-whisper-small.tar.bz2。',
+                step_2: '解压这个压缩包。',
+                step_3: '将解压后的文件夹放到 .\\models\\sherpa-onnx-whisper-small。',
+                step_4: '确保 int8 ONNX 文件和 token 文件直接位于该目录中。',
+            },
+            ja: {
+                missing_title: '音声認識モデルが未インストールです',
+                missing_message: 'メインパッケージには STT モデルが含まれていません。公式配布元からダウンロードするか、手動で配置してください。',
+                installed_title: '音声認識モデルはインストール済みです',
+                installed_message: 'sherpa-onnx 音声認識モデルはすでに利用可能です。',
+                download_button: '公式配布元からダウンロード',
+                official_release: '公式リリース',
+                official_docs: '公式ドキュメント',
+                progress_prefix: 'ダウンロード進捗',
+                install_path: 'インストール先',
+                dismiss: '閉じる',
+                step_1: '公式 sherpa-onnx リリースページから sherpa-onnx-whisper-small.tar.bz2 をダウンロードします。',
+                step_2: 'アーカイブを展開します。',
+                step_3: '展開したフォルダを .\\models\\sherpa-onnx-whisper-small に配置します。',
+                step_4: 'int8 ONNX ファイルと token ファイルをそのフォルダ直下に置いてください。',
             }
+        };
 
-            applyTranslations();
+        const UPDATE_I18N = {
+            en: {
+                update_available: 'Update available',
+                update_message: 'A newer version is available: {latest} (current {current}).',
+                download_update: 'Download update',
+                later: 'Later',
+                skip_version: 'Skip this version',
+                asset_label: 'Installer',
+                update_check_failed: 'Update check failed.'
+            },
+            zh: {
+                update_available: '发现新版本',
+                update_message: '发现较新版本：{latest}（当前 {current}）。',
+                download_update: '下载更新',
+                later: '稍后提醒',
+                skip_version: '跳过此版本',
+                asset_label: '安装包',
+                update_check_failed: '检查更新失败。'
+            },
+            ja: {
+                update_available: 'アップデートがあります',
+                update_message: '新しいバージョン {latest} が利用可能です（現在 {current}）。',
+                download_update: '更新をダウンロード',
+                later: '後で',
+                skip_version: 'このバージョンをスキップ',
+                asset_label: 'インストーラー',
+                update_check_failed: '更新の確認に失敗しました。'
+            }
+        };
+
+        function getCurrentLang() {
+            return localStorage.getItem('language') || 'en';
+        }
+
+        function modelText(key) {
+            const lang = getCurrentLang();
+            return (MODEL_I18N[lang] && MODEL_I18N[lang][key]) || MODEL_I18N.en[key] || key;
+        }
+
+        function updateText(key) {
+            const lang = getCurrentLang();
+            return (UPDATE_I18N[lang] && UPDATE_I18N[lang][key]) || UPDATE_I18N.en[key] || key;
+        }
+
+        function formatUpdateText(key, vars = {}) {
+            let text = updateText(key);
+            Object.entries(vars).forEach(([name, value]) => {
+                text = text.replaceAll(`{${name}}`, value ?? '');
+            });
+            return text;
+        }
+
+        async function refreshModelStatus() {
+            try {
+                const response = await fetch('/api/models/status');
+                if (!response.ok) return;
+                const payload = await response.json();
+
+                const panel = document.getElementById('model-panel');
+                const title = document.getElementById('model-panel-title');
+                const message = document.getElementById('model-panel-message');
+                const installPath = document.getElementById('model-install-path');
+                const steps = document.getElementById('model-manual-steps');
+                const dismissed = localStorage.getItem('dismiss_model_panel') === '1';
+
+                steps.innerHTML = '';
+                [modelText('step_1'), modelText('step_2'), modelText('step_3'), modelText('step_4')].forEach((step) => {
+                    const li = document.createElement('li');
+                    li.textContent = step;
+                    steps.appendChild(li);
+                });
+
+                document.getElementById('btn-model-download').textContent = modelText('download_button');
+                document.getElementById('btn-model-official').textContent = modelText('official_release');
+                document.getElementById('btn-model-docs').textContent = modelText('official_docs');
+                document.getElementById('btn-model-dismiss').textContent = modelText('dismiss');
+                document.getElementById('btn-model-official').href = payload.official_release_url;
+                document.getElementById('btn-model-docs').href = payload.official_docs_url;
+                installPath.textContent = `${modelText('install_path')}: ${payload.install_dir}`;
+
+                panel.classList.toggle('warn', !payload.installed);
+                panel.classList.toggle('ok', !!payload.installed);
+
+                if (payload.installed) {
+                    title.textContent = modelText('installed_title');
+                    message.textContent = modelText('installed_message');
+                    panel.style.display = 'none';
+                    return;
+                }
+
+                title.textContent = modelText('missing_title');
+                message.textContent = modelText('missing_message');
+                panel.style.display = dismissed ? 'none' : 'block';
+            } catch (error) {
+                console.error('Failed to refresh model status', error);
+            }
+        }
+
+        async function startModelDownload() {
+            localStorage.removeItem('dismiss_model_panel');
+            const response = await fetch('/api/models/download', { method: 'POST' });
+            let payload = {};
+            try {
+                payload = await response.json();
+            } catch (e) {
+                payload = {};
+            }
+            if (!response.ok) {
+                alert(payload.message || 'Failed to start model download.');
+                return;
+            }
+            document.getElementById('model-progress-wrapper').style.display = 'block';
+            document.getElementById('model-progress-text').textContent = payload.message || modelText('progress_prefix');
+            startDownloadPolling();
+        }
+
+        async function pollModelDownloadStatus() {
+            try {
+                const response = await fetch('/api/models/status');
+                if (!response.ok) return;
+                const payload = await response.json();
+                const download = payload.download || {};
+                const wrap = document.getElementById('model-progress-wrapper');
+                const bar = document.getElementById('model-progress-bar');
+                const text = document.getElementById('model-progress-text');
+
+                if (download.status === 'downloading' || download.status === 'completed' || download.status === 'error') {
+                    wrap.style.display = 'block';
+                    bar.style.width = `${download.progress || 0}%`;
+                    text.textContent = download.message || `${modelText('progress_prefix')}: ${download.progress || 0}%`;
+                }
+
+                if (download.status === 'completed' || download.status === 'error') {
+                    stopDownloadPolling();
+                    refreshModelStatus();
+                }
+            } catch (error) {
+                console.error('Failed to poll model download status', error);
+            }
+        }
+
+        function startDownloadPolling() {
+            stopDownloadPolling();
+            activeDownloadPoller = window.setInterval(pollModelDownloadStatus, 1000);
+            pollModelDownloadStatus();
+        }
+
+        function stopDownloadPolling() {
+            if (activeDownloadPoller) {
+                window.clearInterval(activeDownloadPoller);
+                activeDownloadPoller = null;
+            }
+        }
+
+        async function checkForUpdates() {
+            try {
+                const response = await fetch('/api/update_status');
+                if (!response.ok) return;
+                const payload = await response.json();
+                const skippedVersion = localStorage.getItem(UPDATE_SKIP_KEY);
+                if (!payload.has_update || !payload.latest_version || skippedVersion === payload.latest_version) {
+                    return;
+                }
+
+                const panel = document.getElementById('update-panel');
+                const title = document.getElementById('update-title');
+                const message = document.getElementById('update-message');
+                const asset = document.getElementById('update-asset');
+                const notes = document.getElementById('update-notes');
+                const btnDownload = document.getElementById('btn-update-download');
+                const btnLater = document.getElementById('btn-update-later');
+                const btnSkip = document.getElementById('btn-update-skip');
+
+                title.textContent = updateText('update_available');
+                message.textContent = formatUpdateText('update_message', {
+                    latest: payload.latest_version,
+                    current: payload.current_version || CURRENT_VERSION
+                });
+                asset.textContent = payload.asset_name ? `${updateText('asset_label')}: ${payload.asset_name}` : '';
+                notes.style.display = payload.release_notes ? 'block' : 'none';
+                notes.textContent = payload.release_notes || '';
+                btnDownload.textContent = updateText('download_update');
+                btnLater.textContent = updateText('later');
+                btnSkip.textContent = updateText('skip_version');
+                btnDownload.href = payload.download_url || payload.release_url || '#';
+                btnLater.onclick = () => { panel.style.display = 'none'; };
+                btnSkip.onclick = () => {
+                    localStorage.setItem(UPDATE_SKIP_KEY, payload.latest_version);
+                    panel.style.display = 'none';
+                };
+                panel.style.display = 'block';
+            } catch (error) {
+                console.warn(updateText('update_check_failed'), error);
+            }
         }
 
         function startMode(mode) {
-            if (currentMode && currentMode !== mode) {
-                alert('Please end your current session first.');
+            currentMode = mode;
+            if (mode === 'career') {
+                window.location.href = '/career';
                 return;
             }
-
-            // Set session mode
-            socket.emit('set_flight_mode', { mode: mode });
-
-            if (mode === 'free') {
-                window.location.href = '/dashboard?mode=free';
-            } else {
-                window.location.href = '/career?mode=career';
-            }
+            window.location.href = '/dashboard';
         }
 
-        function endSession() {
-            if (confirm('Are you sure you want to end your current session?')) {
-                socket.emit('set_flight_mode', { mode: null });
-                currentMode = null;
-                updateUI();
-            }
-        }
+        document.getElementById('btn-model-download').addEventListener('click', startModelDownload);
+        document.getElementById('btn-model-dismiss').addEventListener('click', () => {
+            localStorage.setItem('dismiss_model_panel', '1');
+            document.getElementById('model-panel').style.display = 'none';
+        });
 
-        // Simple translation loader
-        function applyTranslations() {
-            const lang = localStorage.getItem('language') || 'en';
-            const localeMap = {
-                'en': 'en-US',
-                'zh': 'zh-CN',
-                'ja': 'ja-JP'
-            };
-            const locale = localeMap[lang] || 'en-US';
-
-            fetch(`/api/locales/${locale}.json`)
-                .then(r => r.json())
-                .then(translations => {
-                    document.querySelectorAll('[data-i18n]').forEach(el => {
-                        const key = el.getAttribute('data-i18n');
-                        if (translations[key]) {
-                            el.textContent = translations[key];
-                        }
-                    });
-                })
-                .catch(e => console.log('Translations not loaded:', e));
-        }
-
-        applyTranslations();
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshModelStatus();
+            modelStatusPoller = window.setInterval(refreshModelStatus, 15000);
+            pollModelDownloadStatus();
+            window.setTimeout(checkForUpdates, 2500);
+        });
     </script>
 </body>
 

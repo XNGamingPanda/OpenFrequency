@@ -1,1 +1,4 @@
 pyinstaller>=6.6.0
+pywebview>=5.1
+pynput>=1.7.7
+nuitka>=2.3.11

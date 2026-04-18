@@ -92,6 +92,24 @@ class LLMClient:
         self.bus.on('atc_monitor_check', self.handle_atc_monitor_check)
         self.bus.on('config_updated', self.handle_config_update)
         print("LLMClient: Initialized and subscribed to 'llm_request' & 'proactive_atc_request'.")
+
+    def _connection_values(self, connection_override=None):
+        conn = dict(self.config.get('connection', {}))
+        if connection_override:
+            conn.update({k: v for k, v in connection_override.items() if v not in (None, "")})
+        provider = conn.get('provider', self.provider)
+        api_key = conn.get('api_key', self.api_key)
+        model = conn.get('model', self.model)
+        base_url = conn.get('base_url', self.base_url)
+        return provider, api_key, model, base_url
+
+    def _build_temporary_clients(self, connection_override=None):
+        provider, api_key, _, base_url = self._connection_values(connection_override)
+        if provider in ['google_genai', 'gemini']:
+            return genai.Client(api_key=api_key), None, provider
+        if provider in ['openai', 'openai_compatible']:
+            return None, openai.OpenAI(api_key=api_key, base_url=base_url), provider
+        return self.client, self.openai_client, provider
         
     def handle_config_update(self, new_config):
         """Re-initialize client when settings change."""
@@ -132,12 +150,18 @@ class LLMClient:
         # Handle dictionary input (text + metadata + callback)
         callback_event = None
         metadata = None
+        model_override = None
+        system_prompt_override = None
+        connection_override = None
         
         if isinstance(user_text, dict):
             payload = user_text
             user_text = payload.get('text', '')
             callback_event = payload.get('callback_event')
             metadata = payload.get('metadata')
+            model_override = payload.get('model_override')
+            system_prompt_override = payload.get('system_prompt_override')
+            connection_override = payload.get('connection_override')
             # history might be in payload too, override if so
             if 'history' in payload:
                 history = payload['history']
@@ -149,7 +173,13 @@ class LLMClient:
         t = threading.Thread(
             target=self.generate_response, 
             args=(user_text, None, False, history),
-            kwargs={'callback_event': callback_event, 'metadata': metadata}
+            kwargs={
+                'callback_event': callback_event,
+                'metadata': metadata,
+                'model_override': model_override,
+                'system_prompt_override': system_prompt_override,
+                'connection_override': connection_override,
+            }
         )
         t.start()
 
@@ -553,13 +583,18 @@ class LLMClient:
             # otherwise return the raw output but log it.
             return response_text, None
 
-    def _call_llm_sync(self, system_prompt, user_message, max_tokens=100):
+    def _call_llm_sync(self, system_prompt, user_message, max_tokens=100, model_override=None, connection_override=None):
         """Compatibility helper for older modules that need a synchronous plain-text reply."""
-        if not self.client and not self.openai_client:
+        client = self.client
+        openai_client = self.openai_client
+        if connection_override:
+            client, openai_client, _ = self._build_temporary_clients(connection_override)
+        if not client and not openai_client:
             raise RuntimeError("LLM client not initialized")
+        model_name = model_override or self.model
 
         try:
-            if self.client:
+            if client:
                 contents = [
                     types.Content(
                         role="user",
@@ -570,15 +605,15 @@ class LLMClient:
                         parts=[types.Part(text=user_message)]
                     )
                 ]
-                response = self.client.models.generate_content(
-                    model=self.model,
+                response = client.models.generate_content(
+                    model=model_name,
                     contents=contents,
                     config=types.GenerateContentConfig(max_output_tokens=max_tokens)
                 )
                 return (response.text or "").strip()
 
-            response = self.openai_client.chat.completions.create(
-                model=self.model,
+            response = openai_client.chat.completions.create(
+                model=model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message},
@@ -589,15 +624,22 @@ class LLMClient:
         except Exception:
             raise
 
-    def generate_response(self, user_text=None, trigger_prompt=None, is_proactive=False, history=[], callback_event=None, metadata=None):
-        if not self.client and not self.openai_client:
+    def generate_response(self, user_text=None, trigger_prompt=None, is_proactive=False, history=[], callback_event=None, metadata=None, model_override=None, system_prompt_override=None, connection_override=None):
+        client = self.client
+        openai_client = self.openai_client
+        if connection_override:
+            client, openai_client, _ = self._build_temporary_clients(connection_override)
+        if not client and not openai_client:
             print("LLMClient Error: Client not initialized.")
             return
 
-        if is_proactive and trigger_prompt:
+        if system_prompt_override:
+            system_prompt = system_prompt_override
+        elif is_proactive and trigger_prompt:
             system_prompt = trigger_prompt
         else:
             system_prompt = self._build_system_prompt(user_text, history=history)
+        model_name = model_override or self.model
         
         # Get callsign for fallback messages
         with self.lock:
@@ -607,7 +649,7 @@ class LLMClient:
         print(system_prompt)
         print("-----------------------------")
         
-        print(f"LLMClient: Sending request to {self.model}...")
+        print(f"LLMClient: Sending request to {model_name}...")
         
         # Pick fast or thinking model based on request complexity
         active_model = self._select_model(user_text, is_proactive)
@@ -616,7 +658,7 @@ class LLMClient:
 
         response_text = ""
         try:
-            if self.client:
+            if client:
                 # Google GenAI - Build proper contents with history
                 contents = []
                 contents.append(types.Content(

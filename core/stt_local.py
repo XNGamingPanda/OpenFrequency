@@ -5,6 +5,7 @@ import sys
 import soundfile as sf
 import tempfile
 import time
+from pathlib import Path
 
 class STTLocal:
     def __init__(self, config, bus):
@@ -81,7 +82,8 @@ class STTLocal:
         
         # Save received blob to a temporary file
         try:
-            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+            suffix = ".wav" if isinstance(audio_data, (bytes, bytearray)) and audio_data[:4] == b"RIFF" else ".webm"
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                 tmp.write(audio_data)
                 tmp_path = tmp.name
             
@@ -123,7 +125,8 @@ class STTLocal:
             
             try:
                 os.remove(tmp_path)
-            except: pass
+            except:
+                pass
                 
         except Exception as e:
             print(f"STTLocal Error: {e}")

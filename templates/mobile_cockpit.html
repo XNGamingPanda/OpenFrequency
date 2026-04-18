@@ -290,6 +290,30 @@
         stopAllPlayback();
     });
 
+    async function setPttState(active) {
+        try {
+            await fetch('/api/ptt_state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: !!active })
+            });
+        } catch (e) {
+            console.warn('Failed to update PTT state', e);
+        }
+    }
+
+    async function uploadVoiceBlob(audioBlob) {
+        const resp = await fetch('/api/voice_data', {
+            method: 'POST',
+            headers: { 'Content-Type': audioBlob.type || 'audio/webm' },
+            body: audioBlob
+        });
+        if (!resp.ok) {
+            const msg = await resp.text().catch(() => '');
+            throw new Error(msg || `HTTP ${resp.status}`);
+        }
+    }
+
     // ... (PTT Logic) ...
 
     const startRecording = () => {
@@ -300,24 +324,33 @@
                 mediaRecorder.start();
                 audioChunks = [];
 
+                setPttState(true);
                 mediaRecorder.addEventListener("dataavailable", event => {
                     audioChunks.push(event.data);
                 });
 
-                mediaRecorder.addEventListener("stop", () => {
-                    const audioBlob = new Blob(audioChunks);
-                    socket.emit('voice_data', audioBlob);
+                mediaRecorder.addEventListener("stop", async () => {
+                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                    try {
+                        await uploadVoiceBlob(audioBlob);
+                    } catch (e) {
+                        console.error('Voice upload failed:', e);
+                    }
                 });
 
                 pttBtn.classList.remove('btn-primary');
                 pttBtn.classList.add('btn-danger');
                 pttBtn.innerText = "TRANSMITTING...";
+            }).catch((e) => {
+                console.error('Failed to start recording:', e);
+                setPttState(false);
             });
     };
 
     const stopRecording = () => {
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
+            setPttState(false);
             if (pttBtn) {
                 pttBtn.classList.add('btn-primary');
                 pttBtn.classList.remove('btn-danger');

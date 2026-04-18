@@ -4,10 +4,13 @@ import io
 import struct
 import edge_tts
 import hashlib
+import os
 import threading
 import queue
 import time
 import re
+import shutil
+import subprocess
 from .context import event_bus, shared_context, context_lock
 
 try:
@@ -292,6 +295,57 @@ class TTSEngine:
             wf.writeframes(pcm.tobytes())
         return buf.getvalue()
 
+    def _radio_effect_enabled(self):
+        return bool(self.config.get('audio', {}).get('radio_effect', False))
+
+    def _should_apply_radio_effect(self, controller_name='ATC', is_atis=False):
+        if not self._radio_effect_enabled():
+            return False
+        if is_atis:
+            return True
+        name = (controller_name or '').lower()
+        non_atc_markers = ('purser', 'first officer', 'cabin', 'crew', 'pilot')
+        return not any(marker in name for marker in non_atc_markers)
+
+    def _apply_radio_effect(self, audio_bytes):
+        if not audio_bytes:
+            return audio_bytes
+
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
+            return audio_bytes
+
+        filter_chain = (
+            "highpass=f=350,"
+            "lowpass=f=2800,"
+            "acompressor=threshold=-18dB:ratio=3:attack=5:release=40,"
+            "volume=1.8"
+        )
+        cmd = [
+            ffmpeg_path,
+            "-hide_banner",
+            "-loglevel", "error",
+            "-i", "pipe:0",
+            "-af", filter_chain,
+            "-c:a", "libmp3lame",
+            "-b:a", "64k",
+            "-f", "mp3",
+            "pipe:1",
+        ]
+
+        try:
+            completed = subprocess.run(
+                cmd,
+                input=audio_bytes,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+            )
+            return completed.stdout or audio_bytes
+        except Exception as e:
+            print(f"TTSEngine: Radio effect processing failed: {e}")
+            return audio_bytes
+
     def set_voice_override(self, voice_id):
         """Sets a specific voice to use for all ATC, overriding region logic."""
         if voice_id == "Auto" or not voice_id:
@@ -547,6 +601,8 @@ class TTSEngine:
                     )
                     full_audio = english_audio + chinese_audio
                     if full_audio:
+                        if self._should_apply_radio_effect('ATIS', is_atis=True):
+                            full_audio = self._apply_radio_effect(full_audio)
                         self.socketio.emit('audio_stream', {
                             'data': base64.b64encode(full_audio).decode('utf-8')
                         })
@@ -618,11 +674,15 @@ class TTSEngine:
                 # Edge-TTS: full audio then emit once
                 full_audio = await self._synthesize_edge(text_norm, voice)
                 if full_audio:
+                    if self._should_apply_radio_effect(controller_name, is_atis=False):
+                        full_audio = self._apply_radio_effect(full_audio)
                     try:
-                        with open("debug_tts.mp3", "wb") as f:
-                            f.write(full_audio)
-                    except Exception:
-                        pass
+                        if os.environ.get("OPENFREQUENCY_DEBUG_TTS") == "1":
+                            with open("debug_tts.mp3", "wb") as f:
+                                f.write(full_audio)
+                            print(f"TTSEngine: Debug file written to debug_tts.mp3 ({len(full_audio)} bytes)")
+                    except Exception as e:
+                        print(f"TTSEngine Debug Error: {e}")
                     self.socketio.emit('audio_stream', {
                         'data': base64.b64encode(full_audio).decode('utf-8')
                     })

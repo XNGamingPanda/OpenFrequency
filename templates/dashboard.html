@@ -92,7 +92,21 @@
 
 </style>
 <div class="row h-100">
-    <div id="career-readiness-alert" class="alert alert-warning mt-2 mb-0"></div>
+    <!-- Header Row (Full Width) -->
+    <div class="col-12 mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <!-- Status or other info could go here -->
+            </div>
+            <div>
+                {% if can_interact %}
+                <a href="/history" class="btn btn-outline-secondary btn-sm me-2">Reports</a>
+                <a href="/settings" class="btn btn-outline-secondary btn-sm" data-i18n="settings_btn">⚙️ Settings</a>
+                {% endif %}
+            </div>
+        </div>
+        <div id="career-readiness-alert" class="alert alert-warning mt-2 mb-0"></div>
+    </div>
 
     <!-- Left Column: Gauges + Map -->
     <div class="col-lg-7 d-flex flex-column h-100">
@@ -406,6 +420,9 @@
                 const frequency = parseFloat(btn.getAttribute('data-frequency'));
                 socket.emit('tune_frequency', { frequency });
             });
+        }).catch((e) => {
+            console.error('Failed to start recording:', e);
+            setPttState(false);
         });
     }
 
@@ -591,20 +608,50 @@
     let gamepadIndex = -1;
     let pttButtonIndex = -1;
     let wasPressed = false;
+    let gamepadBindingName = '';
 
-    function loadPTTBinding() {
+    async function loadPTTBinding() {
+        try {
+            const resp = await fetch('/get_config');
+            const cfg = await resp.json();
+            const configured = cfg.audio?.ptt_binding;
+            if (configured && configured.gp !== undefined && configured.btn !== undefined) {
+                gamepadIndex = configured.gp;
+                pttButtonIndex = configured.btn;
+                gamepadBindingName = configured.name || '';
+                localStorage.setItem('ptt_binding', JSON.stringify({ gp: configured.gp, btn: configured.btn }));
+                console.log("PTT Bound from config to GP:", gamepadIndex, "BTN:", pttButtonIndex);
+                return;
+            }
+        } catch (e) {
+            console.warn("Failed to load PTT binding from config", e);
+        }
+
         const saved = localStorage.getItem('ptt_binding');
         if (saved) {
             const b = JSON.parse(saved);
             gamepadIndex = b.gp;
             pttButtonIndex = b.btn;
-            console.log("PTT Bound to GP:", gamepadIndex, "BTN:", pttButtonIndex);
+            gamepadBindingName = b.name || '';
+            console.log("PTT Bound from localStorage to GP:", gamepadIndex, "BTN:", pttButtonIndex);
+        }
+    }
+
+    function remapGamepadByName(gamepads) {
+        if (!gamepadBindingName) return;
+        for (let i = 0; i < gamepads.length; i++) {
+            const gp = gamepads[i];
+            if (gp && gp.id === gamepadBindingName) {
+                gamepadIndex = i;
+                return;
+            }
         }
     }
 
     function gamepadLoop() {
         const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
         if (!gamepads) return;
+        remapGamepadByName(gamepads);
 
         for (let i = 0; i < gamepads.length; i++) {
             // Only listen to the bound gamepad
@@ -1509,6 +1556,30 @@
         }
     });
 
+    async function setPttState(active) {
+        try {
+            await fetch('/api/ptt_state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: !!active })
+            });
+        } catch (e) {
+            console.warn('Failed to update PTT state', e);
+        }
+    }
+
+    async function uploadVoiceBlob(audioBlob) {
+        const resp = await fetch('/api/voice_data', {
+            method: 'POST',
+            headers: { 'Content-Type': audioBlob.type || 'audio/webm' },
+            body: audioBlob
+        });
+        if (!resp.ok) {
+            const msg = await resp.text().catch(() => '');
+            throw new Error(msg || `HTTP ${resp.status}`);
+        }
+    }
+
     // PTT Recording
     const startRecording = () => {
         if (!pttBtn) return; // No PTT for readonly users
@@ -1517,7 +1588,14 @@
             mediaRecorder.start();
             audioChunks = [];
             mediaRecorder.addEventListener("dataavailable", event => audioChunks.push(event.data));
-            mediaRecorder.addEventListener("stop", () => socket.emit('voice_data', new Blob(audioChunks)));
+            setPttState(true);
+            mediaRecorder.addEventListener("stop", async () => {
+                try {
+                    await uploadVoiceBlob(new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' }));
+                } catch (e) {
+                    console.error('Voice upload failed:', e);
+                }
+            });
 
             pttBtn.classList.remove('btn-primary');
             pttBtn.classList.add('btn-danger');
@@ -1530,6 +1608,7 @@
     const stopRecording = () => {
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
+            setPttState(false);
             if (pttBtn) {
                 pttBtn.classList.add('btn-primary');
                 pttBtn.classList.remove('btn-danger');
@@ -1796,8 +1875,72 @@
         }
     }
 
+    function showSystemToast(title, message, variant = 'primary') {
+        const container = document.getElementById('toast-container');
+        if (!container) {
+            console.log(`${title}: ${message}`);
+            return;
+        }
+        const toastId = `toast-system-${Date.now()}`;
+        const wrap = document.createElement('div');
+        wrap.innerHTML = `
+            <div id="${toastId}" class="toast show text-white bg-${variant}" role="alert" aria-live="assertive" aria-atomic="true">
+              <div class="toast-header bg-${variant} text-white">
+                <strong class="me-auto">${title}</strong>
+                <small>Just now</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+              </div>
+              <div class="toast-body">${message}</div>
+            </div>
+        `;
+        container.appendChild(wrap.firstElementChild);
+        setTimeout(() => {
+            const toastEl = document.getElementById(toastId);
+            if (toastEl) toastEl.remove();
+        }, 10000);
+    }
+
+    async function autoImportSimBriefOnEntry() {
+        const sessionKey = `auto_simbrief_${window.location.pathname}_${window.location.search}`;
+        if (sessionStorage.getItem(sessionKey) === 'done') return;
+        try {
+            const lang = localStorage.getItem('language') || 'en';
+            const cfg = await fetch('/get_config').then(r => r.json());
+            const username = cfg?.simbrief?.username;
+            if (!username) return;
+            const response = await fetch('/import_simbrief', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            const data = await response.json();
+            if (!response.ok || data.status === 'error') {
+                throw new Error(data.message || data.error || 'import failed');
+            }
+            sessionStorage.setItem(sessionKey, 'done');
+            const origin = data?.data?.origin || 'N/A';
+            const destination = data?.data?.destination || 'N/A';
+            const message = {
+                zh: `已自动导入 SimBrief OFP：${origin} -> ${destination}`,
+                ja: `SimBrief OFP を自動インポートしました: ${origin} -> ${destination}`,
+                en: `OFP imported automatically: ${origin} -> ${destination}`,
+            }[lang] || `OFP imported automatically: ${origin} -> ${destination}`;
+            showSystemToast('SimBrief', message, 'success');
+        } catch (error) {
+            console.warn('Auto SimBrief import failed:', error);
+            const lang = localStorage.getItem('language') || 'en';
+            const message = {
+                zh: `自动导入 SimBrief 失败：${error.message || error}`,
+                ja: `SimBrief 自動インポートに失敗しました: ${error.message || error}`,
+                en: `Automatic import failed: ${error.message || error}`,
+            }[lang] || `Automatic import failed: ${error.message || error}`;
+            showSystemToast('SimBrief', message, 'warning');
+        }
+    }
+
     showCareerReadinessIfNeeded();
     refreshCareerReadinessFromServer();
+    autoImportSimBriefOnEntry();
 
 </script>
 {% endblock %}

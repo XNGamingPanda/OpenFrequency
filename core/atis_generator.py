@@ -3,6 +3,7 @@ ATIS Generator - Generates ATIS broadcast from METAR data.
 Issue 7: Create ATIS broadcast, cache until METAR changes.
 """
 import hashlib
+import random
 from datetime import datetime, timezone
 from .context import event_bus
 
@@ -35,6 +36,13 @@ class ATISGenerator:
         event_bus.on('atis_played', self._on_atis_played_repeat)
         event_bus.on('atis_stop', self._on_atis_stop)
         print("ATISGenerator: Initialized.")
+
+    def _initial_letter_idx(self, icao):
+        icao_norm = (icao or '').strip().upper() or 'ZZZZ'
+        day_key = datetime.now(timezone.utc).strftime('%Y%m%d')
+        seed = int(hashlib.md5(f"{icao_norm}:{day_key}".encode('utf-8')).hexdigest(), 16)
+        rng = random.Random(seed)
+        return rng.randrange(len(self.PHONETIC))
 
     def _is_china_airport(self, icao):
         return (icao or "").strip().upper().startswith('Z')
@@ -175,9 +183,12 @@ class ATISGenerator:
         """Convert METAR to spoken ATIS format."""
         # Get or increment information letter
         if icao not in self.cached_atis:
-            # Start at a time-based letter so it's not always Alpha on every app launch
-            initial_idx = datetime.now(timezone.utc).hour % 26
-            self.cached_atis[icao] = {'hash': '', 'text': '', 'letter_idx': initial_idx}
+            self.cached_atis[icao] = {
+                'hash': '',
+                'text': '',
+                'letter_idx': self._initial_letter_idx(icao)
+            }
+
 
         info_letter = self.PHONETIC[self.cached_atis[icao]['letter_idx'] % 26]
         

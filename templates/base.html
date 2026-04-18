@@ -14,6 +14,7 @@
     <script>
         // Global Socket Init
         window.socket = io();
+        window.SERVER_UI_PREFERENCES = {{ ui_preferences|tojson|safe }};
     </script>
     <style>
         /* Dark Mode Styles */
@@ -130,6 +131,17 @@
                 "api_key_hint": "Existing key is hidden. Leave as ****** to keep current.",
                 "model_name": "Model Name",
                 "base_url": "Base URL (Local/Ollama)",
+                "ai_routing_title": "AI Routing",
+                "light_model_label": "Light Model",
+                "reasoning_model_label": "Reasoning Model",
+                "sync_primary_connection": "Sync API Key / Base URL with primary connection",
+                "light_api_key": "Light model API Key",
+                "light_base_url": "Light model Base URL",
+                "light_provider": "Light model Provider",
+                "reasoning_api_key": "Reasoning model API Key",
+                "reasoning_base_url": "Reasoning model Base URL",
+                "reasoning_provider": "Reasoning model Provider",
+                "light_conf_threshold": "Light Model Confidence Threshold",
                 "audio_controls": "Audio & Controls",
                 "joystick_ptt": "Joystick PTT",
                 "unbound": "Unbound",
@@ -259,6 +271,17 @@
                 "api_key_hint": "密钥已隐藏。保持 ****** 不变即可。",
                 "model_name": "模型名称",
                 "base_url": "基础 URL (Local/Ollama)",
+                "ai_routing_title": "AI 路由",
+                "light_model_label": "轻量模型",
+                "reasoning_model_label": "思考模型",
+                "sync_primary_connection": "与主连接同步 API Key / Base URL",
+                "light_api_key": "轻量模型 API Key",
+                "light_base_url": "轻量模型 Base URL",
+                "light_provider": "轻量模型 Provider",
+                "reasoning_api_key": "思考模型 API Key",
+                "reasoning_base_url": "思考模型 Base URL",
+                "reasoning_provider": "思考模型 Provider",
+                "light_conf_threshold": "轻量模型置信度阈值",
                 "audio_controls": "音频与控制",
                 "joystick_ptt": "摇杆 PTT 按键",
                 "unbound": "未绑定",
@@ -389,6 +412,17 @@
                 "api_key_hint": "既存のキーは非表示です。変更しない場合は******のままにしてください。",
                 "model_name": "モデル名",
                 "base_url": "ベースURL (ローカル/Ollama)",
+                "ai_routing_title": "AI ルーティング",
+                "light_model_label": "軽量モデル",
+                "reasoning_model_label": "思考モデル",
+                "sync_primary_connection": "APIキー / Base URL をメイン接続と同期",
+                "light_api_key": "軽量モデル API Key",
+                "light_base_url": "軽量モデル Base URL",
+                "light_provider": "軽量モデル Provider",
+                "reasoning_api_key": "思考モデル API Key",
+                "reasoning_base_url": "思考モデル Base URL",
+                "reasoning_provider": "思考モデル Provider",
+                "light_conf_threshold": "軽量モデル信頼度しきい値",
                 "audio_controls": "音声・操作設定",
                 "joystick_ptt": "ジョイスティック PTT",
                 "unbound": "未設定",
@@ -548,6 +582,45 @@
             cabin_descent: "降下案内",
             cabin_arrival: "到着前準備"
         });
+        Object.assign(TRANSLATIONS.en, {
+            history_title: "Flight History",
+            history_subtitle: "Review generated reports and raw flight logs from previous sessions.",
+            history_reports: "Reports",
+            history_logs: "Logs",
+            history_no_reports: "No reports available yet.",
+            history_no_logs: "No logs available yet."
+        });
+        Object.assign(TRANSLATIONS.zh, {
+            history_title: "飞行历史",
+            history_subtitle: "查看之前飞行生成的报表和原始日志。",
+            history_reports: "报表",
+            history_logs: "日志",
+            history_no_reports: "暂时还没有可用报表。",
+            history_no_logs: "暂时还没有可用日志。"
+        });
+        Object.assign(TRANSLATIONS.ja, {
+            history_title: "フライト履歴",
+            history_subtitle: "過去の飛行で生成されたレポートと生ログを確認します。",
+            history_reports: "レポート",
+            history_logs: "ログ",
+            history_no_reports: "まだ利用可能なレポートはありません。",
+            history_no_logs: "まだ利用可能なログはありません。"
+        });
+        Object.assign(TRANSLATIONS.en, {
+            desktop_ptt_enabled: "Desktop background PTT",
+            desktop_ptt_hint: "Keep desktop push-to-talk available after the window is hidden to tray.",
+            desktop_ptt_key: "Desktop PTT Hotkey"
+        });
+        Object.assign(TRANSLATIONS.zh, {
+            desktop_ptt_enabled: "桌面后台 PTT",
+            desktop_ptt_hint: "窗口隐藏到托盘后，仍保留桌面按键通话功能。",
+            desktop_ptt_key: "桌面 PTT 热键"
+        });
+        Object.assign(TRANSLATIONS.ja, {
+            desktop_ptt_enabled: "デスクトップ背景 PTT",
+            desktop_ptt_hint: "ウィンドウをトレイに隠した後も、デスクトップのプッシュ・トゥ・トークを有効にします。",
+            desktop_ptt_key: "デスクトップ PTT ホットキー"
+        });
 
 
         function applyLanguage(lang) {
@@ -579,10 +652,35 @@
             }
         }
 
+        async function syncUiPreferencesFromConfig() {
+            try {
+                const resp = await fetch('/get_config');
+                if (!resp.ok) return;
+                const cfg = await resp.json();
+                const configuredLang = cfg?.ui?.language;
+                const configuredDark = !!cfg?.ui?.dark_mode;
+                if (configuredLang && ['en', 'zh', 'ja'].includes(configuredLang)) {
+                    localStorage.setItem('language', configuredLang);
+                    document.getElementById('lang-selector').value = configuredLang;
+                    applyLanguage(configuredLang);
+                }
+                document.body.classList.toggle('dark-mode', configuredDark);
+                localStorage.setItem('dark_mode', configuredDark ? '1' : '0');
+            } catch (e) {
+                console.warn('UI preference sync failed', e);
+            }
+        }
+
         // Init
-        const savedLang = localStorage.getItem('language') || 'en';
+        const initialServerLang = window.SERVER_UI_PREFERENCES?.language;
+        const savedLang = (initialServerLang && ['en', 'zh', 'ja'].includes(initialServerLang))
+            ? initialServerLang
+            : (localStorage.getItem('language') || 'en');
         document.getElementById('lang-selector').value = savedLang;
         applyLanguage(savedLang);
+        document.addEventListener('DOMContentLoaded', () => {
+            syncUiPreferencesFromConfig();
+        });
 
         // Event Listener
         document.getElementById('lang-selector').addEventListener('change', (e) => {
@@ -679,7 +777,7 @@
         };
 
         // Immediate dark mode from localStorage (prevents flash)
-        if (localStorage.getItem('dark_mode') === '1') {
+        if ((window.SERVER_UI_PREFERENCES?.dark_mode === true) || localStorage.getItem('dark_mode') === '1') {
             document.body.classList.add('dark-mode');
         }
 
@@ -692,6 +790,10 @@
             }
 
             console.log("Setting up socket listeners for toasts...");
+            const toastText = (key, fallback) => {
+                const currentLang = localStorage.getItem('language') || 'en';
+                return (window.TRANSLATIONS && window.TRANSLATIONS[currentLang] && window.TRANSLATIONS[currentLang][key]) || fallback;
+            };
 
             // Flight Report Toast notification
             window.socket.on('flight_report_ready', (data) => {
@@ -716,6 +818,18 @@
                 const wrap = document.createElement('div');
                 wrap.innerHTML = html;
                 container.appendChild(wrap.firstElementChild);
+                const toastEl = document.getElementById(toastId);
+                const reportButton = toastEl ? toastEl.querySelector('a.btn-light') : null;
+                if (reportButton) {
+                    reportButton.classList.remove('w-100');
+                    reportButton.textContent = toastText('view_report_btn', 'View Report');
+                    const historyLink = document.createElement('a');
+                    historyLink.href = '/history';
+                    historyLink.target = '_blank';
+                    historyLink.className = 'btn btn-outline-light btn-sm ms-2';
+                    historyLink.textContent = toastText('view_history_btn', 'History');
+                    reportButton.insertAdjacentElement('afterend', historyLink);
+                }
 
                 // Auto-dismiss after 15 seconds
                 setTimeout(() => {
@@ -724,11 +838,44 @@
                 }, 15000);
             });
 
+            window.socket.on('flight_arrival_ready', (data) => {
+                const container = document.getElementById('toast-container');
+                if (!container) return;
+
+                const toastId = `toast-flight-arrival-${Date.now()}`;
+                const current = data.current_airport || 'N/A';
+                const destination = data.destination || 'N/A';
+                const html = `
+                    <div id="${toastId}" class="toast show text-white bg-success" role="alert" aria-live="assertive" aria-atomic="true">
+                      <div class="toast-header bg-success text-white">
+                        <strong class="me-auto">${toastText('flight_arrival_title', 'Arrival Detected')}</strong>
+                        <small>Just now</small>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                      </div>
+                      <div class="toast-body">
+                        <p class="mb-2">${toastText('flight_arrival_body', 'Landed at destination. End this flight when ready.')}<br><small>${current} / ${destination}</small></p>
+                        <div class="d-flex gap-2 flex-wrap">
+                          <button class="btn btn-light btn-sm" onclick="window.endActiveFlight('${toastId}')">${toastText('end_flight_btn', 'End Flight')}</button>
+                          <a href="/history" target="_blank" class="btn btn-outline-light btn-sm">${toastText('view_history_btn', 'History')}</a>
+                        </div>
+                      </div>
+                    </div>
+                `;
+                const wrap = document.createElement('div');
+                wrap.innerHTML = html;
+                container.appendChild(wrap.firstElementChild);
+            });
+
             // Dark Mode sync from server config
             window.socket.on('config_sync', (cfg) => {
                 const darkMode = cfg?.ui?.dark_mode || false;
                 document.body.classList.toggle('dark-mode', darkMode);
                 localStorage.setItem('dark_mode', darkMode ? '1' : '0');
+                const lang = cfg?.ui?.language;
+                if (lang && ['en', 'zh', 'ja'].includes(lang)) {
+                    document.getElementById('lang-selector').value = lang;
+                    applyLanguage(lang);
+                }
             });
         }
 
@@ -736,6 +883,24 @@
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(setupSocketListeners, 200);
         });
+
+        window.endActiveFlight = async function (toastId) {
+            try {
+                const response = await fetch('/api/flight/end', { method: 'POST' });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    alert(data.message || 'Failed to end flight.');
+                    return;
+                }
+                const toastEl = document.getElementById(toastId);
+                if (toastEl) toastEl.remove();
+                if (data.latest_report) {
+                    window.open(data.latest_report, '_blank');
+                }
+            } catch (error) {
+                alert(`Failed to end flight. ${error}`);
+            }
+        };
     </script>
 
     {% block scripts %}{% endblock %}
