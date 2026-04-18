@@ -1,0 +1,24 @@
+{
+  "_comment": "Built-in cabin media definitions. Add airline-specific media here or in plugins.",
+  "entries": [
+    {
+      "id": "generic_boarding",
+      "name": "Boarding Music",
+      "name_zh": "登机音乐",
+      "file": "",
+      "callsigns": [],
+      "trigger": "boarding",
+      "loop": true,
+      "_note": "No default file — airlines should provide their own via plugins or user cabin_media folder."
+    },
+    {
+      "id": "generic_deboarding",
+      "name": "Deboarding Music",
+      "name_zh": "下机音乐",
+      "file": "",
+      "callsigns": [],
+      "trigger": "deboarding",
+      "loop": true
+    }
+  ]
+}

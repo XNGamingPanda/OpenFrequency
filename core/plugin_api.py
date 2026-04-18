@@ -22,7 +22,18 @@ Manifest schema
     "on_telemetry",
     "on_frequency_change"
   ],
-  "settings_schema": {}                   // optional plugin settings JSON-Schema
+  "settings_schema": {},                   // optional plugin settings JSON-Schema
+  "cabin_media": [                         // optional cabin media definitions
+    {
+      "id":        "my_boarding",          // unique id (snake_case)
+      "name":      "My Airline Boarding",  // English display name
+      "name_zh":   "我的航空登机音乐",     // optional Chinese name
+      "file":      "media/boarding.mp3",   // path relative to plugin folder
+      "callsigns": ["MYA", "MY"],          // ICAO/IATA prefixes to auto-match; [] = all
+      "trigger":   "boarding",            // boarding|deboarding|safety|custom
+      "loop":      false
+    }
+  ]
 }
 
 Available hooks (override in your Plugin subclass)
@@ -34,6 +45,7 @@ Available hooks (override in your Plugin subclass)
   on_frequency_change(frequency: float)  → COM1 frequency changed
   on_pilot_input(text: str)              → pilot speech/text before LLM
   on_chat_message(sender, text)          → any chat message logged
+  on_cabin_media_play(media_id)          → a cabin media entry was triggered
 
 Plugin API (available as self.<method>)
 ---------------------------------------
@@ -109,6 +121,9 @@ class OpenFrequencyPlugin:
 
     def on_chat_message(self, sender: str, text: str):
         """Called for every message logged in the Comms Log."""
+
+    def on_cabin_media_play(self, media_id: str):
+        """Called when a cabin media entry is triggered (by UI or automation)."""
 
     # ── Plugin API (use in your hook methods) ─────────────────────────────────
 

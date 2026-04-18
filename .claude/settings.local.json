@@ -3,7 +3,29 @@
     "allow": [
       "Bash(python -c ' *)",
       "Bash(grep -E \"\\\\.py$\")",
-      "Bash(awk '{print $NF}')"
+      "Bash(awk '{print $NF}')",
+      "Bash(gh pr create --title 'feat: cloud services, plugin system, radar vectoring, language toggle, auto-busy, SimConnect bundling & MSI pipeline' --body ' *)",
+      "Bash(where gh *)",
+      "Bash(winget list *)",
+      "Bash(pyinstaller --version)",
+      "Bash(dotnet tool *)",
+      "Bash(pip show *)",
+      "Bash(pip install *)",
+      "Bash(python -m PyInstaller --version)",
+      "Bash(pyinstaller openfrequency.spec --noconfirm --clean)",
+      "Bash(grep -qE \"successfully built|Building EXE|BOOTLOADER|\\\\.exe$|error occurred|No such file\" \"C:\\\\Users\\\\HP\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--OpenFrequency--claude-worktrees-xenodochial-robinson\\\\970ec13c-0026-4752-8365-0c31194f8e9a\\\\tasks\\\\btl3oxzms.output\")",
+      "Bash(grep -E --line-buffered \"Building EXE|COLLECT|successfully built|build\\\\\\\\\\\\\\\\OpenFrequency|dist\\\\\\\\\\\\\\\\OpenFrequency|seconds$|minutes$|ERROR:|error:\")",
+      "Bash(tasklist)",
+      "Bash(grep -E --line-buffered \"Building EXE|COLLECT|successfully|dist.OpenFrequency|\\\\.exe|complete|Error|Traceback|bytes$\")",
+      "Bash(break)",
+      "Bash(grep -E --line-buffered \"Building PKG|Bootloader|Building EXE|Building COLLECT|successfully built|build\\\\\\\\\\\\\\\\OpenFrequency-Console|WARN: Cannot find|fatal|Error occurred\")",
+      "Bash([ -d \"$distdir\" ])",
+      "Bash(tasklist /fi \"imagename eq pyinstaller*\")",
+      "Bash(tasklist /fi \"imagename eq python*\")",
+      "Bash([ -f \"$distdir/OpenFrequency.exe\" ])",
+      "Bash(grep -E --line-buffered \"PYZ-00.pyz|Building PKG|Building EXE|Building COLLECT|successfully built|bytes$|error\")",
+      "Bash(dir dist\\\\OpenFrequency /s /-c)",
+      "Bash(powershell -Command \"Write-Host 'Zipping dist\\\\OpenFrequency...'; Compress-Archive -Path 'dist\\\\OpenFrequency\\\\*' -DestinationPath 'dist\\\\OpenFrequency-3.9-beta.zip' -Force; Write-Host 'Done.'\")"
     ]
   }
 }

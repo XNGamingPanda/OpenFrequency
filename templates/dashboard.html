@@ -277,6 +277,12 @@
                 <button class="btn btn-outline-dark btn-sm" type="button" onclick="sendCabinIntercom('stop_ambience')"
                     data-i18n="btn_stop_sound">Stop Audio</button>
             </div>
+
+            <!-- ── Plugin / Airline Cabin Media ─────────────────────────── -->
+            <div id="cabin-plugin-media-row" class="d-none mt-2">
+                <div class="small fw-semibold mb-1" data-i18n="cabin_plugin_media">✈ Airline Media</div>
+                <div id="cabin-plugin-media-buttons" class="d-flex flex-wrap gap-2"></div>
+            </div>
         </div>
 
         <button id="ptt-btn" class="btn btn-primary btn-lg w-100 py-3 fw-bold shadow-sm mb-3" data-i18n="ptt_btn">PUSH
@@ -992,6 +998,33 @@
             cabinMediaCaption.textContent = '';
         }
     }
+
+    // ── Plugin / Airline Cabin Media ────────────────────────────────────────
+    function renderPluginCabinMedia(mediaList) {
+        const row  = document.getElementById('cabin-plugin-media-row');
+        const btns = document.getElementById('cabin-plugin-media-buttons');
+        if (!row || !btns) return;
+        btns.innerHTML = '';
+        const withFile = (mediaList || []).filter(m => m.file);
+        if (!withFile.length) { row.classList.add('d-none'); return; }
+        row.classList.remove('d-none');
+        withFile.forEach(m => {
+            const lang = window._i18nLang || 'en';
+            const label = (lang === 'zh' && m.name_zh) ? m.name_zh : m.name;
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-outline-info btn-sm';
+            btn.textContent = label;
+            btn.title = m.trigger || '';
+            btn.onclick = () => socket.emit('cabin_media_play', { id: m.id });
+            btns.appendChild(btn);
+        });
+    }
+    socket.on('cabin_media_updated', d => renderPluginCabinMedia(d.media));
+    // Request media list on connect
+    socket.on('connect', () => {
+        const cs = window.currentCallsign || '';
+        socket.emit('cabin_media_list', { callsign: cs });
+    });
 
     socket.on('play_ambience', (data) => {
         if (currentAmbience) {

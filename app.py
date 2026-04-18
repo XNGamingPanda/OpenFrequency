@@ -1420,6 +1420,17 @@ if __name__ == '__main__':
     atc_monitor = ATCMonitor(config)
     sim_bridge = SimBridge(config, shared_context, context_lock, event_bus)
 
+    # ── Cabin Media Manager ───────────────────────────────────────────────────
+    from core.cabin_media_manager import cabin_media_manager as _cabin_media_mgr
+    _cabin_media_mgr.attach_socketio(socketio)
+    _cabin_media_mgr.load_builtin()
+    _cabin_media_mgr.load_user()
+
+    # Sync callsign changes to cabin media manager
+    def _on_callsign_change(callsign):
+        _cabin_media_mgr.set_callsign(callsign)
+    event_bus.on('callsign_changed', _on_callsign_change)
+
     # ── Plugin Manager ────────────────────────────────────────────────────────
     _plugin_manager = PluginManager(config, socketio, event_bus, context_lock, shared_context)
     _plugin_manager.discover()
@@ -1434,6 +1445,7 @@ if __name__ == '__main__':
     nav_manager = NavManager(config, shared_context, context_lock, event_bus, ground_service=ground_data_service, airport_frequency_service=airport_frequency_service)
     stt_module = STTLocal(config, event_bus)
     llm_client = LLMClient(config, shared_context, context_lock, event_bus)
+    logic_manager._llm_client = llm_client  # Tier 2 fast-LLM access
     tts_engine = TTSEngine(config, socketio)
     atis_generator = ATISGenerator(config, socketio, airport_frequency_service=airport_frequency_service)
     traffic_manager = TrafficStateManager(config, sim_bridge, socketio)
@@ -1633,6 +1645,22 @@ if __name__ == '__main__':
         with context_lock:
             shared_context['aircraft']['com1_freq'] = frequency
         socketio.emit('frequency_tuned', {'frequency': frequency, 'tuned': tuned})
+
+    @socketio.on('cabin_media_play')
+    def handle_cabin_media_play(data):
+        """Frontend requests playback of a cabin media entry by id."""
+        media_id = data.get('id', '')
+        if media_id:
+            _cabin_media_mgr.play(media_id)
+            _plugin_manager.hook_cabin_media_play(media_id)
+
+    @socketio.on('cabin_media_list')
+    def handle_cabin_media_list(data):
+        """Frontend requests the current cabin media list for the active callsign."""
+        callsign = data.get('callsign', '')
+        items = _cabin_media_mgr.media_for_callsign(callsign)
+        safe = [e for e in items if e.get('file')]  # only entries with a file
+        emit('cabin_media_updated', {'media': safe})
 
     @socketio.on('cabin_intercom')
     def handle_cabin_intercom(data):

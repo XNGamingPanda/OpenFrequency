@@ -759,20 +759,80 @@ class LogicManager:
         if self._plugin_manager:
             text = self._plugin_manager.hook_pilot_input(text) or text
 
-        # ── Quick reply auto-match (acknowledgements only) ───────────────────
-        # Detect pilot speech that is purely a readback / roger / wilco and
-        # respond instantly with a template, skipping the LLM call entirely.
+        # ── Tier 1: Keyword / template auto-match ───────────────────────────
+        # Pure readbacks / roger / wilco → instant canned response, no AI.
         stt_lang = self._config_audio_lang()
         qr_ctx = QuickReplyEngine.build_context_from_shared(ctx_snapshot)
         quick = QuickReplyEngine.auto_match(text, current_controller, qr_ctx, lang=stt_lang)
         if quick:
-            print(f"LogicManager: Quick reply matched → '{quick[:60]}'")
+            print(f"LogicManager: [Tier 1] Template matched → '{quick[:60]}'")
             self.on_llm_response(quick, None)
             return
 
-        # ── Normal LLM path ─────────────────────────────────────────────────
+        # ── Tier 2: Lightweight / fast LLM ──────────────────────────────────
+        # Try the fast model first.  If it signals ESCALATE, fall through to
+        # the full thinking model (Tier 3).
         history = list(self.message_history)[-6:]
+        fast_reply = self._try_fast_llm(text, ctx_snapshot, history)
+        if fast_reply is not None:
+            print(f"LogicManager: [Tier 2] Fast LLM answered → '{fast_reply[:60]}'")
+            self.on_llm_response(fast_reply, None)
+            return
+
+        # ── Tier 3: Full / thinking LLM ─────────────────────────────────────
+        print("LogicManager: [Tier 3] Escalating to full/thinking model.")
         event_bus.emit('llm_request', text, history)
+
+    # ── Tier 2 helper ────────────────────────────────────────────────────────
+
+    _FAST_ESCALATE_MARKER = 'ESCALATE'
+
+    def _try_fast_llm(self, text: str, ctx_snapshot: dict, history: list):
+        """
+        Attempt to answer with the lightweight/fast LLM model.
+
+        Returns:
+            str  — fast-model ATC reply (use it directly)
+            None — fast model signalled ESCALATE; caller should try Tier 3
+        """
+        llm = getattr(self, '_llm_client', None)
+        if llm is None:
+            return None
+
+        # If fast and thinking model are identical, skip Tier 2 to avoid a
+        # redundant call — Tier 3 will use the same model anyway.
+        if getattr(llm, 'model_fast', None) == getattr(llm, 'model_thinking', None):
+            return None
+
+        controller = ctx_snapshot.get('atc_state', {}).get('current_controller', 'ATC')
+        callsign   = ctx_snapshot.get('aircraft', {}).get('callsign', 'Station')
+        airport    = (ctx_snapshot.get('environment', {}).get('current_airport') or
+                      ctx_snapshot.get('environment', {}).get('nearest_airport') or 'unknown')
+        alt        = ctx_snapshot.get('aircraft', {}).get('altitude', 0)
+        phase      = ctx_snapshot.get('flight', {}).get('phase', 'unknown')
+
+        system_prompt = (
+            f"You are {controller} at {airport}. Aircraft callsign: {callsign}. "
+            f"Phase: {phase}, Altitude: {alt} ft.\n"
+            "Reply with ONE concise, standard ICAO ATC radio response. "
+            "Output plain text only (no JSON). "
+            f"If the request is unclear, complex, or requires detailed reasoning, "
+            f"reply with exactly the single word: {self._FAST_ESCALATE_MARKER}"
+        )
+
+        try:
+            reply = llm._call_llm_sync(
+                system_prompt=system_prompt,
+                user_message=text,
+                max_tokens=120,
+            )
+            reply = (reply or '').strip()
+            if not reply or reply.upper() == self._FAST_ESCALATE_MARKER:
+                return None
+            return reply
+        except Exception as e:
+            print(f"LogicManager: Tier 2 fast LLM error — {e}; escalating.")
+            return None
 
     def _config_audio_lang(self) -> str:
         """Return 'en'/'zh'/'ja' for quick-reply template selection."""
