@@ -28,9 +28,12 @@ class ATISGenerator:
         self.airport_frequency_service = airport_frequency_service
         self.cached_atis = {}  # {icao: {'hash': ..., 'text': ..., 'letter_idx': ...}}
         self.pending_playback = set()
-        
+        self.active_atis_icao = None  # currently looping ATIS airport
+
         event_bus.on('atis_playback_request', self.on_atis_request)
         event_bus.on('metar_updated', self.on_metar_updated)
+        event_bus.on('atis_played', self._on_atis_played_repeat)
+        event_bus.on('atis_stop', self._on_atis_stop)
         print("ATISGenerator: Initialized.")
 
     def _is_china_airport(self, icao):
@@ -52,8 +55,12 @@ class ATISGenerator:
             return weather_data['name'].split(',')[0].replace('/', ' ').strip()
         return icao
 
-    def _chinese_airport_name(self, icao):
-        return self.CHINA_AIRPORT_NAMES.get((icao or '').upper(), icao)
+    def _chinese_airport_name(self, icao, weather_data=None):
+        name = self.CHINA_AIRPORT_NAMES.get((icao or '').upper())
+        if name:
+            return name
+        # Fall back to English name rather than reading the raw ICAO code
+        return self._english_airport_name(icao, weather_data)
 
     def _digits_enunciated_zh(self, text, use_liang=False):
         digit_map = {'0': '洞', '1': '幺', '2': '两' if use_liang else '二', '3': '三', '4': '四', '5': '五', '6': '六', '7': '拐', '8': '八', '9': '九'}
@@ -168,8 +175,10 @@ class ATISGenerator:
         """Convert METAR to spoken ATIS format."""
         # Get or increment information letter
         if icao not in self.cached_atis:
-            self.cached_atis[icao] = {'hash': '', 'text': '', 'letter_idx': 0}
-        
+            # Start at a time-based letter so it's not always Alpha on every app launch
+            initial_idx = datetime.now(timezone.utc).hour % 26
+            self.cached_atis[icao] = {'hash': '', 'text': '', 'letter_idx': initial_idx}
+
         info_letter = self.PHONETIC[self.cached_atis[icao]['letter_idx'] % 26]
         
         report_time_en = "Unknown"
@@ -178,7 +187,7 @@ class ATISGenerator:
         if weather_data:
             report_time_en, report_time_zh = self._format_report_time(weather_data, metar_raw)
         airport_name_en = self._english_airport_name(icao, weather_data)
-        airport_name_zh = self._chinese_airport_name(icao)
+        airport_name_zh = self._chinese_airport_name(icao, weather_data)
         visibility_en, visibility_zh = self._format_visibility(weather_data)
         clouds_en, clouds_zh = self._format_clouds(weather_data)
         wind_en, wind_zh = self._format_wind(weather_data)
@@ -248,21 +257,42 @@ Advise on initial contact you have Information {info_letter}.
             self.pending_playback.discard(icao)
             self._emit_atis_log(icao, atis_text)
             event_bus.emit('atis_tts_request', atis_text, icao)
+        elif self.active_atis_icao == icao:
+            # ATIS updated while currently looping — show new log entry and restart with updated text
+            self._emit_atis_log(icao, atis_text)
+            event_bus.emit('atis_tts_request', atis_text, icao)
     
     def on_atis_request(self, icao):
         """Play ATIS for the given airport."""
         if not icao or icao == 'N/A':
             print("ATISGenerator: No valid ICAO for ATIS request.")
             return
-        
+
+        self.active_atis_icao = icao
+
         if icao in self.cached_atis and self.cached_atis[icao]['text']:
             atis_text = self.cached_atis[icao]['text']
             print(f"ATISGenerator: Playing cached ATIS for {icao}")
             self._emit_atis_log(icao, atis_text)
-            # Emit TTS request for ATIS (use a neutral voice)
             event_bus.emit('atis_tts_request', atis_text, icao)
         else:
             # No cached ATIS - request METAR first
             print(f"ATISGenerator: No cached ATIS for {icao}. Fetching METAR...")
             self.pending_playback.add(icao)
             event_bus.emit('metar_fetch_request', icao)
+
+    def _on_atis_played_repeat(self, icao):
+        """After ATIS finishes playing, loop it if still on this ATIS frequency."""
+        if self.active_atis_icao != icao:
+            return
+        if icao not in self.cached_atis or not self.cached_atis[icao]['text']:
+            return
+        print(f"ATISGenerator: Looping ATIS for {icao}")
+        # Re-emit TTS only (no chat log entry for repeats)
+        event_bus.emit('atis_tts_request', self.cached_atis[icao]['text'], icao)
+
+    def _on_atis_stop(self):
+        """Stop ATIS looping (called when frequency changes away from ATIS)."""
+        if self.active_atis_icao:
+            print(f"ATISGenerator: Stopping ATIS loop for {self.active_atis_icao}")
+            self.active_atis_icao = None

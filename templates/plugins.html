@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid px-3 py-3" style="max-width:1100px;">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h4 class="mb-0">🧩 Plugin Manager</h4>
+      <small class="text-muted">Community plugins &amp; official DLC</small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/dashboard" class="btn btn-sm btn-outline-secondary">← Dashboard</a>
+      <a href="/settings"  class="btn btn-sm btn-outline-secondary">⚙ Settings</a>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-3" id="pm-tabs">
+    <li class="nav-item">
+      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-installed">
+        Installed Plugins
+        <span class="badge bg-secondary ms-1" id="installed-count">…</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dlc">
+        Official DLC &amp; Add-ons
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-install">
+        Install from ZIP
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dev">
+        Developer Guide
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+
+    <!-- ── Installed Plugins tab ─────────────────────────────────────────── -->
+    <div class="tab-pane fade show active" id="tab-installed">
+      <div id="plugins-list">
+        <div class="text-center text-muted py-5">
+          <div class="spinner-border spinner-border-sm me-2"></div>Loading plugins…
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Official DLC tab ──────────────────────────────────────────────── -->
+    <div class="tab-pane fade" id="tab-dlc">
+
+      <!-- MSFS community folder configuration -->
+      <div class="card mb-3 border-warning">
+        <div class="card-body py-2">
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="flex-grow-1">
+              <label class="form-label small fw-semibold mb-0">MSFS Community Folder</label>
+              <div class="input-group input-group-sm mt-1">
+                <input type="text" id="msfs-community-path" class="form-control"
+                  placeholder="e.g. C:\…\Microsoft Flight Simulator\Community"
+                  value="">
+                <button class="btn btn-outline-secondary" onclick="autoDetectCommunity()">
+                  Auto-detect
+                </button>
+                <button class="btn btn-outline-primary" onclick="saveCommunityPath()">
+                  Save
+                </button>
+              </div>
+              <div class="form-text">Required to install DLC into MSFS. Saved in Settings.</div>
+            </div>
+            <div id="community-status" class="small text-muted"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DLC progress bar (shown during install) -->
+      <div id="dlc-progress-area" style="display:none;" class="mb-3">
+        <div class="card border-primary">
+          <div class="card-body py-2">
+            <div class="d-flex justify-content-between small mb-1">
+              <span id="dlc-progress-label">Installing…</span>
+              <span id="dlc-progress-pct">0%</span>
+            </div>
+            <div class="progress" style="height:8px;">
+              <div id="dlc-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DLC catalog cards -->
+      <div id="dlc-list" class="row g-3">
+        <div class="col-12 text-center text-muted py-5">
+          <div class="spinner-border spinner-border-sm me-2"></div>Loading catalog…
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Install from ZIP tab ──────────────────────────────────────────── -->
+    <div class="tab-pane fade" id="tab-install">
+      <div class="card">
+        <div class="card-body">
+          <h6>Install Community Plugin from ZIP</h6>
+          <p class="text-muted small mb-3">
+            A plugin ZIP must contain a <code>manifest.json</code> at its root and a Python entry-point file.
+          </p>
+          <div class="mb-3">
+            <input type="file" class="form-control" id="plugin-zip-file" accept=".zip">
+          </div>
+          <button class="btn btn-primary" onclick="installFromZip()">
+            📦 Install Plugin
+          </button>
+          <div id="install-result" class="mt-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Developer Guide tab ───────────────────────────────────────────── -->
+    <div class="tab-pane fade" id="tab-dev">
+      <div class="card">
+        <div class="card-body">
+          <h6>Creating a Community Plugin</h6>
+          <ol class="small">
+            <li>Create a folder: <code>plugins/community/my_plugin/</code></li>
+            <li>Add <code>manifest.json</code>:
+<pre class="bg-light p-2 rounded mt-1 mb-2" style="font-size:0.75em;">{
+  "id":          "my_plugin",
+  "name":        "My Plugin",
+  "version":     "1.0.0",
+  "author":      "Your Name",
+  "description": "What this plugin does.",
+  "entry":       "plugin.py",
+  "hooks":       ["on_atc_response", "on_telemetry"]
+}</pre>
+            </li>
+            <li>Add <code>plugin.py</code>:
+<pre class="bg-light p-2 rounded mt-1 mb-2" style="font-size:0.75em;">from core.plugin_api import OpenFrequencyPlugin
+
+class Plugin(OpenFrequencyPlugin):
+    def on_load(self):
+        self.log("Hello from my plugin!")
+
+    def on_atc_response(self, text, action):
+        # Optionally modify ATC text; return None to keep original
+        return None
+
+    def on_telemetry(self, data):
+        alt = data.get("aircraft", {}).get("altitude", 0)
+        # do something with altitude…</pre>
+            </li>
+            <li>Restart OpenFrequency or click <strong>Reload Plugins</strong>.</li>
+          </ol>
+          <h6 class="mt-3">Available Hooks</h6>
+          <table class="table table-sm table-bordered small">
+            <thead class="table-light"><tr><th>Hook</th><th>Called when</th><th>Can return</th></tr></thead>
+            <tbody>
+              <tr><td><code>on_load()</code></td><td>Plugin enabled / app start</td><td>—</td></tr>
+              <tr><td><code>on_unload()</code></td><td>Plugin disabled / removed</td><td>—</td></tr>
+              <tr><td><code>on_atc_response(text, action)</code></td><td>Every ATC reply</td><td>Modified text or None</td></tr>
+              <tr><td><code>on_telemetry(data)</code></td><td>~10 Hz telemetry snapshot</td><td>—</td></tr>
+              <tr><td><code>on_frequency_change(freq)</code></td><td>COM1 frequency change</td><td>—</td></tr>
+              <tr><td><code>on_pilot_input(text)</code></td><td>Before LLM processes speech</td><td>Modified text or None</td></tr>
+              <tr><td><code>on_chat_message(sender, text)</code></td><td>Any comms log message</td><td>—</td></tr>
+            </tbody>
+          </table>
+          <h6 class="mt-3">Plugin API</h6>
+          <table class="table table-sm table-bordered small">
+            <thead class="table-light"><tr><th>Method / Property</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>self.emit(event, data)</code></td><td>Push socket.io event to dashboard</td></tr>
+              <tr><td><code>self.subscribe(event, cb)</code></td><td>Listen to internal EventBus events</td></tr>
+              <tr><td><code>self.shared_context</code></td><td>Read-only snapshot of shared state</td></tr>
+              <tr><td><code>self.config</code></td><td>Plugin's own config dict</td></tr>
+              <tr><td><code>self.save_config()</code></td><td>Persist config to plugin/config.json</td></tr>
+              <tr><td><code>self.log(msg)</code></td><td>Log with plugin prefix</td></tr>
+            </tbody>
+          </table>
+
+          <button class="btn btn-sm btn-outline-primary" onclick="reloadPlugins()">
+            🔄 Reload All Plugins
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.tab-content -->
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── Installed plugins ───────────────────────────────────────────────────────
+  async function loadPlugins() {
+    const r = await fetch('/api/plugins');
+    const plugins = await r.json();
+    const el = document.getElementById('plugins-list');
+    document.getElementById('installed-count').textContent = plugins.length;
+
+    if (!plugins.length) {
+      el.innerHTML = `<div class="text-center text-muted py-5">
+        No community plugins installed yet.<br>
+        <small>Install one from a ZIP file or create your own — see the Developer Guide tab.</small>
+      </div>`;
+      return;
+    }
+
+    el.innerHTML = plugins.map(p => `
+      <div class="card mb-2">
+        <div class="card-body py-2 d-flex align-items-center gap-3">
+          <div class="flex-grow-1">
+            <div class="fw-semibold">${p.name}
+              <span class="badge ${p.loaded ? 'bg-success' : (p.error ? 'bg-danger' : 'bg-secondary')} ms-1" style="font-size:0.65em;">
+                ${p.loaded ? 'Active' : (p.error ? 'Error' : (p.enabled ? 'Loading…' : 'Disabled'))}
+              </span>
+              <span class="text-muted small ms-1">v${p.version}</span>
+            </div>
+            <div class="small text-muted">${p.author ? 'by ' + p.author + ' — ' : ''}${p.description}</div>
+            ${p.error ? `<div class="small text-danger mt-1">⚠ ${p.error}</div>` : ''}
+            ${p.hooks && p.hooks.length ? `<div class="small text-muted mt-1">Hooks: ${p.hooks.join(', ')}</div>` : ''}
+          </div>
+          <div class="d-flex gap-2 flex-shrink-0">
+            ${p.enabled
+              ? `<button class="btn btn-sm btn-outline-warning" onclick="togglePlugin('${p.id}', false)">Disable</button>`
+              : `<button class="btn btn-sm btn-outline-success" onclick="togglePlugin('${p.id}', true)">Enable</button>`}
+            <button class="btn btn-sm btn-outline-danger" onclick="uninstallPlugin('${p.id}', '${p.name}')">Uninstall</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function togglePlugin(id, enable) {
+    await fetch(`/api/plugins/${id}/${enable ? 'enable' : 'disable'}`, { method: 'POST' });
+    loadPlugins();
+  }
+
+  async function uninstallPlugin(id, name) {
+    if (!confirm(`Uninstall "${name}"? This will delete its folder.`)) return;
+    await fetch(`/api/plugins/${id}`, { method: 'DELETE' });
+    loadPlugins();
+  }
+
+  async function reloadPlugins() {
+    // Reload page to re-run discover()
+    window.location.reload();
+  }
+
+  // ── ZIP install ─────────────────────────────────────────────────────────────
+  async function installFromZip() {
+    const fileInput = document.getElementById('plugin-zip-file');
+    if (!fileInput.files.length) { alert('Select a ZIP file first.'); return; }
+    const form = new FormData();
+    form.append('file', fileInput.files[0]);
+    const r    = await fetch('/api/plugins/install', { method: 'POST', body: form });
+    const data = await r.json();
+    const res  = document.getElementById('install-result');
+    res.innerHTML = `<div class="alert alert-${data.ok ? 'success' : 'danger'} py-2 small">${data.message}</div>`;
+    if (data.ok) loadPlugins();
+  }
+
+  // ── DLC catalog ─────────────────────────────────────────────────────────────
+  async function loadDlcCatalog() {
+    const r = await fetch('/api/dlc/catalog');
+    const items = await r.json();
+    const el = document.getElementById('dlc-list');
+    el.innerHTML = items.map(item => `
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 ${item.installed ? 'border-success' : ''}">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span style="font-size:2rem;">${item.icon || '📦'}</span>
+              ${item.installed === true
+                ? '<span class="badge bg-success">Installed</span>'
+                : item.installed === false
+                  ? '<span class="badge bg-secondary">Not installed</span>'
+                  : '<span class="badge bg-light text-muted border">Path not set</span>'}
+            </div>
+            <h6 class="card-title mb-0">${item.name}</h6>
+            <div class="small text-muted mb-1">${item.author}</div>
+            <p class="card-text small">${item.description}</p>
+            <div class="d-flex flex-wrap gap-1 mb-2">
+              ${(item.tags||[]).map(t => `<span class="badge bg-light text-secondary border">${t}</span>`).join('')}
+            </div>
+            <div class="small text-muted mb-2">~${item.size_mb || '?'} MB · ${item.simulator?.toUpperCase() || 'MSFS'}</div>
+          </div>
+          <div class="card-footer bg-white d-flex gap-2">
+            <button class="btn btn-sm btn-primary flex-grow-1" onclick="installDlc('${item.id}','${item.name.replace(/'/g,'\\\'')}')"
+              ${item.installed === null ? 'disabled title="Set community folder first"' : ''}>
+              ${item.installed ? '🔄 Reinstall' : '⬇ Install'}
+            </button>
+            ${item.homepage ? `<a href="${item.homepage}" target="_blank" class="btn btn-sm btn-outline-secondary">ℹ</a>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function installDlc(id, name) {
+    if (!confirm(`Install "${name}"?\nThis will download ~1GB. Ensure the MSFS Community folder is set above.`)) return;
+    const r = await fetch(`/api/dlc/install/${id}`, { method: 'POST' });
+    const data = await r.json();
+    if (data.ok) {
+      document.getElementById('dlc-progress-area').style.display = 'block';
+      pollDlcProgress();
+    } else {
+      alert(data.message);
+    }
+  }
+
+  let _pollTimer = null;
+  function pollDlcProgress() {
+    _pollTimer = setInterval(async () => {
+      const r = await fetch('/api/dlc/progress');
+      const p = await r.json();
+      document.getElementById('dlc-progress-label').textContent = p.message || p.phase;
+      document.getElementById('dlc-progress-pct').textContent   = p.pct + '%';
+      document.getElementById('dlc-progress-bar').style.width   = p.pct + '%';
+      if (p.phase === 'done' || p.phase === 'error') {
+        clearInterval(_pollTimer);
+        const bar = document.getElementById('dlc-progress-bar');
+        bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+        bar.classList.add(p.phase === 'done' ? 'bg-success' : 'bg-danger');
+        if (p.phase === 'done') loadDlcCatalog();
+      }
+    }, 800);
+  }
+
+  // ── MSFS community path ─────────────────────────────────────────────────────
+  async function autoDetectCommunity() {
+    const r = await fetch('/api/browse_msfs_community', { method: 'POST' });
+    const d = await r.json();
+    if (d.found) {
+      document.getElementById('msfs-community-path').value = d.path;
+      document.getElementById('community-status').textContent = '✔ Detected';
+      document.getElementById('community-status').className   = 'small text-success';
+    } else {
+      document.getElementById('community-status').textContent = '✗ Not found — enter path manually';
+      document.getElementById('community-status').className   = 'small text-danger';
+    }
+  }
+
+  async function saveCommunityPath() {
+    const path = document.getElementById('msfs-community-path').value.trim();
+    const r = await fetch('/save_settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ simulator: { msfs_community: path } })
+    });
+    const d = await r.json();
+    document.getElementById('community-status').textContent = d.status === 'success' ? '✔ Saved' : '✗ Error';
+    document.getElementById('community-status').className   =
+      d.status === 'success' ? 'small text-success' : 'small text-danger';
+    loadDlcCatalog();   // refresh install status
+  }
+
+  async function loadCurrentCommunityPath() {
+    try {
+      const r = await fetch('/get_config');
+      const cfg = await r.json();
+      const path = cfg.simulator?.msfs_community || '';
+      document.getElementById('msfs-community-path').value = path;
+    } catch (e) {}
+  }
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  loadPlugins();
+  loadCurrentCommunityPath();
+  loadDlcCatalog();
+</script>
+{% endblock %}

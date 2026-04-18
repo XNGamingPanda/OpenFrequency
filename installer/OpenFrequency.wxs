@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OpenFrequency MSI Installer — WiX 4
+  Requires: dotnet tool install --global wix
+  Build:    See build_installer.ps1
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <?define ProductVersion = "$(env.OF_VERSION)" ?>
+
+  <Package
+    Name="OpenFrequency"
+    Manufacturer="OpenFrequency"
+    Version="$(var.ProductVersion)"
+    UpgradeCode="D4A7E2B1-9C3F-4A6D-8E0B-1F2C5A3D7E9B"
+    Scope="perMachine"
+    InstallerVersion="500"
+    Compressed="yes"
+    Language="1033">
+
+    <!-- Allow major upgrades, remove old version before installing new -->
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+      Schedule="afterInstallInitialize" />
+
+    <!-- Embed all files into the MSI cabinet -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- WiX standard install-dir UI (lets user pick folder) -->
+    <ui:WixUI Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="LICENSE.rtf" />
+
+    <!-- Optional: skip the license page banner bitmap (comment out to use default) -->
+    <!-- <WixVariable Id="WixUIBannerBmp"  Value="banner.bmp" /> -->
+    <!-- <WixVariable Id="WixUIDialogBmp"  Value="dialog.bmp" /> -->
+
+    <!-- ═══════════════════════════════════════════
+         Directory structure
+    ═══════════════════════════════════════════ -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="OpenFrequency" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppMenuFolder" Name="OpenFrequency" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder" />
+
+    <!-- ═══════════════════════════════════════════
+         Components
+    ═══════════════════════════════════════════ -->
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+
+      <!-- Harvest entire PyInstaller output folder recursively -->
+      <Component Id="MainFiles" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567890">
+        <Files Source="..\dist\OpenFrequency\**" />
+      </Component>
+
+    </ComponentGroup>
+
+    <!-- Start Menu shortcut -->
+    <ComponentGroup Id="Shortcuts" Directory="AppMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="B2C3D4E5-F6A7-8901-BCDE-F12345678901">
+        <Shortcut
+          Id="StartMenuLink"
+          Name="OpenFrequency"
+          Description="AI-powered ATC assistant for flight simulators"
+          Target="[INSTALLFOLDER]OpenFrequency.exe"
+          WorkingDirectory="INSTALLFOLDER"
+          Icon="AppIcon" />
+        <RemoveFolder Id="CleanStartMenu" Directory="AppMenuFolder" On="uninstall" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\OpenFrequency"
+          Name="StartMenuInstalled"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Desktop shortcut -->
+    <ComponentGroup Id="DesktopShortcuts" Directory="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="C3D4E5F6-A7B8-9012-CDEF-123456789012">
+        <Shortcut
+          Id="DesktopLink"
+          Name="OpenFrequency"
+          Description="AI-powered ATC assistant for flight simulators"
+          Target="[INSTALLFOLDER]OpenFrequency.exe"
+          WorkingDirectory="INSTALLFOLDER"
+          Icon="AppIcon" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\OpenFrequency"
+          Name="DesktopInstalled"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Uninstall registry entry (adds "Remove" entry in Programs & Features) -->
+    <ComponentGroup Id="RegistryEntries" Directory="INSTALLFOLDER">
+      <Component Id="UninstallReg" Guid="D4E5F6A7-B8C9-0123-DEF0-234567890123">
+        <RegistryKey Root="HKLM" Key="Software\OpenFrequency">
+          <RegistryValue Name="InstallPath" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+          <RegistryValue Name="Version"     Type="string" Value="$(var.ProductVersion)" />
+        </RegistryKey>
+      </Component>
+    </ComponentGroup>
+
+    <!-- ═══════════════════════════════════════════
+         Icon
+    ═══════════════════════════════════════════ -->
+    <Icon Id="AppIcon" SourceFile="..\dist\OpenFrequency\OpenFrequency.exe" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+
+    <!-- ═══════════════════════════════════════════
+         Feature tree
+    ═══════════════════════════════════════════ -->
+    <Feature Id="Complete" Title="OpenFrequency" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentGroupRef Id="Shortcuts" />
+      <ComponentGroupRef Id="DesktopShortcuts" />
+      <ComponentGroupRef Id="RegistryEntries" />
+    </Feature>
+
+  </Package>
+</Wix>

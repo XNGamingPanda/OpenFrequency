@@ -94,6 +94,36 @@ class SimBridge:
             print(f"SimBridge: Failed to tune COM1 - {e}")
             return False
 
+    # ── Autopilot / Radar Vectoring write-back ────────────────────────────────
+
+    def _call_provider_ap(self, method_name: str, value: float) -> bool:
+        """Dispatch an autopilot setter to whichever provider is active."""
+        if self.mock_mode:
+            print(f"SimBridge: Mock AP {method_name}({value})")
+            return True
+        p = self.provider
+        if p and p.is_connected() and hasattr(p, method_name):
+            try:
+                return bool(getattr(p, method_name)(value))
+            except Exception as e:
+                print(f"SimBridge: {method_name}({value}) failed - {e}")
+        return False
+
+    def set_autopilot_heading(self, heading_deg: float) -> bool:
+        """Set heading bug (degrees) and engage heading hold."""
+        print(f"SimBridge: AP heading → {heading_deg:.0f}°")
+        return self._call_provider_ap('set_autopilot_heading', heading_deg)
+
+    def set_autopilot_altitude(self, altitude_ft: float) -> bool:
+        """Set altitude target (feet) and engage altitude hold."""
+        print(f"SimBridge: AP altitude → {altitude_ft:.0f} ft")
+        return self._call_provider_ap('set_autopilot_altitude', altitude_ft)
+
+    def set_autopilot_speed(self, speed_kt: float) -> bool:
+        """Set IAS target (knots) and engage autothrottle."""
+        print(f"SimBridge: AP speed → {speed_kt:.0f} kt")
+        return self._call_provider_ap('set_autopilot_speed', speed_kt)
+
     def trigger_failure_event(self, event_name):
         """Best-effort failure injection for supported simulators."""
         if self.mock_mode:

@@ -1,0 +1,307 @@
+{
+  "_comment": "Quick-reply templates for common ATC responses. Variables: {callsign}, {freq}, {runway}, {squawk}, {alt}, {hdg}, {qnh}",
+  "templates": [
+
+    {
+      "id": "readback_correct",
+      "label": "Readback Correct",
+      "label_zh": "复诵正确",
+      "category": "acknowledgement",
+      "roles": ["Ground", "Tower", "Clearance Delivery", "Approach", "Departure", "Center"],
+      "triggers": ["readback", "wilco", "roger", "affirm", "check in", "with you", "leaving", "passing"],
+      "template_en": "{callsign}, readback correct.",
+      "template_zh": "{callsign}，复诵正确。",
+      "template_ja": "{callsign}、リードバック・コレクト。"
+    },
+
+    {
+      "id": "roger",
+      "label": "Roger",
+      "label_zh": "收到",
+      "category": "acknowledgement",
+      "roles": ["Ground", "Tower", "Clearance Delivery", "Approach", "Departure", "Center", "Unicom", "Emergency"],
+      "triggers": ["say again", "understand", "confirm", "acknowledged"],
+      "template_en": "{callsign}, roger.",
+      "template_zh": "{callsign}，收到。",
+      "template_ja": "{callsign}、ロジャー。"
+    },
+
+    {
+      "id": "standby",
+      "label": "Stand By",
+      "label_zh": "稍等",
+      "category": "acknowledgement",
+      "roles": ["Ground", "Tower", "Clearance Delivery", "Approach", "Departure", "Center"],
+      "triggers": ["standby", "stand by", "wait", "hold on"],
+      "template_en": "{callsign}, stand by.",
+      "template_zh": "{callsign}，稍等。",
+      "template_ja": "{callsign}、スタンバイ。"
+    },
+
+    {
+      "id": "say_again",
+      "label": "Say Again",
+      "label_zh": "请重复",
+      "category": "request",
+      "roles": ["Ground", "Tower", "Clearance Delivery", "Approach", "Departure", "Center"],
+      "triggers": [],
+      "template_en": "{callsign}, say again.",
+      "template_zh": "{callsign}，请重复。",
+      "template_ja": "{callsign}、セイ・アゲイン。"
+    },
+
+    {
+      "id": "negative",
+      "label": "Negative",
+      "label_zh": "否定",
+      "category": "acknowledgement",
+      "roles": ["Ground", "Tower", "Clearance Delivery", "Approach", "Departure", "Center"],
+      "triggers": ["unable", "negative", "cannot"],
+      "template_en": "{callsign}, negative.",
+      "template_zh": "{callsign}，否定。",
+      "template_ja": "{callsign}、ネガティブ。"
+    },
+
+    {
+      "id": "freq_change",
+      "label": "Contact {role} {freq}",
+      "label_zh": "联系{role} {freq}",
+      "category": "handoff",
+      "roles": ["Ground", "Tower", "Clearance Delivery", "Approach", "Departure", "Center"],
+      "triggers": ["contact", "frequency", "next controller"],
+      "template_en": "{callsign}, contact {role} on {freq}, good day.",
+      "template_zh": "{callsign}，联系{role} {freq}，再见。",
+      "template_ja": "{callsign}、{role} {freq}にコンタクト、グッドデイ。",
+      "variables": ["role", "freq"]
+    },
+
+    {
+      "id": "taxi_hold_short",
+      "label": "Hold Short",
+      "label_zh": "跑道前等待",
+      "category": "ground",
+      "roles": ["Ground"],
+      "triggers": ["hold short", "hold position", "stop"],
+      "template_en": "{callsign}, hold short of runway {runway}.",
+      "template_zh": "{callsign}，跑道{runway}前等待。",
+      "template_ja": "{callsign}、滑走路{runway}手前で停止してください。",
+      "variables": ["runway"]
+    },
+
+    {
+      "id": "taxi_continue",
+      "label": "Continue Taxi",
+      "label_zh": "继续滑行",
+      "category": "ground",
+      "roles": ["Ground"],
+      "triggers": ["continue", "resume", "proceed"],
+      "template_en": "{callsign}, continue taxi.",
+      "template_zh": "{callsign}，继续滑行。",
+      "template_ja": "{callsign}、タクシーを続けてください。"
+    },
+
+    {
+      "id": "lineup_wait",
+      "label": "Line Up and Wait",
+      "label_zh": "进跑道等待",
+      "category": "tower",
+      "roles": ["Tower"],
+      "triggers": ["line up", "lineup", "position"],
+      "template_en": "{callsign}, runway {runway}, line up and wait.",
+      "template_zh": "{callsign}，跑道{runway}，进跑道等待。",
+      "template_ja": "{callsign}、滑走路{runway}、ラインナップ・アンド・ウェイト。",
+      "variables": ["runway"]
+    },
+
+    {
+      "id": "cleared_takeoff",
+      "label": "Cleared for Takeoff",
+      "label_zh": "可以起飞",
+      "category": "tower",
+      "roles": ["Tower"],
+      "triggers": ["ready", "takeoff", "departure"],
+      "template_en": "{callsign}, runway {runway}, wind {wind}, cleared for takeoff.",
+      "template_zh": "{callsign}，跑道{runway}，地面风{wind}，可以起飞。",
+      "template_ja": "{callsign}、滑走路{runway}、風{wind}、離陸を許可します。",
+      "variables": ["runway", "wind"]
+    },
+
+    {
+      "id": "cleared_land",
+      "label": "Cleared to Land",
+      "label_zh": "可以落地",
+      "category": "tower",
+      "roles": ["Tower"],
+      "triggers": ["landing", "final", "cleared"],
+      "template_en": "{callsign}, runway {runway}, wind {wind}, cleared to land.",
+      "template_zh": "{callsign}，跑道{runway}，地面风{wind}，可以落地。",
+      "template_ja": "{callsign}、滑走路{runway}、風{wind}、着陸を許可します。",
+      "variables": ["runway", "wind"]
+    },
+
+    {
+      "id": "go_around",
+      "label": "Go Around",
+      "label_zh": "复飞",
+      "category": "tower",
+      "roles": ["Tower", "Approach"],
+      "triggers": ["go around", "missed approach", "abort"],
+      "template_en": "{callsign}, go around. {callsign}, go around. Fly runway heading, climb to {alt}.",
+      "template_zh": "{callsign}，复飞。{callsign}，复飞。保持跑道航向爬升至{alt}。",
+      "template_ja": "{callsign}、ゴーアラウンド。滑走路方位を維持して{alt}まで上昇してください。",
+      "variables": ["alt"]
+    },
+
+    {
+      "id": "maintain_alt",
+      "label": "Maintain {alt}",
+      "label_zh": "保持高度{alt}",
+      "category": "enroute",
+      "roles": ["Approach", "Departure", "Center"],
+      "triggers": ["altitude", "maintain", "climb", "descend"],
+      "template_en": "{callsign}, maintain {alt}.",
+      "template_zh": "{callsign}，保持{alt}。",
+      "template_ja": "{callsign}、{alt}を維持してください。",
+      "variables": ["alt"]
+    },
+
+    {
+      "id": "climb_to",
+      "label": "Climb to {alt}",
+      "label_zh": "爬升至{alt}",
+      "category": "enroute",
+      "roles": ["Approach", "Departure", "Center", "Tower"],
+      "triggers": ["climb", "ascending"],
+      "template_en": "{callsign}, climb and maintain {alt}.",
+      "template_zh": "{callsign}，爬升并保持{alt}。",
+      "template_ja": "{callsign}、{alt}まで上昇してください。",
+      "variables": ["alt"]
+    },
+
+    {
+      "id": "descend_to",
+      "label": "Descend to {alt}",
+      "label_zh": "下降至{alt}",
+      "category": "enroute",
+      "roles": ["Approach", "Departure", "Center"],
+      "triggers": ["descend", "descending", "lower"],
+      "template_en": "{callsign}, descend and maintain {alt}.",
+      "template_zh": "{callsign}，下降并保持{alt}。",
+      "template_ja": "{callsign}、{alt}まで降下してください。",
+      "variables": ["alt"]
+    },
+
+    {
+      "id": "fly_heading",
+      "label": "Fly Heading {hdg}",
+      "label_zh": "飞航向{hdg}",
+      "category": "enroute",
+      "roles": ["Approach", "Departure", "Center"],
+      "triggers": ["heading", "vector", "turn"],
+      "template_en": "{callsign}, fly heading {hdg}.",
+      "template_zh": "{callsign}，飞航向{hdg}。",
+      "template_ja": "{callsign}、ヘディング{hdg}を飛行してください。",
+      "variables": ["hdg"]
+    },
+
+    {
+      "id": "speed_reduce",
+      "label": "Reduce Speed {spd}",
+      "label_zh": "减速至{spd}",
+      "category": "enroute",
+      "roles": ["Approach", "Departure", "Center"],
+      "triggers": ["speed", "reduce", "slow"],
+      "template_en": "{callsign}, reduce speed to {spd} knots.",
+      "template_zh": "{callsign}，减速至{spd}节。",
+      "template_ja": "{callsign}、速度を{spd}ノットに減速してください。",
+      "variables": ["spd"]
+    },
+
+    {
+      "id": "traffic_alert",
+      "label": "Traffic Alert",
+      "label_zh": "交通提示",
+      "category": "enroute",
+      "roles": ["Approach", "Departure", "Center", "Tower"],
+      "triggers": ["traffic", "tcas"],
+      "template_en": "{callsign}, traffic alert, 12 o'clock, 5 miles, same altitude.",
+      "template_zh": "{callsign}，交通提示，12点钟方向，5海里，相同高度。",
+      "template_ja": "{callsign}、トラフィックアラート、12時方向、5マイル、同高度。"
+    },
+
+    {
+      "id": "resume_own_nav",
+      "label": "Resume Own Navigation",
+      "label_zh": "恢复自主导航",
+      "category": "enroute",
+      "roles": ["Approach", "Departure", "Center"],
+      "triggers": ["direct", "own nav", "resume"],
+      "template_en": "{callsign}, resume own navigation, direct {waypoint}.",
+      "template_zh": "{callsign}，恢复自主导航，直飞{waypoint}。",
+      "template_ja": "{callsign}、自己航法を再開し、{waypoint}へ直行してください。",
+      "variables": ["waypoint"]
+    },
+
+    {
+      "id": "altimeter_set",
+      "label": "Altimeter {qnh}",
+      "label_zh": "气压拨正{qnh}",
+      "category": "enroute",
+      "roles": ["Ground", "Clearance Delivery", "Approach", "Departure", "Tower"],
+      "triggers": ["altimeter", "qnh", "pressure"],
+      "template_en": "{callsign}, altimeter {qnh}.",
+      "template_zh": "{callsign}，气压拨正值{qnh}。",
+      "template_ja": "{callsign}、高度計規正値{qnh}。",
+      "variables": ["qnh"]
+    },
+
+    {
+      "id": "squawk_confirm",
+      "label": "Squawk {squawk} Confirmed",
+      "label_zh": "应答机{squawk}确认",
+      "category": "clearance",
+      "roles": ["Ground", "Clearance Delivery", "Approach", "Departure"],
+      "triggers": ["squawk", "transponder", "ident"],
+      "template_en": "{callsign}, squawk {squawk} confirmed, radar contact.",
+      "template_zh": "{callsign}，应答机{squawk}确认，雷达接触。",
+      "template_ja": "{callsign}、スコーク{squawk}確認、レーダーコンタクト。",
+      "variables": ["squawk"]
+    },
+
+    {
+      "id": "radar_contact",
+      "label": "Radar Contact",
+      "label_zh": "雷达接触",
+      "category": "enroute",
+      "roles": ["Approach", "Departure", "Center"],
+      "triggers": ["with you", "checking in", "radar"],
+      "template_en": "{callsign}, radar contact, {alt}, proceed on course.",
+      "template_zh": "{callsign}，雷达接触，高度{alt}，按计划飞行。",
+      "template_ja": "{callsign}、レーダーコンタクト、{alt}、コース通りに進んでください。",
+      "variables": ["alt"]
+    },
+
+    {
+      "id": "frequency_change_approved",
+      "label": "Freq Change Approved",
+      "label_zh": "允许更换频率",
+      "category": "handoff",
+      "roles": ["Ground", "Tower", "Approach", "Departure", "Center"],
+      "triggers": ["request frequency", "request freq"],
+      "template_en": "{callsign}, frequency change approved.",
+      "template_zh": "{callsign}，允许更换频率。",
+      "template_ja": "{callsign}、周波数変更を承認します。"
+    }
+
+  ],
+
+  "categories": {
+    "acknowledgement": { "label": "Ack", "label_zh": "确认", "color": "secondary" },
+    "ground":          { "label": "GND", "label_zh": "地面", "color": "warning" },
+    "tower":           { "label": "TWR", "label_zh": "塔台", "color": "success" },
+    "enroute":         { "label": "ENR", "label_zh": "航路", "color": "primary" },
+    "clearance":       { "label": "CLR", "label_zh": "放行", "color": "info" },
+    "handoff":         { "label": "HND", "label_zh": "移交", "color": "dark" },
+    "request":         { "label": "REQ", "label_zh": "请求", "color": "light" }
+  }
+}

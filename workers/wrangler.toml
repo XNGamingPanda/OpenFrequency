@@ -1,0 +1,77 @@
+# OpenFrequency API — Cloudflare Workers
+#
+# Deploy:
+#   1. Install Wrangler: npm install -g wrangler
+#   2. Authenticate:     wrangler login
+#   3. Create the KV namespace (once):
+#        wrangler kv:namespace create OF_KV
+#      Copy the returned `id` into the kv_namespaces block below.
+#   4. Set secrets (never commit these):
+#        wrangler secret put CLIENT_TOKEN
+#        wrangler secret put GITHUB_TOKEN       # optional — skip if not using auth'd GH API
+#   5. Deploy:           wrangler deploy
+#
+# For a preview namespace used in `wrangler dev`:
+#   wrangler kv:namespace create OF_KV --preview
+#   Set preview_id below.
+
+name              = "openfrequency-api"
+main              = "workers.js"
+compatibility_date = "2024-09-23"
+
+# ---------------------------------------------------------------------------
+# KV Namespace
+# ---------------------------------------------------------------------------
+# Replace the id placeholder after running:
+#   wrangler kv:namespace create OF_KV
+# Replace preview_id after running:
+#   wrangler kv:namespace create OF_KV --preview
+
+[[kv_namespaces]]
+binding    = "OF_KV"
+id         = "REPLACE_WITH_KV_NAMESPACE_ID"       # e.g. "a1b2c3d4e5f6..."
+preview_id = "REPLACE_WITH_KV_PREVIEW_NAMESPACE_ID"
+
+# ---------------------------------------------------------------------------
+# Environment variables (non-secret)
+# Set secrets separately with `wrangler secret put <NAME>`
+# ---------------------------------------------------------------------------
+
+[vars]
+GITHUB_OWNER         = "OpenFrequency"
+GITHUB_REPO          = "OpenFrequency"
+MIN_REQUIRED_VERSION = "0.0.0"
+
+# Secrets — set via CLI, NOT here:
+#   wrangler secret put CLIENT_TOKEN
+#       Shared token clients send in X-OF-Token header.
+#
+#   wrangler secret put GITHUB_TOKEN
+#       GitHub Personal Access Token (read:packages scope is enough).
+#       Optional — raises GitHub API rate limit from 60 to 5000 req/hr.
+
+# ---------------------------------------------------------------------------
+# Routes / Triggers
+# ---------------------------------------------------------------------------
+
+[triggers]
+# workers.dev subdomain is enabled automatically when you deploy.
+# To add a custom domain route, uncomment and edit the block below:
+#
+# [[routes]]
+# pattern = "api.openfrequency.app/*"
+# zone_name = "openfrequency.app"
+
+# ---------------------------------------------------------------------------
+# Observability
+# ---------------------------------------------------------------------------
+
+[observability]
+enabled = true
+
+# ---------------------------------------------------------------------------
+# Build (no build step needed — pure JS)
+# ---------------------------------------------------------------------------
+
+# [build]
+# command = ""  # uncomment if you add a bundler step (e.g. esbuild)

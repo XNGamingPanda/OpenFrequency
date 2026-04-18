@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(grep -E \"\\\\.py$\")",
+      "Bash(awk '{print $NF}')"
+    ]
+  }
+}

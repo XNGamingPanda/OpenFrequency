@@ -1,5 +1,7 @@
 import asyncio
 import base64
+import io
+import struct
 import edge_tts
 import hashlib
 import threading
@@ -12,6 +14,19 @@ try:
     import alkana
 except Exception:
     alkana = None
+
+# ── Optional local TTS backends ───────────────────────────────────────────────
+try:
+    from kokoro_onnx import Kokoro as _Kokoro
+    _KOKORO_AVAILABLE = True
+except Exception:
+    _KOKORO_AVAILABLE = False
+
+try:
+    from piper.voice import PiperVoice as _PiperVoice
+    _PIPER_AVAILABLE = True
+except Exception:
+    _PIPER_AVAILABLE = False
 
 class TTSEngine:
     ENGLISH_VOICE = "en-US-ChristopherNeural"
@@ -83,7 +98,199 @@ class TTSEngine:
         event_bus.on('ptt_released', self._on_ptt_released)
         
         self.runtime_voice_override = None
-        print("TTSEngine: Initialized with chatter support.")
+
+        # ── Local TTS backend ─────────────────────────────────────────────────
+        audio_cfg = config.get('audio', {})
+        self.tts_backend = audio_cfg.get('tts_backend', 'edge')   # 'edge' | 'local'
+        self._local_engine = None
+        if self.tts_backend == 'local':
+            self._init_local_backend(audio_cfg)
+
+        # Re-init backend when config changes
+        event_bus.on('config_updated', self._on_config_updated)
+
+        print(f"TTSEngine: Initialized. Backend='{self.tts_backend}'.")
+
+    # ── Local backend init ────────────────────────────────────────────────────
+
+    def _init_local_backend(self, audio_cfg: dict):
+        """Try to load the configured local TTS engine (Kokoro or Piper)."""
+        engine_name = audio_cfg.get('tts_local_engine', 'kokoro').lower()
+        model_path  = audio_cfg.get('tts_local_model', '')
+
+        if engine_name == 'kokoro' and _KOKORO_AVAILABLE:
+            try:
+                voices_bin = audio_cfg.get('tts_local_voices', 'voices.bin')
+                self._local_engine = _Kokoro(model_path or 'kokoro-v0_19.onnx', voices_bin)
+                self._local_engine_name = 'kokoro'
+                print(f"TTSEngine: Kokoro local TTS loaded from '{model_path}'.")
+            except Exception as e:
+                print(f"TTSEngine: Kokoro init failed — {e}. Falling back to Edge-TTS.")
+                self.tts_backend = 'edge'
+
+        elif engine_name == 'piper' and _PIPER_AVAILABLE:
+            try:
+                self._local_engine = _PiperVoice.load(model_path)
+                self._local_engine_name = 'piper'
+                print(f"TTSEngine: Piper local TTS loaded from '{model_path}'.")
+            except Exception as e:
+                print(f"TTSEngine: Piper init failed — {e}. Falling back to Edge-TTS.")
+                self.tts_backend = 'edge'
+        else:
+            missing = engine_name if engine_name != 'kokoro' else 'kokoro_onnx'
+            print(f"TTSEngine: Local engine '{engine_name}' not available "
+                  f"(install `{missing}`). Falling back to Edge-TTS.")
+            self.tts_backend = 'edge'
+
+    def _on_config_updated(self, new_config: dict):
+        """Hot-reload TTS backend when settings change."""
+        audio_cfg = new_config.get('audio', {})
+        new_backend = audio_cfg.get('tts_backend', 'edge')
+        if new_backend != self.tts_backend:
+            self.tts_backend = new_backend
+            self._local_engine = None
+            if new_backend == 'local':
+                self._init_local_backend(audio_cfg)
+            print(f"TTSEngine: Backend switched to '{self.tts_backend}'.")
+
+    # ── Synthesis dispatch ────────────────────────────────────────────────────
+
+    async def _synthesize_audio(self, text: str, voice: str) -> bytes:
+        """
+        Synthesise *text* and return the complete audio as MP3/WAV bytes.
+        Dispatches to Edge-TTS or the local backend depending on config.
+        """
+        if self.tts_backend == 'local' and self._local_engine:
+            return await self._synthesize_local(text, voice)
+        return await self._synthesize_edge(text, voice)
+
+    async def _synthesize_edge(self, text: str, voice: str) -> bytes:
+        """Original Edge-TTS synthesis (full audio, one shot)."""
+        communicate = edge_tts.Communicate(text, voice)
+        full_audio = b""
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                full_audio += chunk["data"]
+        return full_audio
+
+    async def _synthesize_local(self, text: str, voice: str) -> bytes:
+        """
+        Local TTS synthesis.  Returns raw audio bytes (WAV for Piper, PCM16
+        for Kokoro converted to WAV).
+
+        The synthesis runs in a threadpool executor to avoid blocking the
+        event loop (both Kokoro and Piper are synchronous).
+        """
+        loop = asyncio.get_event_loop()
+
+        if self._local_engine_name == 'kokoro':
+            def _run():
+                # Map Edge-TTS voice tags to Kokoro voice names (best effort)
+                kokoro_voice = self._edge_voice_to_kokoro(voice)
+                samples, sr = self._local_engine.create(
+                    text, voice=kokoro_voice, speed=1.0, lang='en-us'
+                )
+                return self._pcm_to_wav(samples, sr)
+            return await loop.run_in_executor(None, _run)
+
+        elif self._local_engine_name == 'piper':
+            def _run():
+                buf = io.BytesIO()
+                with io.BytesIO() as wav_io:
+                    import wave
+                    with wave.open(wav_io, 'wb') as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(2)
+                        wf.setframerate(22050)
+                        for audio_bytes in self._local_engine.synthesize_stream_raw(text):
+                            wf.writeframes(audio_bytes)
+                    return wav_io.getvalue()
+            return await loop.run_in_executor(None, _run)
+
+        return b""
+
+    async def _stream_synthesize(self, text: str, voice: str):
+        """
+        Streaming synthesis — yields audio chunks as they are produced so the
+        browser can start playing before synthesis is complete.
+
+        For Edge-TTS: yields chunks directly from the stream.
+        For local TTS: splits text into sentences and yields one WAV per sentence.
+        Emits 'audio_stream_chunk' socket events; final chunk carries {'final': True}.
+        """
+        if self.tts_backend == 'local' and self._local_engine:
+            sentences = self._split_sentences(text)
+            for i, sentence in enumerate(sentences):
+                if not sentence.strip():
+                    continue
+                chunk_bytes = await self._synthesize_local(sentence, voice)
+                if chunk_bytes:
+                    self.socketio.emit('audio_stream_chunk', {
+                        'data':  base64.b64encode(chunk_bytes).decode('utf-8'),
+                        'final': (i == len(sentences) - 1),
+                    })
+        else:
+            # Edge-TTS native streaming
+            communicate = edge_tts.Communicate(text, voice)
+            buffer = b""
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    buffer += chunk["data"]
+                    # Emit in ~16 KB chunks to reduce latency
+                    if len(buffer) >= 16_384:
+                        self.socketio.emit('audio_stream_chunk', {
+                            'data':  base64.b64encode(buffer).decode('utf-8'),
+                            'final': False,
+                        })
+                        buffer = b""
+            if buffer:
+                self.socketio.emit('audio_stream_chunk', {
+                    'data':  base64.b64encode(buffer).decode('utf-8'),
+                    'final': True,
+                })
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _split_sentences(text: str) -> list[str]:
+        """Split text into sentences for progressive local TTS streaming."""
+        parts = re.split(r'(?<=[.!?,;])\s+', text)
+        return [p for p in parts if p.strip()]
+
+    @staticmethod
+    def _edge_voice_to_kokoro(voice: str) -> str:
+        """
+        Map Edge-TTS voice identifiers to Kokoro voice names.
+        Kokoro v0.19 built-in voices: af_bella, af_sarah, am_adam, am_michael,
+                                       bf_emma, bf_isabella, bm_george, bm_lewis
+        """
+        mapping = {
+            'en-US-ChristopherNeural': 'am_michael',
+            'en-US-GuyNeural':         'am_adam',
+            'en-US-JennyNeural':       'af_sarah',
+            'en-US-EricNeural':        'am_michael',
+            'en-GB-RyanNeural':        'bm_george',
+            'en-GB-SoniaNeural':       'bf_emma',
+            'en-GB-ThomasNeural':      'bm_lewis',
+            'zh-CN-YunxiNeural':       'am_michael',   # fallback; Kokoro is EN-only
+            'zh-CN-YunyangNeural':     'am_adam',
+            'ja-JP-KeitaNeural':       'am_michael',
+        }
+        return mapping.get(voice, 'am_michael')
+
+    @staticmethod
+    def _pcm_to_wav(samples, sample_rate: int) -> bytes:
+        """Convert float32 PCM samples (numpy array) to a WAV byte string."""
+        import numpy as np
+        pcm = (np.clip(samples, -1.0, 1.0) * 32767).astype(np.int16)
+        buf = io.BytesIO()
+        import wave
+        with wave.open(buf, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(sample_rate)
+            wf.writeframes(pcm.tobytes())
+        return buf.getvalue()
 
     def set_voice_override(self, voice_id):
         """Sets a specific voice to use for all ATC, overriding region logic."""
@@ -403,24 +610,25 @@ class TTSEngine:
         print(f"TTSEngine: [{controller_name}] Using voice '{voice}' -> '{text_norm[:30]}...'")
         
         try:
-            full_audio = await self._synthesize_audio(text_norm, voice)
-            
-            if full_audio:
-                # Debug: Write to file to verify generation
-                try:
-                    with open("debug_tts.mp3", "wb") as f:
-                        f.write(full_audio)
-                    print(f"TTSEngine: Debug file written to debug_tts.mp3 ({len(full_audio)} bytes)")
-                except Exception as e:
-                    print(f"TTSEngine Debug Error: {e}")
-
-                self.socketio.emit('audio_stream', {
-                    'data': base64.b64encode(full_audio).decode('utf-8')
-                })
-                print(f"TTSEngine: Sent full audio ({len(full_audio)} bytes) to client.")
+            if self.tts_backend == 'local' and self._local_engine:
+                # Streaming path: emit chunks progressively for lower latency
+                print(f"TTSEngine: [Local/{self._local_engine_name}] Streaming '{text_norm[:40]}...'")
+                await self._stream_synthesize(text_norm, voice)
             else:
-                print("TTSEngine: Warning - No audio data generated.")
-                
+                # Edge-TTS: full audio then emit once
+                full_audio = await self._synthesize_edge(text_norm, voice)
+                if full_audio:
+                    try:
+                        with open("debug_tts.mp3", "wb") as f:
+                            f.write(full_audio)
+                    except Exception:
+                        pass
+                    self.socketio.emit('audio_stream', {
+                        'data': base64.b64encode(full_audio).decode('utf-8')
+                    })
+                    print(f"TTSEngine: Sent full audio ({len(full_audio)} bytes) to client.")
+                else:
+                    print("TTSEngine: Warning - No audio data generated.")
         except Exception as e:
             print(f"Error during TTS generation or streaming: {e}")
     

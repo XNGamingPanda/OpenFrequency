@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_dynamic_libs
 
 
 block_cipher = None
@@ -31,39 +32,125 @@ def collect_tree(relative_path, excludes=()):
 
 
 datas = []
+
+# ── SimConnect SDK (PyPI package bundles SimConnect.dll) ────────────────────
+# collect_all gathers: Python sources, data files (incl. the .dll), and
+# compiled extensions so PyInstaller doesn't miss the native library.
+_sc_datas, _sc_binaries, _sc_hiddenimports = [], [], []
+try:
+    _sc_datas, _sc_binaries, _sc_hiddenimports = collect_all('SimConnect')
+except Exception:
+    pass  # SimConnect not installed in this build env — optional dep
+datas += _sc_datas
+
 datas += collect_tree("templates")
 datas += collect_tree("static")
-datas += collect_tree("data", excludes={"reports", "storage", "ground_cache", "__pycache__"})
+# data/ includes quick_reply_templates.json, chatter_templates.json, etc.
+# Exclude build-only artefacts and runtime-generated caches.
+datas += collect_tree("data",    excludes={"reports", "storage", "ground_cache", "__pycache__"})
 datas += collect_tree("models")
 datas += collect_tree("ffmpeg")
 datas += collect_tree("plugins", excludes={"__pycache__"})
+# installer/ is build-tooling only — NOT bundled into the exe.
 
-for filename in ("app.py", "config.example.json", "OpenFrequency-Icon.png", "README.md", "RELEASE_NOTES.md", "RELEASE_NOTES_zh-CN.md"):
+for filename in (
+    "app.py",
+    "config.example.json",
+    "version.txt",
+    "OpenFrequency-Icon.png",
+    "README.md",
+    "RELEASE_NOTES.md",
+    "RELEASE_NOTES_zh-CN.md",
+):
     path = ROOT / filename
     if path.exists():
         datas.append((str(path), "."))
 
 
+# ---------------------------------------------------------------------------
+# Hidden imports
+# ---------------------------------------------------------------------------
+# PyInstaller's static analysis misses:
+#   • Modules imported inside try/except blocks (optional deps)
+#   • Modules referenced only as strings (dynamic imports)
+#   • Sub-packages whose __init__ is not imported at the top level
+# ---------------------------------------------------------------------------
+
+_hidden = [
+    # ── Flask / SocketIO runtime ─────────────────────────────────────────────
+    "app",
+    "markdown",
+    "engineio.async_drivers.threading",
+    "gevent",
+
+    # ── LLM backends ────────────────────────────────────────────────────────
+    "google.genai",
+    "google.genai.types",
+    "openai",
+
+    # ── Edge TTS (cloud) ─────────────────────────────────────────────────────
+    "edge_tts",
+
+    # ── Local TTS backends (optional — gracefully skipped if not installed) ──
+    # Kokoro-ONNX: pip install kokoro-onnx
+    "kokoro_onnx",
+    # Piper TTS:   pip install piper-tts
+    "piper",
+    "piper.voice",
+
+    # ── Audio / numeric processing used by local TTS ─────────────────────────
+    "numpy",
+    "numpy.core",
+    "wave",
+    "io",
+    "soundfile",
+
+    # ── STT (Sherpa-ONNX Whisper) ────────────────────────────────────────────
+    "sherpa_onnx",
+
+    # ── Simulator connectors ─────────────────────────────────────────────────
+    "SimConnect",
+
+    # ── Vision / head-tracking (optional) ───────────────────────────────────
+    "cv2",
+    "mediapipe",
+
+    # ── System tray ──────────────────────────────────────────────────────────
+    "pystray",
+    "pystray._win32",
+
+    # ── New core modules (loaded via EventBus; may not be auto-detected) ─────
+    "core.quick_reply",       # quick-reply template engine
+    "core.cpdlc_manager",     # CPDLC data-link session manager
+    "core.china_airspace",    # China metric RVSM helpers
+
+    # ── Plugin system (Round 8) ──────────────────────────────────────────────
+    "core.plugin_api",        # OpenFrequencyPlugin base class
+    "core.plugin_manager",    # manifest discovery + dynamic loading
+    "core.addon_installer",   # DLC / FBW A32NX one-click installer
+
+    # ── Dynamic import helpers used by plugin_manager ────────────────────────
+    "importlib.util",
+    "zipfile",
+    "shutil",
+
+    # ── Cloud services: telemetry / feedback / auto-update ───────────────────
+    "core.telemetry",         # crash capture, sanitisation, KV upload
+    "core.updater",           # version check, download, SHA-256 verify, install
+    "core.feedback",          # manual feedback collection and submission
+    # requests is already a dep of Flask ecosystem; ensure sub-packages included
+    "requests.adapters",
+    "requests.auth",
+    "urllib3",
+    "urllib3.util.retry",
+]
+
 a = Analysis(
     ["desktop_launcher.py"],
     pathex=[str(ROOT)],
-    binaries=[],
+    binaries=_sc_binaries,          # SimConnect.dll and any other native libs
     datas=datas,
-    hiddenimports=[
-        "app",
-        "markdown",
-        "engineio.async_drivers.threading",
-        "gevent",
-        "google.genai",
-        "edge_tts",
-        "sherpa_onnx",
-        "soundfile",
-        "cv2",
-        "mediapipe",
-        "SimConnect",
-        "pystray",
-        "pystray._win32",
-    ],
+    hiddenimports=_hidden + _sc_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -72,6 +159,8 @@ a = Analysis(
         "tkinter",
         "IPython",
         "notebook",
+        # installer/ is never imported — keep the exclude list explicit
+        "installer",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

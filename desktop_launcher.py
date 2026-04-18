@@ -177,6 +177,17 @@ def main():
     setup_logging(runtime_dir)
     config_path = ensure_external_config(runtime_dir, root)
 
+    # Install crash telemetry hooks as early as possible so any startup
+    # exception is captured and written to the local crash log directory.
+    os.environ.setdefault("OPENFREQUENCY_LOG_DIR", str(runtime_dir / "logs"))
+    os.environ.setdefault("OPENFREQUENCY_CONFIG_PATH", str(config_path))
+    try:
+        from core import telemetry as _tel
+        _tel.install_hooks()
+        print("Telemetry: crash hooks installed.")
+    except Exception as _e:
+        print(f"Telemetry: failed to install hooks — {_e}")
+
     port = os.environ.get("OPENFREQUENCY_PORT", DEFAULT_PORT)
     os.environ.setdefault("OPENFREQUENCY_PACKAGED", "1")
     os.environ.setdefault("OPENFREQUENCY_HOST", "127.0.0.1")

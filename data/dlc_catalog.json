@@ -1,0 +1,53 @@
+{
+  "_comment": "Official DLC / recommended add-on catalog.  id must be unique and snake_case.",
+  "items": [
+    {
+      "id": "fbw_a32nx_stable",
+      "name": "FlyByWire A32NX (Stable)",
+      "author": "FlyByWire Simulations",
+      "description": "Community-built Airbus A320neo for MSFS with accurate fly-by-wire simulation, MCDU, custom systems and sounds.",
+      "category": "aircraft",
+      "simulator": "msfs",
+      "version_label": "Stable",
+      "icon": "✈",
+      "download_url": "https://flybywiresim-packages.b-cdn.net/stable/A32NX-stable.zip",
+      "install_subdir": "A32NX",
+      "config_key": "msfs_community",
+      "size_mb": 1100,
+      "tags": ["airbus", "a320", "free", "popular"],
+      "homepage": "https://flybywiresim.com"
+    },
+    {
+      "id": "fbw_a32nx_dev",
+      "name": "FlyByWire A32NX (Development)",
+      "author": "FlyByWire Simulations",
+      "description": "Latest development build of the FBW A32NX. Updated frequently — may contain bugs.",
+      "category": "aircraft",
+      "simulator": "msfs",
+      "version_label": "Development",
+      "icon": "🔧",
+      "download_url": "https://flybywiresim-packages.b-cdn.net/vmaster/A32NX-master.zip",
+      "install_subdir": "A32NX",
+      "config_key": "msfs_community",
+      "size_mb": 1200,
+      "tags": ["airbus", "a320", "free", "dev"],
+      "homepage": "https://flybywiresim.com"
+    },
+    {
+      "id": "fbw_a380x",
+      "name": "FlyByWire A380X (Stable)",
+      "author": "FlyByWire Simulations",
+      "description": "FlyByWire's Airbus A380 for MSFS — wide-body long-haul with full systems simulation.",
+      "category": "aircraft",
+      "simulator": "msfs",
+      "version_label": "Stable",
+      "icon": "🛫",
+      "download_url": "https://flybywiresim-packages.b-cdn.net/stable/A380X-stable.zip",
+      "install_subdir": "A380X",
+      "config_key": "msfs_community",
+      "size_mb": 900,
+      "tags": ["airbus", "a380", "free", "widebody"],
+      "homepage": "https://flybywiresim.com"
+    }
+  ]
+}

@@ -28,6 +28,11 @@ from core.aircraft_catalog import AircraftCatalog
 from core.self_check import self_check, download_ffmpeg, download_whisper_model
 from core.career import CareerProfile  # Career Mode
 from core.crew_manager import CrewManager  # Crew Manager (FO + Purser)
+from core.plugin_manager import PluginManager
+from core.addon_installer import get_installer, load_dlc_catalog, current_progress
+from core import telemetry as _telemetry_mod
+from core import updater as _updater_mod
+from core import feedback as _feedback_mod
 from flask import Flask, render_template, request, jsonify, redirect, make_response
 from flask_socketio import SocketIO, join_room, leave_room, emit
 
@@ -745,6 +750,173 @@ def career_callsign():
     return jsonify({"success": False, "error": "Invalid callsign"}), 400
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# Telemetry, Feedback & Update routes
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/telemetry/recent_crashes')
+def api_recent_crashes():
+    """Return list of recent local crash logs (metadata only)."""
+    mgr = _telemetry_mod.get_manager()
+    crashes = mgr.get_recent_crashes(n=5)
+    # Strip full traceback from list view to keep response small
+    safe = [{k: v for k, v in c.items() if k != 'traceback'} for c in crashes]
+    return jsonify(safe)
+
+
+@app.route('/api/telemetry/upload_recent', methods=['POST'])
+def api_upload_recent_crash():
+    """Manually upload the most recent crash log to Cloudflare Workers."""
+    mgr = _telemetry_mod.get_manager()
+    crashes = mgr.get_recent_crashes(n=1)
+    if not crashes:
+        return jsonify({'ok': False, 'message': 'No crash logs found.'}), 404
+    crash = crashes[0]
+    crash_id = crash.get('crash_id', '')
+    user_note = request.json.get('note') if request.is_json else None
+    ok = mgr.upload_crash(crash_id, crash, user_note=user_note)
+    if ok:
+        return jsonify({'ok': True, 'message': f'Uploaded crash {crash_id[:8]}…'})
+    return jsonify({'ok': False, 'message': 'Upload failed — check Workers URL in settings.'}), 502
+
+
+@app.route('/api/feedback', methods=['POST'])
+def api_submit_feedback():
+    """Forward user feedback to Cloudflare Workers (token stays server-side)."""
+    data = request.get_json(force=True, silent=True) or {}
+    title = (data.get('title') or '').strip()
+    if not title:
+        return jsonify({'ok': False, 'message': 'Title is required.'}), 400
+    ok, feedback_id = _feedback_mod.submit_feedback(
+        type_=data.get('type', 'other'),
+        title=title,
+        description=data.get('description', ''),
+        crash_id=data.get('crash_id'),
+        contact=data.get('contact'),
+        include_log=bool(data.get('include_log', False)),
+        include_config=bool(data.get('include_config', False)),
+    )
+    if ok:
+        return jsonify({'ok': True, 'feedback_id': feedback_id}), 201
+    return jsonify({'ok': False, 'message': feedback_id}), 502
+
+
+@app.route('/api/update/check', methods=['POST'])
+def api_update_check():
+    """Synchronously check for updates and return result."""
+    info = _updater_mod.check_update(socketio=socketio, silent=False)
+    if info is None:
+        current = _updater_mod._get_current_version()
+        return jsonify({'update_available': False, 'current': current,
+                        'message': 'Already up to date or Workers URL not configured.'})
+    current = _updater_mod._get_current_version()
+    return jsonify({
+        'update_available': True,
+        'current': current,
+        'latest': info.get('latest'),
+        'release_notes_en': info.get('release_notes_en', ''),
+        'release_notes_zh': info.get('release_notes_zh', ''),
+        'tag': info.get('tag', ''),
+        'force_update': info.get('force_update', False),
+    })
+
+
+# Plugin Manager routes
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route('/plugins')
+def plugins_page():
+    return render_template('plugins.html')
+
+@app.route('/api/plugins')
+def api_list_plugins():
+    return jsonify(_plugin_manager.list_plugins())
+
+@app.route('/api/plugins/<plugin_id>/enable', methods=['POST'])
+def api_enable_plugin(plugin_id):
+    ok = _plugin_manager.enable(plugin_id)
+    return jsonify({'ok': ok})
+
+@app.route('/api/plugins/<plugin_id>/disable', methods=['POST'])
+def api_disable_plugin(plugin_id):
+    ok = _plugin_manager.disable(plugin_id)
+    return jsonify({'ok': ok})
+
+@app.route('/api/plugins/<plugin_id>', methods=['DELETE'])
+def api_delete_plugin(plugin_id):
+    ok = _plugin_manager.uninstall(plugin_id)
+    return jsonify({'ok': ok})
+
+@app.route('/api/plugins/install', methods=['POST'])
+def api_install_plugin():
+    """Install a plugin from an uploaded ZIP file."""
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'ok': False, 'message': 'No file uploaded'}), 400
+    import tempfile, os
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp:
+        f.save(tmp.name)
+        ok, msg = _plugin_manager.install_from_zip(tmp.name)
+        os.unlink(tmp.name)
+    return jsonify({'ok': ok, 'message': msg})
+
+# ── DLC catalog & installer ───────────────────────────────────────────────────
+
+@app.route('/api/dlc/catalog')
+def api_dlc_catalog():
+    """Return the bundled DLC catalog enriched with install status."""
+    items = load_dlc_catalog()
+    sim_cfg = config.get('simulator', {})
+    for item in items:
+        community = sim_cfg.get(item.get('config_key', ''), '')
+        if community:
+            import os as _os
+            item['installed'] = _os.path.isdir(
+                _os.path.join(community, item.get('install_subdir', item['id']))
+            )
+        else:
+            item['installed'] = None   # unknown (community path not configured)
+    return jsonify(items)
+
+@app.route('/api/dlc/install/<dlc_id>', methods=['POST'])
+def api_dlc_install(dlc_id):
+    """Start async DLC install.  Poll /api/dlc/progress for status."""
+    installer = get_installer(config)
+    installer.install_async(dlc_id, socketio=socketio)
+    return jsonify({'ok': True, 'message': f"Installing {dlc_id}…"})
+
+@app.route('/api/dlc/progress')
+def api_dlc_progress():
+    return jsonify(current_progress())
+
+# ── MSFS community folder setting ─────────────────────────────────────────────
+
+@app.route('/api/browse_msfs_community', methods=['POST'])
+def api_browse_msfs_community():
+    """Return the best-guess MSFS Community folder if it exists."""
+    import os
+    candidates = [
+        os.path.expandvars(r'%LOCALAPPDATA%\Packages\Microsoft.FlightSimulator_8wekyb3d8bbwe\LocalCache\Packages\Community'),
+        os.path.expandvars(r'%APPDATA%\Microsoft Flight Simulator\Packages\Community'),
+        r'C:\Users\Public\Documents\Microsoft Flight Simulator\Community',
+    ]
+    for c in candidates:
+        if os.path.isdir(c):
+            return jsonify({'found': True, 'path': c})
+    return jsonify({'found': False, 'path': ''})
+
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route('/quick_reply_templates')
+def get_quick_reply_templates():
+    """Return all quick-reply templates for the dashboard button panel."""
+    from core.quick_reply import QuickReplyEngine
+    return jsonify({
+        'templates': QuickReplyEngine.all_templates(),
+        'categories': QuickReplyEngine.categories(),
+    })
+
 @app.route('/get_config')
 def get_config_route():
     load_config() # Reload from disk
@@ -1200,6 +1372,18 @@ if __name__ == '__main__':
     logic_manager = LogicManager(config, socketio, airport_frequency_service=airport_frequency_service, ground_service=ground_data_service)
     atc_monitor = ATCMonitor(config)
     sim_bridge = SimBridge(config, shared_context, context_lock, event_bus)
+
+    # ── Plugin Manager ────────────────────────────────────────────────────────
+    _plugin_manager = PluginManager(config, socketio, event_bus, context_lock, shared_context)
+    _plugin_manager.discover()
+    logic_manager._plugin_manager = _plugin_manager
+    logic_manager._sim_bridge     = sim_bridge
+
+    # Forward telemetry to plugins (non-blocking; plugin hooks run synchronously
+    # so keep them fast — heavy work should be threaded inside the plugin)
+    def _fwd_telemetry_to_plugins(ctx):
+        _plugin_manager.hook_telemetry(ctx)
+    event_bus.on('telemetry_update', _fwd_telemetry_to_plugins)
     nav_manager = NavManager(config, shared_context, context_lock, event_bus, ground_service=ground_data_service, airport_frequency_service=airport_frequency_service)
     stt_module = STTLocal(config, event_bus)
     llm_client = LLMClient(config, shared_context, context_lock, event_bus)
@@ -1245,6 +1429,121 @@ if __name__ == '__main__':
         print(f"LogicManager: Intercom target set to {target}")
         # Notify clients to update UI (red border for cabin mode)
         socketio.emit('intercom_mode_changed', {'target': target})
+
+    @socketio.on('set_flight_rules')
+    def handle_flight_rules(data):
+        """Set IFR/VFR flight rules for ATC guidance."""
+        rules = data.get('rules', 'IFR').upper()
+        if rules not in ('IFR', 'VFR'):
+            rules = 'IFR'
+        with context_lock:
+            shared_context['flight_rules'] = rules
+        print(f"LogicManager: Flight rules set to {rules}")
+
+    # ── CPDLC socket handlers ─────────────────────────────────────────────────
+    from core.cpdlc_manager import cpdlc_manager
+
+    # Forward CPDLC events to all connected clients
+    def _cpdlc_downlink_fwd(msg_dict):
+        socketio.emit('cpdlc_downlink', msg_dict)
+
+    def _cpdlc_uplink_fwd(msg_dict):
+        socketio.emit('cpdlc_uplink', msg_dict)
+
+    def _cpdlc_session_fwd(info):
+        socketio.emit('cpdlc_session', info)
+
+    event_bus.on('cpdlc_downlink',      _cpdlc_downlink_fwd)
+    event_bus.on('cpdlc_uplink',        _cpdlc_uplink_fwd)
+    event_bus.on('cpdlc_session_change', _cpdlc_session_fwd)
+
+    @socketio.on('cpdlc_send')
+    def handle_cpdlc_send(data):
+        """
+        Pilot sends a CPDLC downlink message.
+        data: { "msg_type": "REQUEST_CLIMB", "level": "FL350" }
+              or { "msg_type": "FREE_TEXT", "text": "..." }
+        """
+        msg_type = data.pop('msg_type', 'FREE_TEXT')
+        if msg_type == 'FREE_TEXT':
+            mrn = cpdlc_manager.send_free_text(data.get('text', ''))
+        else:
+            mrn = cpdlc_manager.send_downlink(msg_type, **data)
+        emit('cpdlc_sent', {'mrn': mrn})
+
+    @socketio.on('cpdlc_respond')
+    def handle_cpdlc_respond(data):
+        """
+        Pilot acknowledges an uplink: WILCO / UNABLE / ROGER / STANDBY.
+        data: { "uplink_mrn": 3, "response": "WILCO" }
+        """
+        new_mrn = cpdlc_manager.pilot_respond(
+            data.get('uplink_mrn'), data.get('response', 'WILCO')
+        )
+        emit('cpdlc_sent', {'mrn': new_mrn})
+
+    @socketio.on('cpdlc_logon')
+    def handle_cpdlc_logon(data):
+        """Initiate CPDLC logon. data: { "facility": "ZBPE" }"""
+        mrn = cpdlc_manager.logon(data.get('facility', 'ATC'))
+        emit('cpdlc_sent', {'mrn': mrn})
+
+    @socketio.on('cpdlc_logoff')
+    def handle_cpdlc_logoff(_data):
+        mrn = cpdlc_manager.logoff()
+        emit('cpdlc_sent', {'mrn': mrn})
+
+    @socketio.on('cpdlc_history')
+    def handle_cpdlc_history(_data):
+        emit('cpdlc_history', {'messages': cpdlc_manager.get_history()})
+
+    # ── Radar vector mode toggle ──────────────────────────────────────────────
+    @socketio.on('set_radar_vector_mode')
+    def handle_radar_vector_mode(data):
+        """
+        Enable / disable radar vector mode.
+        data: { "enabled": true|false }
+        When enabled, ATC heading/altitude/speed cards are automatically
+        pushed to the simulator autopilot.
+        """
+        enabled = bool(data.get('enabled', False))
+        logic_manager.radar_vector_mode = enabled
+        print(f"LogicManager: Radar vector mode {'ON' if enabled else 'OFF'}")
+        emit('radar_vector_mode', {'enabled': enabled})
+
+    @socketio.on('manual_radar_vector')
+    def handle_manual_radar_vector(data):
+        """
+        Issue an immediate autopilot command from the dashboard without
+        going through the LLM.
+        data: { "type": "HDG"|"ALT"|"SPD", "value": <number> }
+        """
+        vtype = data.get('type', '').upper()
+        value = data.get('value')
+        if value is None:
+            return
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return
+        if vtype == 'HDG':
+            sim_bridge.set_autopilot_heading(value)
+        elif vtype == 'ALT':
+            sim_bridge.set_autopilot_altitude(value)
+        elif vtype == 'SPD':
+            sim_bridge.set_autopilot_speed(value)
+
+    # ── Quick Reply socket handler ────────────────────────────────────────────
+    @socketio.on('quick_reply')
+    def handle_quick_reply(data):
+        """
+        UI sends { template_id: "readback_correct", vars: { alt: "FL350" } }
+        Logic manager renders the template and broadcasts as an ATC response.
+        """
+        template_id = data.get('template_id', '')
+        extra_vars  = data.get('vars', {})
+        if template_id:
+            logic_manager.handle_quick_reply(template_id, extra_vars or None)
 
     @socketio.on('tune_frequency')
     def handle_tune_frequency(data):
@@ -1315,12 +1614,44 @@ if __name__ == '__main__':
             voice = data['accent_override']
             tts_engine.set_voice_override(voice)
 
+    # ── Updater socket handlers ──────────────────────────────────────────────
+
+    @socketio.on('start_update_download')
+    def handle_start_download(data):
+        """Begin downloading the latest update in a background thread."""
+        _updater_mod.set_socketio(socketio)
+        asset_key = (data or {}).get('asset_key', 'win_x64')
+        threading.Thread(
+            target=_updater_mod.download_update,
+            args=(asset_key, socketio),
+            daemon=True,
+            name='OF-Updater-Download'
+        ).start()
+
+    @socketio.on('install_update')
+    def handle_install_update(data):
+        """Launch the downloaded installer and exit."""
+        ok = _updater_mod.launch_installer()
+        if not ok:
+            socketio.emit('update_download_failed', {'reason': 'Installer not found. Download first.'})
+
     # 2. Start all background threads
 
     # 2. Start all background threads
     # CRITICAL: Only start services in the worker process (reloader child), not the parent.
     if packaged_mode or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         print("Starting background services (Worker Process)...")
+
+        # Telemetry: pass socketio so updater can emit events; check update after 8s
+        _updater_mod.set_socketio(socketio)
+        def _delayed_update_check():
+            time.sleep(8)
+            try:
+                _updater_mod.check_update(socketio=socketio, silent=True)
+            except Exception as e:
+                print(f"Updater: startup check failed — {e}")
+        threading.Thread(target=_delayed_update_check, daemon=True, name='OF-UpdateCheck').start()
+
         logic_manager.start()
         atc_monitor.start()
         sim_bridge.start()
