@@ -48,7 +48,24 @@ datas += collect_tree("static")
 # data/ includes quick_reply_templates.json, chatter_templates.json, etc.
 # Exclude build-only artefacts and runtime-generated caches.
 datas += collect_tree("data",    excludes={"reports", "storage", "ground_cache", "__pycache__"})
-datas += collect_tree("models")
+# STT model weights are large and downloadable at runtime — exclude .onnx/.bin model files.
+# Only keep small metadata/config files (tokens.txt, model-info, etc.).
+def collect_models_no_weights():
+    root = ROOT / "models"
+    if not root.exists():
+        return []
+    datas = []
+    WEIGHT_SUFFIXES = {".onnx", ".bin", ".pt", ".pth", ".weights"}
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() in WEIGHT_SUFFIXES:
+            continue
+        rel = path.relative_to(ROOT)
+        datas.append((str(path), str(rel.parent)))
+    return datas
+
+datas += collect_models_no_weights()
 datas += collect_tree("ffmpeg")
 datas += collect_tree("plugins", excludes={"__pycache__"})
 # installer/ is build-tooling only — NOT bundled into the exe.

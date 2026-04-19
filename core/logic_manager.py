@@ -49,6 +49,18 @@ class LogicManager:
         self.last_vs = 0  # 上一次垂直速度，用于判断爬升/下降
         self._was_on_ground = True  # Track ground→air transition for flight plan display
 
+        # === FIR 跨区检测 ===
+        self._current_fir: str | None = None   # 当前所在 FIR 代码
+        self._fir_check_counter: int = 0       # 每 N 次遥测才检测一次（节省 CPU）
+        self._FIR_CHECK_INTERVAL: int = 10     # 约每 10 秒检查一次（取决于遥测频率）
+        try:
+            from .fir_data import fir_detector as _fir_detector
+            self._fir_detector = _fir_detector
+            print("LogicManager: FIR detector loaded.")
+        except Exception as e:
+            self._fir_detector = None
+            print(f"LogicManager: FIR detector unavailable: {e}")
+
         # Radar vector mode: when True, ATC heading/altitude/speed cards are
         # automatically applied to the simulator's autopilot.
         self.radar_vector_mode = False
@@ -526,6 +538,42 @@ class LogicManager:
                 self._broadcast_chat("SYSTEM", "--- Switchboard: New Controller ---")
                 event_bus.emit('proactive_atc_request', "pilot_tuned_new_frequency", shared_context)
 
+    def _check_fir_crossing(self, lat: float, lon: float):
+        """
+        Detect when the aircraft crosses an FIR boundary at cruise altitude.
+        Fires a proactive ATC handoff suggestion when the FIR changes.
+        Only called while in CENTER phase above 10,000ft.
+        """
+        new_fir = self._fir_detector.get_current_fir(lat, lon)
+
+        # First detection after takeoff — silently initialise, no handoff needed
+        if self._current_fir is None:
+            self._current_fir = new_fir
+            if new_fir:
+                print(f"LogicManager: FIR initialised → {new_fir}")
+            return
+
+        if new_fir and new_fir != self._current_fir:
+            old_fir = self._current_fir
+            self._current_fir = new_fir
+            fir_info = self._fir_detector.get_fir_info(new_fir)
+            fir_name = fir_info.get('name', new_fir) if fir_info else new_fir
+            fir_freq = fir_info.get('center_freq') if fir_info else None
+            print(f"LogicManager: ✈️ FIR crossing {old_fir} → {new_fir} ({fir_name})")
+
+            # Update shared context so the LLM knows the new FIR
+            with context_lock:
+                shared_context['atc_state']['current_fir'] = new_fir
+                shared_context['atc_state']['current_fir_name'] = fir_name
+                if fir_freq:
+                    shared_context['atc_state']['suggested_fir_freq'] = fir_freq
+
+            event_bus.emit(
+                'proactive_atc_request',
+                'pilot_crossed_fir_boundary_suggest_center_handoff',
+                shared_context,
+            )
+
     def _determine_controller(self, freq, altitude=None):
         """Frequency map with emergency, ATIS, and altitude awareness."""
         f = float(freq)
@@ -678,11 +726,20 @@ class LogicManager:
                               "pilot_at_cruise_altitude_suggest_center_handoff", 
                               shared_context)
             
+            # FIR 跨区检测（仅在巡航高度 + Center 阶段执行，每10次遥测一次）
+            if (not on_ground and alt > 10000 and 'Center' in current_controller
+                    and self._fir_detector and lat is not None and lon is not None):
+                self._fir_check_counter += 1
+                if self._fir_check_counter >= self._FIR_CHECK_INTERVAL:
+                    self._fir_check_counter = 0
+                    self._check_fir_crossing(lat, lon)
+
             # 落地后重置移交状态
             if on_ground and ac_data.get('airspeed', 0) < 30:
                 if any(self.handoff_triggered.values()):
                     print("LogicManager: 落地，重置主动移交状态")
                     self.handoff_triggered = {'departure': False, 'cruise': False, 'approach': False}
+                self._current_fir = None  # 落地后重置 FIR，下次起飞重新检测
             
             self.last_vs = vs
 

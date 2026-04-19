@@ -5,36 +5,35 @@
   <!-- Header -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-      <h4 class="mb-0">🧩 Plugin Manager</h4>
-      <small class="text-muted">Community plugins &amp; official DLC</small>
+      <h4 class="mb-0" data-i18n="plugin_manager_title">🧩 插件管理器</h4>
+      <small class="text-muted" data-i18n="plugin_manager_subtitle">社区插件与官方 DLC</small>
     </div>
     <div class="d-flex gap-2">
-      <a href="/dashboard" class="btn btn-sm btn-outline-secondary">← Dashboard</a>
-      <a href="/settings"  class="btn btn-sm btn-outline-secondary">⚙ Settings</a>
+      <a href="/dashboard" class="btn btn-sm btn-outline-secondary" data-i18n="back_dashboard">← 返回仪表盘</a>
     </div>
   </div>
 
   <!-- Tabs -->
   <ul class="nav nav-tabs mb-3" id="pm-tabs">
     <li class="nav-item">
-      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-installed">
-        Installed Plugins
+      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-installed" data-i18n="tab_installed_plugins">
+        已安装插件
         <span class="badge bg-secondary ms-1" id="installed-count">…</span>
       </button>
     </li>
     <li class="nav-item">
-      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dlc">
-        Official DLC &amp; Add-ons
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dlc" data-i18n="tab_official_dlc">
+        官方 DLC 与扩展
       </button>
     </li>
     <li class="nav-item">
-      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-install">
-        Install from ZIP
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-install" data-i18n="tab_install_zip">
+        从 ZIP 安装
       </button>
     </li>
     <li class="nav-item">
-      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dev">
-        Developer Guide
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dev" data-i18n="tab_dev_guide">
+        开发者指南
       </button>
     </li>
   </ul>
@@ -70,7 +69,7 @@
                   Save
                 </button>
               </div>
-              <div class="form-text">Required to install DLC into MSFS. Saved in Settings.</div>
+              <div class="form-text" data-i18n="msfs_community_hint">安装 DLC 到 MSFS 必须设置此路径，保存后生效。</div>
             </div>
             <div id="community-status" class="small text-muted"></div>
           </div>
@@ -105,15 +104,15 @@
     <div class="tab-pane fade" id="tab-install">
       <div class="card">
         <div class="card-body">
-          <h6>Install Community Plugin from ZIP</h6>
-          <p class="text-muted small mb-3">
-            A plugin ZIP must contain a <code>manifest.json</code> at its root and a Python entry-point file.
+          <h6 data-i18n="install_zip_title">从 ZIP 安装社区插件</h6>
+          <p class="text-muted small mb-3" data-i18n="install_zip_hint">
+            插件 ZIP 根目录须包含 <code>manifest.json</code> 和 Python 入口文件。
           </p>
           <div class="mb-3">
             <input type="file" class="form-control" id="plugin-zip-file" accept=".zip">
           </div>
-          <button class="btn btn-primary" onclick="installFromZip()">
-            📦 Install Plugin
+          <button class="btn btn-primary" onclick="installFromZip()" data-i18n="install_plugin_btn">
+            📦 安装插件
           </button>
           <div id="install-result" class="mt-3"></div>
         </div>
@@ -124,10 +123,10 @@
     <div class="tab-pane fade" id="tab-dev">
       <div class="card">
         <div class="card-body">
-          <h6>Creating a Community Plugin</h6>
+          <h6>创建社区插件 / Creating a Community Plugin</h6>
           <ol class="small">
-            <li>Create a folder: <code>plugins/community/my_plugin/</code></li>
-            <li>Add <code>manifest.json</code>:
+            <li>创建文件夹 / Create folder: <code>plugins/community/my_plugin/</code></li>
+            <li>添加 / Add <code>manifest.json</code>:
 <pre class="bg-light p-2 rounded mt-1 mb-2" style="font-size:0.75em;">{
   "id":          "my_plugin",
   "name":        "My Plugin",
@@ -135,10 +134,32 @@
   "author":      "Your Name",
   "description": "What this plugin does.",
   "entry":       "plugin.py",
-  "hooks":       ["on_atc_response", "on_telemetry"]
+  "hooks":       ["on_atc_response", "on_telemetry"],
+
+  "cabin_media": [
+    {
+      "id":          "boarding_music",
+      "label":       "登机音乐 / Boarding Music",
+      "type":        "audio",
+      "src":         "media/boarding.mp3",
+      "callsigns":   ["CCA", "CSN", "CHH"]
+    },
+    {
+      "id":          "safety_video",
+      "label":       "安全演示视频 / Safety Demo",
+      "type":        "video",
+      "src":         "media/safety.mp4",
+      "callsigns":   []
+    }
+  ]
 }</pre>
+              <div class="alert alert-info py-1 px-2 small mb-0">
+                <strong>cabin_media</strong> — 定义插件提供的客舱媒体（音频/视频）。<code>callsigns</code> 数组填入呼号前缀（如 <code>"CCA"</code>）可实现按航司自动匹配；留空 <code>[]</code> 表示通用媒体，对所有呼号可见。<br>
+                媒体文件路径相对于插件目录。编译版本中请将媒体文件放入插件文件夹内。
+              </div>
             </li>
-            <li>Add <code>plugin.py</code>:
+            <li>（可选）添加客舱脚本 / Add cabin scripts — 在插件目录下创建 <code>cabin/scripts.json</code>，格式与内置 <code>data/cabin/scripts.json</code> 相同，可扩展机舱广播文本。</li>
+            <li>添加 / Add <code>plugin.py</code>:
 <pre class="bg-light p-2 rounded mt-1 mb-2" style="font-size:0.75em;">from core.plugin_api import OpenFrequencyPlugin
 
 class Plugin(OpenFrequencyPlugin):
@@ -149,40 +170,43 @@ class Plugin(OpenFrequencyPlugin):
         # Optionally modify ATC text; return None to keep original
         return None
 
+    def on_cabin_media_play(self, media_id):
+        # Called when user plays a cabin media item defined in this plugin
+        self.log(f"Playing cabin media: {media_id}")
+
     def on_telemetry(self, data):
-        alt = data.get("aircraft", {}).get("altitude", 0)
-        # do something with altitude…</pre>
+        alt = data.get("aircraft", {}).get("altitude", 0)</pre>
             </li>
-            <li>Restart OpenFrequency or click <strong>Reload Plugins</strong>.</li>
+            <li>重启 OpenFrequency 或点击「重载所有插件」/ Restart or click <strong>Reload All Plugins</strong>.</li>
           </ol>
-          <h6 class="mt-3">Available Hooks</h6>
+          <h6 class="mt-3">可用钩子 / Available Hooks</h6>
           <table class="table table-sm table-bordered small">
-            <thead class="table-light"><tr><th>Hook</th><th>Called when</th><th>Can return</th></tr></thead>
+            <thead class="table-light"><tr><th>Hook</th><th>触发时机 / Called when</th><th>可返回 / Can return</th></tr></thead>
             <tbody>
-              <tr><td><code>on_load()</code></td><td>Plugin enabled / app start</td><td>—</td></tr>
-              <tr><td><code>on_unload()</code></td><td>Plugin disabled / removed</td><td>—</td></tr>
-              <tr><td><code>on_atc_response(text, action)</code></td><td>Every ATC reply</td><td>Modified text or None</td></tr>
-              <tr><td><code>on_telemetry(data)</code></td><td>~10 Hz telemetry snapshot</td><td>—</td></tr>
-              <tr><td><code>on_frequency_change(freq)</code></td><td>COM1 frequency change</td><td>—</td></tr>
-              <tr><td><code>on_pilot_input(text)</code></td><td>Before LLM processes speech</td><td>Modified text or None</td></tr>
-              <tr><td><code>on_chat_message(sender, text)</code></td><td>Any comms log message</td><td>—</td></tr>
+              <tr><td><code>on_load()</code></td><td>插件启用 / Plugin enabled</td><td>—</td></tr>
+              <tr><td><code>on_unload()</code></td><td>插件禁用 / Plugin disabled</td><td>—</td></tr>
+              <tr><td><code>on_atc_response(text, action)</code></td><td>每次 ATC 回复 / Every ATC reply</td><td>修改后的文本或 None</td></tr>
+              <tr><td><code>on_telemetry(data)</code></td><td>~10 Hz 遥测快照 / Telemetry snapshot</td><td>—</td></tr>
+              <tr><td><code>on_frequency_change(freq)</code></td><td>COM1 频率变化 / COM1 change</td><td>—</td></tr>
+              <tr><td><code>on_pilot_input(text)</code></td><td>LLM 处理前 / Before LLM</td><td>修改后的文本或 None</td></tr>
+              <tr><td><code>on_cabin_media_play(media_id)</code></td><td>用户播放客舱媒体 / Cabin media played</td><td>—</td></tr>
             </tbody>
           </table>
-          <h6 class="mt-3">Plugin API</h6>
+          <h6 class="mt-3">插件 API / Plugin API</h6>
           <table class="table table-sm table-bordered small">
-            <thead class="table-light"><tr><th>Method / Property</th><th>Description</th></tr></thead>
+            <thead class="table-light"><tr><th>方法/属性</th><th>说明 / Description</th></tr></thead>
             <tbody>
-              <tr><td><code>self.emit(event, data)</code></td><td>Push socket.io event to dashboard</td></tr>
-              <tr><td><code>self.subscribe(event, cb)</code></td><td>Listen to internal EventBus events</td></tr>
-              <tr><td><code>self.shared_context</code></td><td>Read-only snapshot of shared state</td></tr>
-              <tr><td><code>self.config</code></td><td>Plugin's own config dict</td></tr>
-              <tr><td><code>self.save_config()</code></td><td>Persist config to plugin/config.json</td></tr>
-              <tr><td><code>self.log(msg)</code></td><td>Log with plugin prefix</td></tr>
+              <tr><td><code>self.emit(event, data)</code></td><td>推送 socket.io 事件到仪表盘</td></tr>
+              <tr><td><code>self.subscribe(event, cb)</code></td><td>监听内部 EventBus 事件</td></tr>
+              <tr><td><code>self.shared_context</code></td><td>共享状态只读快照</td></tr>
+              <tr><td><code>self.config</code></td><td>插件自身配置字典</td></tr>
+              <tr><td><code>self.save_config()</code></td><td>持久化配置到 plugin/config.json</td></tr>
+              <tr><td><code>self.log(msg)</code></td><td>带插件前缀记录日志</td></tr>
             </tbody>
           </table>
 
-          <button class="btn btn-sm btn-outline-primary" onclick="reloadPlugins()">
-            🔄 Reload All Plugins
+          <button class="btn btn-sm btn-outline-primary" onclick="reloadPlugins()" data-i18n="reload_all_plugins">
+            🔄 重载所有插件
           </button>
         </div>
       </div>
@@ -203,9 +227,10 @@ class Plugin(OpenFrequencyPlugin):
     document.getElementById('installed-count').textContent = plugins.length;
 
     if (!plugins.length) {
+      const lang = localStorage.getItem('language') || 'en';
       el.innerHTML = `<div class="text-center text-muted py-5">
-        No community plugins installed yet.<br>
-        <small>Install one from a ZIP file or create your own — see the Developer Guide tab.</small>
+        ${lang === 'zh' ? '尚未安装任何社区插件。' : 'No community plugins installed yet.'}<br>
+        <small>${lang === 'zh' ? '从 ZIP 文件安装，或自行开发——查看开发者指南。' : 'Install one from a ZIP file or create your own — see the Developer Guide tab.'}</small>
       </div>`;
       return;
     }
@@ -216,7 +241,7 @@ class Plugin(OpenFrequencyPlugin):
           <div class="flex-grow-1">
             <div class="fw-semibold">${p.name}
               <span class="badge ${p.loaded ? 'bg-success' : (p.error ? 'bg-danger' : 'bg-secondary')} ms-1" style="font-size:0.65em;">
-                ${p.loaded ? 'Active' : (p.error ? 'Error' : (p.enabled ? 'Loading…' : 'Disabled'))}
+                ${(() => { const l = localStorage.getItem('language')||'en'; if(p.loaded) return l==='zh'?'运行中':'Active'; if(p.error) return l==='zh'?'错误':'Error'; return p.enabled?(l==='zh'?'加载中…':'Loading…'):(l==='zh'?'已禁用':'Disabled'); })()}
               </span>
               <span class="text-muted small ms-1">v${p.version}</span>
             </div>
@@ -225,10 +250,10 @@ class Plugin(OpenFrequencyPlugin):
             ${p.hooks && p.hooks.length ? `<div class="small text-muted mt-1">Hooks: ${p.hooks.join(', ')}</div>` : ''}
           </div>
           <div class="d-flex gap-2 flex-shrink-0">
-            ${p.enabled
-              ? `<button class="btn btn-sm btn-outline-warning" onclick="togglePlugin('${p.id}', false)">Disable</button>`
-              : `<button class="btn btn-sm btn-outline-success" onclick="togglePlugin('${p.id}', true)">Enable</button>`}
-            <button class="btn btn-sm btn-outline-danger" onclick="uninstallPlugin('${p.id}', '${p.name}')">Uninstall</button>
+            ${(() => { const l = localStorage.getItem('language')||'en'; return p.enabled
+              ? `<button class="btn btn-sm btn-outline-warning" onclick="togglePlugin('${p.id}', false)">${l==='zh'?'禁用':'Disable'}</button>`
+              : `<button class="btn btn-sm btn-outline-success" onclick="togglePlugin('${p.id}', true)">${l==='zh'?'启用':'Enable'}</button>`; })()}
+            <button class="btn btn-sm btn-outline-danger" onclick="uninstallPlugin('${p.id}', '${p.name}')">${localStorage.getItem('language')==='zh'?'卸载':'Uninstall'}</button>
           </div>
         </div>
       </div>
@@ -241,7 +266,8 @@ class Plugin(OpenFrequencyPlugin):
   }
 
   async function uninstallPlugin(id, name) {
-    if (!confirm(`Uninstall "${name}"? This will delete its folder.`)) return;
+    const l = localStorage.getItem('language')||'en';
+    if (!confirm(l==='zh'?`确定要卸载"${name}"吗？这将删除插件文件夹。`:`Uninstall "${name}"? This will delete its folder.`)) return;
     await fetch(`/api/plugins/${id}`, { method: 'DELETE' });
     loadPlugins();
   }
@@ -302,7 +328,8 @@ class Plugin(OpenFrequencyPlugin):
   }
 
   async function installDlc(id, name) {
-    if (!confirm(`Install "${name}"?\nThis will download ~1GB. Ensure the MSFS Community folder is set above.`)) return;
+    const l = localStorage.getItem('language')||'en';
+    if (!confirm(l==='zh'?`确定安装"${name}"？\n这将下载约 1GB 数据，请确保已设置 MSFS Community 文件夹。`:`Install "${name}"?\nThis will download ~1GB. Ensure the MSFS Community folder is set above.`)) return;
     const r = await fetch(`/api/dlc/install/${id}`, { method: 'POST' });
     const data = await r.json();
     if (data.ok) {

@@ -76,19 +76,19 @@
 
                     <!-- Dual Model -->
                     <div class="mb-1">
-                        <label class="form-label small mb-0">⚡ Fast Model
-                            <span class="text-muted" style="font-size:0.75em;">— readbacks, simple acks</span>
+                        <label class="form-label small mb-0" data-i18n="model_fast_label">⚡ 快速模型
+                            <span class="text-muted" style="font-size:0.75em;" data-i18n="model_fast_desc">— 读回、简单确认</span>
                         </label>
                         <input type="text" class="form-control form-control-sm" id="conf-model-fast"
                             placeholder="e.g. gemini-2.0-flash">
                     </div>
                     <div class="mb-2">
-                        <label class="form-label small mb-0">🧠 Thinking Model
-                            <span class="text-muted" style="font-size:0.75em;">— clearances, emergencies, routing</span>
+                        <label class="form-label small mb-0" data-i18n="model_thinking_label">🧠 思考模型
+                            <span class="text-muted" style="font-size:0.75em;" data-i18n="model_thinking_desc">— 放行、紧急情况、航路规划</span>
                         </label>
                         <input type="text" class="form-control form-control-sm" id="conf-model-thinking"
                             placeholder="e.g. gemini-2.0-flash-thinking-exp-01-21">
-                        <div class="form-text x-small text-muted">Leave either field empty to use the same model for both tiers.</div>
+                        <div class="form-text x-small text-muted" data-i18n="model_dual_hint">任一字段留空则两个层级使用同一模型。</div>
                     </div>
                     <!-- Legacy single model (hidden but kept for backward compat) -->
                     <input type="hidden" id="conf-model">
@@ -144,18 +144,18 @@
                     </div>
 
                     <!-- TTS + STT Voice Engine -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3">🔊 Voice Engine (TTS / STT)</h6>
+                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="voice_engine">🔊 语音引擎（TTS / STT）</h6>
                     <div class="mb-2">
-                        <label class="form-label small mb-0">TTS Backend</label>
+                        <label class="form-label small mb-0" data-i18n="tts_backend">TTS 合成后端</label>
                         <select class="form-select form-select-sm" id="conf-tts-backend"
                             onchange="toggleLocalTtsFields()">
-                            <option value="edge">Edge-TTS (Microsoft Cloud, recommended)</option>
-                            <option value="local">Local TTS (offline, streaming)</option>
+                            <option value="edge" data-i18n="tts_edge_option">Edge-TTS（微软云，推荐）</option>
+                            <option value="local" data-i18n="tts_local_option">本地 TTS（离线流式播放）</option>
                         </select>
                     </div>
                     <div id="local-tts-group" style="display:none;">
                         <div class="mb-2">
-                            <label class="form-label small mb-0">Local Engine</label>
+                            <label class="form-label small mb-0" data-i18n="local_engine">本地引擎</label>
                             <select class="form-select form-select-sm" id="conf-tts-local-engine"
                                 onchange="updateTtsModelPlaceholder()">
                                 <option value="kokoro">Kokoro-ONNX (pip install kokoro-onnx)</option>
@@ -163,21 +163,20 @@
                             </select>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label small mb-0">Model File Path</label>
+                            <label class="form-label small mb-0" data-i18n="model_file_path">模型文件路径</label>
                             <input type="text" class="form-control form-control-sm" id="conf-tts-local-model"
                                 placeholder="./models/kokoro-v0_19.onnx">
                         </div>
                         <div class="mb-2" id="kokoro-voices-group">
-                            <label class="form-label small mb-0">Voices File (Kokoro only)</label>
+                            <label class="form-label small mb-0" data-i18n="voices_file">音色文件（仅 Kokoro）</label>
                             <input type="text" class="form-control form-control-sm" id="conf-tts-local-voices"
                                 placeholder="e.g. ./models/voices.bin">
                         </div>
                         <div class="mb-2">
-                            <button class="btn btn-sm btn-outline-primary mt-1" onclick="downloadTtsModel()">⬇ Download TTS Model</button><span id="tts-dl-status" class="small text-muted ms-2"></span>
+                            <button class="btn btn-sm btn-outline-primary mt-1" onclick="downloadTtsModel()" data-i18n="download_tts">⬇ 下载 TTS 模型</button><span id="tts-dl-status" class="small text-muted ms-2"></span>
                         </div>
-                        <div class="form-text x-small text-muted mb-2">
-                            Local TTS streams audio sentence-by-sentence for lower latency.
-                            Kokoro supports English voices; for Chinese/Japanese, Edge-TTS is still recommended.
+                        <div class="form-text x-small text-muted mb-2" data-i18n="local_tts_hint">
+                            本地 TTS 逐句流式播放，延迟更低。Kokoro 支持英语音色；中文/日文推荐使用 Edge-TTS。
                         </div>
                     </div>
 
@@ -197,7 +196,7 @@
                         </select>
                     </div>
                     <div class="mb-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick="downloadSttModel()">⬇ Download STT Model</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="downloadSttModel()" data-i18n="download_stt">⬇ 下载 STT 模型</button>
                         <span id="stt-dl-status" class="small text-muted ms-2"></span>
                     </div>
 
@@ -237,7 +236,8 @@
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="conf-auto-busy" checked>
                             <label class="form-check-label small" for="conf-auto-busy">
-                                🤖 Auto Busy Level — derive from real nearby aircraft count
+                                <span data-i18n="auto_busy_label">🤖 自动忙碌等级</span>
+                                <span class="text-muted" style="font-size:0.85em;" data-i18n="auto_busy_desc">— 根据附近真实飞机数量自动推算</span>
                             </label>
                         </div>
                         <div id="auto-busy-status" class="form-text x-small text-muted mt-1"></div>
@@ -246,13 +246,12 @@
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="conf-allow-intl-non-english">
                             <label class="form-check-label small" for="conf-allow-intl-non-english">
-                                🌐 Allow non-English comms outside Chinese airspace
-                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">Not realistic</span>
+                                <span data-i18n="allow_non_english_label">🌐 允许在中国空域外使用非英语通话</span>
+                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;" data-i18n="allow_non_english_badge">非真实情形</span>
                             </label>
                         </div>
-                        <div class="form-text x-small text-muted">
-                            When off, ATC uses English-only (ICAO standard) outside Chinese/Japanese airspace.
-                            Turn on to use your configured language everywhere.
+                        <div class="form-text x-small text-muted" data-i18n="allow_non_english_hint">
+                            关闭时，在中国/日本空域外管制员将使用英语（ICAO 标准）。开启后可在任何地方使用您设定的语言。
                         </div>
                     </div>
 
@@ -286,33 +285,32 @@
                     </div>
 
                     <!-- Privacy & Updates -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3">☁️ Privacy &amp; Updates</h6>
+                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="privacy_updates">☁️ 隐私与更新</h6>
 
                     <!-- Crash telemetry toggle -->
                     <div class="mb-2">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="conf-telemetry-enabled">
-                            <label class="form-check-label small" for="conf-telemetry-enabled">
-                                Auto-report crashes to help improve OpenFrequency
+                            <label class="form-check-label small" for="conf-telemetry-enabled" data-i18n="telemetry_toggle">
+                                自动上报崩溃日志以帮助改进 OpenFrequency
                             </label>
                         </div>
                         <div class="form-check form-switch mt-1">
                             <input class="form-check-input" type="checkbox" id="conf-telemetry-sim-info">
-                            <label class="form-check-label small" for="conf-telemetry-sim-info">
-                                Include sim/LLM provider info in crash reports
+                            <label class="form-check-label small" for="conf-telemetry-sim-info" data-i18n="telemetry_sim_info">
+                                在崩溃报告中包含模拟器/AI 提供商信息
                             </label>
                         </div>
-                        <div class="form-text x-small text-muted mt-1">
-                            No API keys, passwords, or personal info are ever sent.
-                            Crash logs are always saved locally regardless of this setting.
+                        <div class="form-text x-small text-muted mt-1" data-i18n="telemetry_hint">
+                            不会发送 API 密钥、密码或个人信息。崩溃日志始终本地保存，与此设置无关。
                         </div>
                     </div>
 
                     <!-- Auto update -->
                     <div class="mb-3">
                         <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <button class="btn btn-sm btn-outline-primary" onclick="checkForUpdates()">
-                                🔄 Check for Updates
+                            <button class="btn btn-sm btn-outline-primary" onclick="checkForUpdates()" data-i18n="check_updates">
+                                🔄 检查更新
                             </button>
                             <span id="update-check-status" class="small text-muted"></span>
                         </div>
@@ -322,59 +320,59 @@
                     <!-- Combined crash upload + feedback -->
                     <div class="mb-2">
                         <a class="btn btn-sm btn-outline-secondary collapsed" data-bs-toggle="collapse"
-                            href="#feedback-collapse" role="button" aria-expanded="false">
-                            📤 Report / Feedback
+                            href="#feedback-collapse" role="button" aria-expanded="false" data-i18n="report_feedback_btn">
+                            📤 反馈 / 问题上报
                         </a>
                         <div class="collapse mt-2" id="feedback-collapse">
                             <div class="card card-body p-2" style="font-size:0.85rem;">
                                 <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="uploadRecentCrash()">
-                                        📤 Upload Recent Crash Log
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="uploadRecentCrash()" data-i18n="upload_crash_log">
+                                        📤 上传最近崩溃日志
                                     </button>
                                     <span id="crash-upload-status" class="small text-muted"></span>
                                 </div>
                                 <div id="recent-crash-info" class="form-text x-small text-muted mb-2"></div>
                                 <div class="mb-2">
-                                    <label class="form-label small mb-0">Type</label>
+                                    <label class="form-label small mb-0" data-i18n="fb_type_label">类型</label>
                                     <select class="form-select form-select-sm" id="fb-type">
-                                        <option value="bug">🐛 Bug Report</option>
-                                        <option value="suggestion">💡 Feature Suggestion</option>
-                                        <option value="crash">💥 Crash Follow-up</option>
-                                        <option value="other">📝 Other</option>
+                                        <option value="bug" data-i18n="fb_type_bug">🐛 Bug 报告</option>
+                                        <option value="suggestion" data-i18n="fb_type_suggestion">💡 功能建议</option>
+                                        <option value="crash" data-i18n="fb_type_crash">💥 崩溃跟进</option>
+                                        <option value="other" data-i18n="fb_type_other">📝 其他</option>
                                     </select>
                                 </div>
                                 <div class="mb-2">
-                                    <label class="form-label small mb-0">Title <span class="text-danger">*</span></label>
+                                    <label class="form-label small mb-0" data-i18n="fb_title_label">标题 <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control form-control-sm" id="fb-title"
                                         placeholder="Brief description of the issue" maxlength="100">
                                 </div>
                                 <div class="mb-2">
-                                    <label class="form-label small mb-0">Details</label>
+                                    <label class="form-label small mb-0" data-i18n="fb_details_label">详细描述</label>
                                     <textarea class="form-control form-control-sm" id="fb-description" rows="3"
                                         placeholder="Steps to reproduce, expected vs actual behavior, etc." maxlength="2000"></textarea>
                                 </div>
                                 <div class="mb-2">
-                                    <label class="form-label small mb-0">Recent Crash ID (auto-filled)</label>
+                                    <label class="form-label small mb-0" data-i18n="fb_crash_id_label">崩溃 ID（自动填写）</label>
                                     <input type="text" class="form-control form-control-sm" id="fb-crash-id"
                                         placeholder="Leave blank if not crash-related">
                                 </div>
                                 <div class="mb-2">
-                                    <label class="form-label small mb-0">Contact (optional)</label>
+                                    <label class="form-label small mb-0" data-i18n="fb_contact_label">联系方式（可选）</label>
                                     <input type="text" class="form-control form-control-sm" id="fb-contact"
                                         placeholder="Email or GitHub handle for follow-up">
                                 </div>
                                 <div class="mb-2 d-flex gap-3">
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="fb-include-log" checked>
-                                        <label class="form-check-label small" for="fb-include-log">Attach log excerpt</label>
+                                        <label class="form-check-label small" for="fb-include-log" data-i18n="fb_attach_log">附加日志摘录</label>
                                     </div>
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="fb-include-config">
-                                        <label class="form-check-label small" for="fb-include-config">Attach config summary</label>
+                                        <label class="form-check-label small" for="fb-include-config" data-i18n="fb_attach_config">附加配置摘要</label>
                                     </div>
                                 </div>
                                 <div class="d-flex gap-2 align-items-center">
-                                    <button class="btn btn-sm btn-primary" onclick="submitFeedback()">Send Report</button>
+                                    <button class="btn btn-sm btn-primary" onclick="submitFeedback()" data-i18n="fb_send">发送报告</button>
                                     <span id="fb-status" class="small text-muted"></span>
                                 </div>
                             </div>
@@ -937,7 +935,10 @@
     if (window.socket) {
         window.socket.on('busy_level_update', d => {
             const el = document.getElementById('auto-busy-status');
-            if (el) el.textContent = `Current: ${d.level}  ·  ${d.count} aircraft nearby`;
+        const lang = localStorage.getItem('language') || 'en';
+            if (el) el.textContent = lang === 'zh'
+                ? `当前：${d.level}（自动）· 附近 ${d.count} 架飞机`
+                : `Current: ${d.level} (auto) · ${d.count} aircraft nearby`;
         });
     }
 

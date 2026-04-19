@@ -8,6 +8,8 @@
  *   GET  /dl/:tag/:asset      — proxy specific tagged release asset download
  *   POST /api/crash           — store crash report in KV
  *   POST /api/feedback        — store feedback in KV
+ *   POST /api/ping            — daily active user heartbeat (privacy-preserving)
+ *   GET  /api/stats           — aggregated usage statistics (auth required)
  *
  * Environment variables (set via wrangler.toml [vars] or `wrangler secret put`):
  *   CLIENT_TOKEN         — shared secret, required in X-OF-Token header
@@ -35,12 +37,15 @@ const RATE_LIMITS = {
   download: { perIp: 5,     global: 500   },
   crash:    { perIp: 30,    global: 10000 },
   feedback: { perIp: 15,    global: null  },
+  ping:     { perIp: 3,     global: null  },  // 3 pings per IP per day
 };
 
 const KV_TTL = {
   crash:     7776000,  // 90 days
   feedback:  31536000, // 1 year
   rateLimit: 86400,    // 24 hours
+  ping:      90000,    // 25 hours (daily uniqueness window)
+  stats:     691200,   // 8 days (daily aggregates)
 };
 
 const VERSION_CACHE_TTL = 300; // 5 minutes
@@ -90,6 +95,14 @@ export default {
 
       if (request.method === "POST" && path === "/api/feedback") {
         return handleFeedback(request, env, ctx);
+      }
+
+      if (request.method === "POST" && path === "/api/ping") {
+        return handlePing(request, env, ctx);
+      }
+
+      if (request.method === "GET" && path === "/api/stats") {
+        return handleStats(request, env, ctx);
       }
 
       return corsJSON({ error: "Not Found" }, 404);
@@ -621,6 +634,119 @@ async function handleFeedback(request, env, ctx) {
   await env.OF_KV.put(kvKey, JSON.stringify(record), { expirationTtl: KV_TTL.feedback });
 
   return corsJSON({ status: "accepted", feedback_id: feedbackId }, 201);
+}
+
+// ---------------------------------------------------------------------------
+// Handler: POST /api/ping  — daily active user heartbeat
+// ---------------------------------------------------------------------------
+// Body: { app_version, os, sim_type, locale }
+// Privacy: IP is hashed (SHA-256 truncated 16 hex), never stored raw.
+// KV keys:
+//   ping:YYYY-MM-DD:<ip_hash>          → "1"          (TTL 25h, uniqueness guard)
+//   stats:daily:YYYY-MM-DD             → JSON object  (TTL 8d, aggregate)
+
+async function handlePing(request, env, ctx) {
+  const ip = getClientIP(request);
+  const ipHash = await hashIP(ip);
+  const date = todayUTC();
+
+  // Dedup: one counted ping per IP per day
+  const pingKey = `ping:${date}:${ipHash}`;
+  const alreadyCounted = await env.OF_KV.get(pingKey);
+
+  let body = {};
+  try {
+    const raw = await request.text();
+    body = JSON.parse(raw);
+  } catch {}
+
+  const version  = sanitizeString(body.app_version, 32) || "unknown";
+  const os       = sanitizeEnum(body.os, ["windows", "linux", "darwin", "unknown"], "unknown");
+  const simType  = sanitizeEnum(body.sim_type, ["xplane", "msfs", "p3d", "fsx", "unknown"], "unknown");
+  const locale_  = sanitizeString(body.locale, 16) || "unknown";
+
+  if (!alreadyCounted) {
+    // Rate-limit check (fire-and-forget style — we accept the ping regardless)
+    await checkRateLimit(env, "ping", ip);
+
+    // Mark this IP as counted today
+    ctx.waitUntil(env.OF_KV.put(pingKey, "1", { expirationTtl: KV_TTL.ping }));
+
+    // Update daily aggregate
+    const statsKey = `stats:daily:${date}`;
+    const existing = await env.OF_KV.get(statsKey, { type: "json" }) || {
+      date,
+      dau: 0,
+      versions: {},
+      os_dist: {},
+      sim_dist: {},
+      locale_dist: {},
+    };
+
+    existing.dau = (existing.dau || 0) + 1;
+
+    existing.versions = existing.versions || {};
+    existing.versions[version] = (existing.versions[version] || 0) + 1;
+
+    existing.os_dist = existing.os_dist || {};
+    existing.os_dist[os] = (existing.os_dist[os] || 0) + 1;
+
+    existing.sim_dist = existing.sim_dist || {};
+    existing.sim_dist[simType] = (existing.sim_dist[simType] || 0) + 1;
+
+    existing.locale_dist = existing.locale_dist || {};
+    existing.locale_dist[locale_] = (existing.locale_dist[locale_] || 0) + 1;
+
+    ctx.waitUntil(
+      env.OF_KV.put(statsKey, JSON.stringify(existing), { expirationTtl: KV_TTL.stats })
+    );
+  }
+
+  return corsJSON({ status: "ok", date, counted: !alreadyCounted }, 200);
+}
+
+// ---------------------------------------------------------------------------
+// Handler: GET /api/stats  — aggregated statistics for the last N days
+// ---------------------------------------------------------------------------
+// Query params: ?days=7 (default 7, max 30)
+
+async function handleStats(request, env, ctx) {
+  const url = new URL(request.url);
+  const days = Math.min(30, Math.max(1, parseInt(url.searchParams.get("days") || "7", 10)));
+
+  const results = [];
+  let totalDau = 0;
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const statsKey = `stats:daily:${dateStr}`;
+    const data = await env.OF_KV.get(statsKey, { type: "json" });
+    if (data) {
+      results.push(data);
+      totalDau += data.dau || 0;
+    } else {
+      results.push({ date: dateStr, dau: 0, versions: {}, os_dist: {}, sim_dist: {}, locale_dist: {} });
+    }
+  }
+
+  // Aggregate across all days
+  const versionTotals = {};
+  const simTotals = {};
+  for (const day of results) {
+    for (const [v, n] of Object.entries(day.versions || {})) versionTotals[v] = (versionTotals[v] || 0) + n;
+    for (const [s, n] of Object.entries(day.sim_dist || {})) simTotals[s] = (simTotals[s] || 0) + n;
+  }
+
+  return corsJSON({
+    period_days: days,
+    total_dau: totalDau,
+    avg_dau: Math.round(totalDau / days),
+    version_distribution: versionTotals,
+    sim_distribution: simTotals,
+    daily: results,
+  }, 200);
 }
 
 // ---------------------------------------------------------------------------

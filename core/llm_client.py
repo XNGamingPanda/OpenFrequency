@@ -160,26 +160,41 @@ class LLMClient:
         context_snapshot: dict, current shared_context state
         """
         print(f"LLMClient: Generating PROACTIVE message for reason: {reason}")
-        
+
         role = context_snapshot['atc_state']['current_controller']
         callsign = context_snapshot['aircraft']['callsign']
-        
+        atc_state = context_snapshot.get('atc_state', {})
+
+        # Build extra context block for FIR crossing events
+        fir_extra = ""
+        if reason == 'pilot_crossed_fir_boundary_suggest_center_handoff':
+            new_fir = atc_state.get('current_fir', '')
+            fir_name = atc_state.get('current_fir_name', new_fir)
+            fir_freq = atc_state.get('suggested_fir_freq', '')
+            freq_str = f" on {fir_freq:.3f}" if fir_freq else ""
+            fir_extra = (
+                f"\n        FIR CROSSING DETAILS:"
+                f"\n        - Aircraft has just entered {fir_name} ({new_fir})."
+                f"\n        - Instruct pilot to contact the next center{freq_str}."
+                f"\n        - Example: \"{callsign}, leaving our airspace. Contact {fir_name} Center{freq_str}, good day.\""
+            )
+
         system_prompt = f"""
         You are {role}. The pilot ({callsign}) has triggered a system alert: "{reason}".
-        
+
         Current Telemetry:
         - Alt: {context_snapshot['aircraft']['altitude']}
         - Hdg: {context_snapshot['aircraft']['heading']}
-        
+        {fir_extra}
         CRITICAL RULES:
         1. You are INITIATING contact. Do not wait for a reply.
         2. Keep it brief and authoritative.
         3. Use {callsign} to address the pilot.
         4. JSON Format: {{"text": "...", "action": "NONE"}}
-        
+
         Generate the radio message now.
         """
-        
+
         # Run in thread to avoid blocking EventBus/SimBridge
         import threading
         t = threading.Thread(target=self.generate_response, args=(None, system_prompt, True))

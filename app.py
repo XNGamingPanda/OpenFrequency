@@ -31,6 +31,7 @@ from core.crew_manager import CrewManager  # Crew Manager (FO + Purser)
 from core.plugin_manager import PluginManager
 from core.addon_installer import get_installer, load_dlc_catalog, current_progress
 from core import telemetry as _telemetry_mod
+from core import stats as _stats_mod
 from core import updater as _updater_mod
 from core import feedback as _feedback_mod
 from flask import Flask, render_template, request, jsonify, redirect, make_response
@@ -1397,6 +1398,9 @@ if __name__ == '__main__':
     print("--- Initializing OpenFrequency v3.5-beta ---")
     print(f"Debug: WERKZEUG_RUN_MAIN = {os.environ.get('WERKZEUG_RUN_MAIN')}")
     
+    # Send daily usage heartbeat (fire-and-forget, privacy-preserving)
+    _stats_mod.ping_async()
+
     # 0. Environment Self-Check (only in worker process)
     if packaged_mode or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         ok, errors = self_check()
