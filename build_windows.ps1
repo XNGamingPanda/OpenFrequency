@@ -58,12 +58,21 @@ if (Test-Path $BundledModels) {
     throw "models were bundled into the main package unexpectedly: $BundledModels"
 }
 
+# Read version from version.txt for unified version management
+$VersionFile = Join-Path $Root "version.txt"
+if (Test-Path $VersionFile) {
+    $Version = Get-Content $VersionFile -Raw -Encoding UTF8
+    $Version = $Version.Trim()
+} else {
+    $Version = "v3.9-beta"
+}
+
 $PackageRoot = Join-Path $Root "dist\packages"
-$MainStage = Join-Path $PackageRoot "OpenFrequency_v3.5-beta"
-$ModelPackageRoot = Join-Path $PackageRoot "OpenFrequency_v3.5-beta-models"
+$MainStage = Join-Path $PackageRoot "OpenFrequency_$Version"
+$ModelPackageRoot = Join-Path $PackageRoot "OpenFrequency_$Version-models"
 $ModelStage = Join-Path $ModelPackageRoot "OpenFrequency\_internal\models"
-$MainZip = Join-Path $PackageRoot "OpenFrequency_v3.5-beta-main.zip"
-$ModelZip = Join-Path $PackageRoot "OpenFrequency_v3.5-beta-models.zip"
+$MainZip = Join-Path $PackageRoot "OpenFrequency_$Version-main.zip"
+$ModelZip = Join-Path $PackageRoot "OpenFrequency_$Version-models.zip"
 $SherpaSource = Join-Path $Root "models\sherpa-onnx-whisper-small"
 $SherpaTarget = Join-Path $ModelStage "sherpa-onnx-whisper-small"
 $RequiredModelFiles = @(
@@ -91,7 +100,7 @@ Write-Host "Build complete. Run only these final outputs:"
 Write-Host "  dist\OpenFrequency\OpenFrequency.exe"
 Write-Host "  dist\OpenFrequency\OpenFrequency-Console.exe"
 Write-Host "Split release packages:"
-Write-Host "  dist\packages\OpenFrequency_v3.5-beta-main.zip"
-Write-Host "  dist\packages\OpenFrequency_v3.5-beta-models.zip"
+Write-Host "  dist\packages\OpenFrequency_$Version-main.zip"
+Write-Host "  dist\packages\OpenFrequency_$Version-models.zip"
 Write-Host "Do not run executables from build\openfrequency; that folder is PyInstaller intermediate output."
 Write-Host "Runtime config/logs are stored under %APPDATA%\OpenFrequency"

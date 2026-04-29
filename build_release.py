@@ -1,7 +1,14 @@
 import subprocess
 import os
 
-zip_name = "OpenFrequency_v3.5_Beta.zip"
+# Read version from version.txt for unified version management
+try:
+    with open("version.txt", "r", encoding="utf-8") as f:
+        version = f.read().strip()
+except Exception:
+    version = "v3.9-beta"
+
+zip_name = f"OpenFrequency_{version}.zip"
 
 def create_release_zip():
     # 7z exclusion list

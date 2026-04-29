@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  OpenFrequency MSI Installer — WiX 4
-  Requires: dotnet tool install --global wix
-  Build:    See build_installer.ps1
+  OpenFrequency MSI Installer (WiX 4/7)
+  Requires: dotnet tool install global wix
+  Build: See build_installer.ps1
 -->
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
-  <?define ProductVersion = "$(env.OF_VERSION)" ?>
+  <?define ProductVersion = "$(var.OF_VERSION)" ?>
 
   <Package
     Name="OpenFrequency"
@@ -27,14 +26,8 @@
     <!-- Embed all files into the MSI cabinet -->
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- WiX standard install-dir UI (lets user pick folder) -->
-    <ui:WixUI Id="WixUI_InstallDir" />
+    <!-- Basic install properties -->
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
-    <WixVariable Id="WixUILicenseRtf" Value="LICENSE.rtf" />
-
-    <!-- Optional: skip the license page banner bitmap (comment out to use default) -->
-    <!-- <WixVariable Id="WixUIBannerBmp"  Value="banner.bmp" /> -->
-    <!-- <WixVariable Id="WixUIDialogBmp"  Value="dialog.bmp" /> -->
 
     <!-- ═══════════════════════════════════════════
          Directory structure
@@ -53,12 +46,8 @@
          Components
     ═══════════════════════════════════════════ -->
     <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
-
-      <!-- Harvest entire PyInstaller output folder recursively -->
-      <Component Id="MainFiles" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567890">
-        <Files Source="..\dist\OpenFrequency\**" />
-      </Component>
-
+      <!-- Glob-harvest entire PyInstaller output folder (WiX 7) -->
+      <Files Include="..\dist\OpenFrequency\**" />
     </ComponentGroup>
 
     <!-- Start Menu shortcut -->

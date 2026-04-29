@@ -35,9 +35,11 @@ $VersionFile = Join-Path $RepoRoot "version.txt"
 if (Test-Path $VersionFile) {
     $env:OF_VERSION = (Get-Content $VersionFile -Raw).Trim()
 } else {
-    $env:OF_VERSION = "1.0.0"
+    $env:OF_VERSION = "v3.9-beta"
 }
 $OutputMsi = Join-Path $RepoRoot "dist\OpenFrequency-$($env:OF_VERSION)-Setup.msi"
+$MsiVersion = ($env:OF_VERSION -replace '[^0-9.]', '') -replace '\.+$', ''
+if (-not ($MsiVersion -match '^\d+\.\d+')) { $MsiVersion = "3.9.0" }
 Write-Host "  Version: $($env:OF_VERSION)"
 
 # ── Ensure LICENSE.rtf exists (WiX UI requires it) ────────────────────────────
@@ -106,8 +108,8 @@ if (-not (Test-Path (Join-Path $DistDir "OpenFrequency.exe"))) {
 }
 
 Write-Host "Building MSI from: $WxsFile"
-Write-Host "  OF_VERSION = $($env:OF_VERSION)"
-wix build $WxsFile -out $OutputMsi -d "OF_VERSION=$($env:OF_VERSION)"
+Write-Host "  OF_VERSION = $MsiVersion"
+wix build $WxsFile -out $OutputMsi -d "OF_VERSION=$MsiVersion"
 
 if ($LASTEXITCODE -ne 0) { Write-Error "WiX build failed."; exit 1 }
 

@@ -2,13 +2,13 @@
 
 ---
 
-# v3.9-alpha — 2026-04-29
+# v3.9-beta — 2026-04-29
 
 > **发布日期**：2026-04-29
-> **版本**：**v3.9-alpha**
+> **版本**：**v3.9-beta**
 > **状态**：**Alpha**
 
-本版本是一次重大功能里程碑，引入了 CPDLC 数字放行通信、中国空域米制 RVSM 自动切换、完整 MSI 安装程序构建流程、社区插件支持、雷达引导、通过 Cloudflare Workers 自动更新、崩溃遥测上报、双层 LLM 配置、本地流式 TTS，以及自 v3.5-beta 以来积累的数十项错误修复。
+本版本是一次重大功能里程碑，引入了 CPDLC 数字放行通信、中国空域米制 RVSM 自动切换、完整 MSI 安装程序构建流程、社区插件支持、雷达引导、通过 Cloudflare Workers 自动更新、崩溃遥测上报、双层 LLM 配置、本地流式 TTS，以及 v3.9-beta 的数十项错误修复。
 
 英文版本请参阅 [RELEASE_NOTES.md](./RELEASE_NOTES.md)。
 
@@ -95,76 +95,6 @@
 
 ---
 
-## Cloudflare 配置说明
-
-### Workers（`workers/workers.js`）
-
-Workers 后端负责版本检查、资源代理下载、崩溃上报、反馈收集和每日活跃统计。
-
-**部署步骤：**
-
-```bash
-# 1. 安装 Wrangler
-npm install -g wrangler
-
-# 2. 登录
-wrangler login
-
-# 3. 创建 KV 命名空间
-wrangler kv:namespace create OF_KV
-# → 将返回的 id 填入 workers/wrangler.toml [[kv_namespaces]] id
-
-wrangler kv:namespace create OF_KV --preview
-# → 填入 preview_id
-
-# 4. 设置密钥（不要提交到代码仓库）
-wrangler secret put CLIENT_TOKEN     # 客户端使用的共享令牌
-wrangler secret put GITHUB_TOKEN     # 可选，提升 GH API 速率限制
-
-# 5. 编辑 workers/wrangler.toml
-#    将 GITHUB_OWNER 和 GITHUB_REPO 设置为您的仓库信息
-
-# 6. 部署
-cd workers
-wrangler deploy
-```
-
-**`wrangler.toml` 环境变量说明：**
-
-| 变量 | 用途 |
-|------|------|
-| `GITHUB_OWNER` | GitHub 仓库所有者 |
-| `GITHUB_REPO` | GitHub 仓库名 |
-| `MIN_REQUIRED_VERSION` | 强制更新版本下限（semver） |
-| `CLIENT_TOKEN`（密钥） | 客户端在 `X-OF-Token` 请求头中发送的令牌 |
-| `GITHUB_TOKEN`（密钥） | GitHub PAT，可选，将 API 速率从 60 提升至 5000 次/小时 |
-
-### Pages（`workers/pages/index.html`）
-
-下载落地页是部署到 Cloudflare Pages 的静态站点。
-
-```
-# 在 Cloudflare 控制台中：
-# 1. Pages → 创建项目 → 连接 Git（或直接上传）
-# 2. 将构建输出目录设置为：workers/pages
-# 3. 无需构建命令（纯静态 HTML）
-# 4. 设置环境变量 WORKERS_URL 为您的 Workers 子域名：
-#    例如 https://openfrequency-api.<your-account>.workers.dev
-#    （或直接在 index.html 中更新下载链接）
-```
-
-页面上的下载按钮调用 Workers 的 `GET /pub/dl/latest`，该接口会重定向至 GitHub Releases 上的最新 MSI 安装包。
-
----
-
-## SHA-256 校验值
-
-```
-<!-- SHA-256 由发布工作流自动填入 -->
-```
-
----
-
 # v3.9-beta — 2026-04-18
 
 > **发布日期**：2026-04-18
@@ -208,15 +138,6 @@ wrangler deploy
 ### MSI 安装程序流程
 
 - WiX 4 MSI，`version.txt` 为版本号唯一来源。
-
----
-
-# v3.9-alpha（前版） — 2026-04-07
-
-> **发布日期**：2026-04-07
-> **状态**：**Beta**
-
-桌面打包、生涯模式重做、SimBrief 航路集成、X-Plane 接入、机场地面寻路改进、ATC 主动监控等。详情请参阅英文版发布说明。
 
 ---
 

@@ -15,10 +15,10 @@ def normalize_version_tag(tag: str) -> str:
 def _parse_version(value: str) -> tuple[int, int, int, int, int]:
     """
     Parse versions like:
-    - 3.5
-    - 3.5.0
-    - 3.5-beta
-    - 3.5.1-alpha2
+    - v3.9-beta
+    - 3.9
+    - 3.9.0
+    - 3.9.1-alpha2
     """
     text = normalize_version_tag(value).lower()
     match = re.match(r"^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-.]?([a-z]+)(\d*)?)?$", text)
@@ -47,6 +47,11 @@ def _parse_version(value: str) -> tuple[int, int, int, int, int]:
 
 def is_newer_version(latest: str, current: str = APP_VERSION) -> bool:
     return _parse_version(latest) > _parse_version(current)
+
+
+def format_version_tag(version: str) -> str:
+    text = (version or "").strip()
+    return text if text.lower().startswith("v") else f"v{text}"
 
 
 def get_latest_release(owner: str = GITHUB_OWNER, repo: str = GITHUB_REPO, timeout: int = 10) -> dict[str, Any]:
@@ -88,7 +93,7 @@ def build_update_payload(owner: str = GITHUB_OWNER, repo: str = GITHUB_REPO, cur
         "asset_name": None,
         "release_notes": "",
         "release_url": f"https://github.com/{owner}/{repo}/releases",
-        "tag_name": f"v{current_version}",
+        "tag_name": format_version_tag(current_version),
     }
 
     try:
@@ -104,7 +109,7 @@ def build_update_payload(owner: str = GITHUB_OWNER, repo: str = GITHUB_REPO, cur
     payload.update({
         "latest_version": latest_version or current_version,
         "release_notes": data.get("body", "") or "",
-        "tag_name": latest_tag or f"v{current_version}",
+        "tag_name": latest_tag or format_version_tag(current_version),
         "release_url": data.get("html_url") or payload["release_url"],
         "asset_name": asset.get("name") if asset else None,
         "download_url": asset.get("browser_download_url") if asset else None,

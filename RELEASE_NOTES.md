@@ -2,18 +2,18 @@
 
 ---
 
-# v3.9-alpha — 2026-04-29
+# v3.9-beta — 2026-04-29
 
 > **Release Date**: 2026-04-29
-> **Version**: **v3.9-alpha**
+> **Version**: **v3.9-beta**
 > **Status**: **Alpha**
 
 <!-- en -->
-This release is a major feature milestone. It introduces CPDLC datalink, metric RVSM for Chinese airspace, a full MSI installer pipeline, community plugin support, radar vectoring, auto-update via Cloudflare Workers, crash telemetry, two-tier LLM support, local TTS streaming, and dozens of bug fixes accumulated since v3.5-beta.
+This release is a major feature milestone. It introduces CPDLC datalink, metric RVSM for Chinese airspace, a full MSI installer pipeline, community plugin support, radar vectoring, auto-update via Cloudflare Workers, crash telemetry, two-tier LLM support, local TTS streaming, and dozens of bug fixes for v3.9-beta.
 <!-- /en -->
 
 <!-- zh -->
-本版本是一次重大功能里程碑，引入了 CPDLC 数字放行通信、中国空域米制 RVSM 自动切换、完整 MSI 安装程序构建流程、社区插件支持、雷达引导、通过 Cloudflare Workers 自动更新、崩溃遥测上报、双层 LLM 配置、本地流式 TTS，以及自 v3.5-beta 以来积累的数十项错误修复。
+本版本是一次重大功能里程碑，引入了 CPDLC 数字放行通信、中国空域米制 RVSM 自动切换、完整 MSI 安装程序构建流程、社区插件支持、雷达引导、通过 Cloudflare Workers 自动更新、崩溃遥测上报、双层 LLM 配置、本地流式 TTS，以及 v3.9-beta 的数十项错误修复。
 <!-- /zh -->
 
 ---
@@ -236,10 +236,10 @@ This release brings cloud-connected telemetry and auto-update infrastructure, in
 
 ---
 
-# v3.9-alpha (prior) — 2026-04-07
+# v3.9-beta (prior) — 2026-04-07
 
 > **Release Date**: 2026-04-07
-> **Version**: **v3.9-alpha**
+> **Version**: **v3.9-beta**
 > **Status**: **Beta**. This build is more complete than the 3.1 alpha line, but several systems remain under active tuning.
 
 This update is a broad beta milestone focused on making OpenFrequency easier to run, more useful in career flights, and more tightly integrated with X-Plane and live airport data. The headline changes are the new packaged Windows build path, a rebuilt career workflow, richer SimBrief integration, improved airport ground intelligence, and more proactive ATC behavior.

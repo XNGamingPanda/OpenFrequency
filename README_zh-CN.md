@@ -1,11 +1,11 @@
 # OpenFrequency 📡
 > *面向所有人的 AI 空中交通管制*
 
-![版本](https://img.shields.io/badge/状态-v3.9--alpha-orange) ![许可证](https://img.shields.io/badge/许可证-MIT-green) ![模拟器](https://img.shields.io/badge/模拟器-MSFS%20|%20X--Plane-blue)
+![版本](https://img.shields.io/badge/状态-v3.9--beta-orange) ![许可证](https://img.shields.io/badge/许可证-MIT-green) ![模拟器](https://img.shields.io/badge/模拟器-MSFS%20|%20X--Plane-blue)
 
 > 📖 **[English README](README.md)**
 
-> ⚠️ **Alpha 提示**：v3.9-alpha 包含大量新功能——CPDLC、插件系统、MSI 安装程序、自动更新、本地 TTS 等。升级前请阅读[发布说明](RELEASE_NOTES_zh-CN.md)。
+> ⚠️ **Alpha 提示**：v3.9-beta 包含大量新功能——CPDLC、插件系统、MSI 安装程序、自动更新、本地 TTS 等。升级前请阅读[发布说明](RELEASE_NOTES_zh-CN.md)。
 
 **OpenFrequency** 是面向飞行模拟爱好者的新一代开源空中交通管制系统。
 
@@ -68,7 +68,7 @@
 
 ## 下载
 
-前往 [Releases 页面](https://github.com/XNGamingPanda/OpenFrequency/releases) 下载最新的 `OpenFrequency-v3.9-alpha-Setup.msi`。
+前往 [Releases 页面](https://github.com/XNGamingPanda/OpenFrequency/releases) 下载最新的 `OpenFrequency-v3.9-beta-Setup.msi`。
 
 也可以使用由 Cloudflare Pages 提供的[下载页面](https://openfrequency.pages.dev)。
 
@@ -80,7 +80,7 @@
 - Google Gemini API 密钥（免费额度可用）
 
 ### 方式 A：MSI 安装程序（推荐）
-1. 从 [Releases](https://github.com/XNGamingPanda/OpenFrequency/releases) 下载 `OpenFrequency-v3.9-alpha-Setup.msi`。
+1. 从 [Releases](https://github.com/XNGamingPanda/OpenFrequency/releases) 下载 `OpenFrequency-v3.9-beta-Setup.msi`。
 2. 运行安装程序，将创建开始菜单和桌面快捷方式。
 3. 首次启动时，OpenFrequency 会从示例配置创建 `%APPDATA%\OpenFrequency\config.json`。
 4. 打开配置文件，填入 API 密钥，即可开始飞行。
@@ -100,7 +100,7 @@ python app.py
 # 安装 WiX：dotnet tool install --global wix
 
 powershell -ExecutionPolicy Bypass -File installer\build_installer.ps1
-# 输出：dist\OpenFrequency-v3.9-alpha-Setup.msi
+# 输出：dist\OpenFrequency-v3.9-beta-Setup.msi
 ```
 
 ## 开发路线图 🗺️

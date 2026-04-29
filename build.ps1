@@ -163,7 +163,11 @@ Write-Host "  (paste this into RELEASE_NOTES.md)" -ForegroundColor Gray
 
 # ── Step 4: WiX MSI (optional) ────────────────────────────────────────────────
 if ($BuildMsi) {
-    Step "Building MSI with WiX 4"
+    Step "Building MSI with WiX 7"
+
+    # Add dotnet global tools to PATH so wix is found even in fresh sessions
+    $DotnetTools = Join-Path $env:USERPROFILE ".dotnet\tools"
+    if (Test-Path $DotnetTools) { $env:PATH = "$DotnetTools;$env:PATH" }
 
     $WixCmd = Get-Command wix -ErrorAction SilentlyContinue
     $WixExe = if ($WixCmd) { $WixCmd.Source } else { $null }
@@ -182,9 +186,13 @@ if ($BuildMsi) {
             INFO "Created placeholder LICENSE.rtf"
         }
 
+        # WiX resolves relative paths from working directory — must run from installer\
         Push-Location (Join-Path $RepoRoot "installer")
         try {
-            wix build $WxsFile -out $MsiPath -d "OF_VERSION=$Version"
+            # MSI version must be numeric (e.g. 3.9.0), strip pre-release labels
+            $MsiVersion = ($Version -replace '[^0-9.]', '') -replace '\.+$', ''
+            if (-not ($MsiVersion -match '^\d+\.\d+')) { $MsiVersion = "3.9.0" }
+            wix build OpenFrequency.wxs -out $MsiPath -d "OF_VERSION=$MsiVersion"
             if ($LASTEXITCODE -ne 0) { FAIL "WiX build failed." }
         } finally {
             Pop-Location
@@ -207,6 +215,7 @@ if ($BuildMsi -and (Test-Path $MsiPath)) {
 Write-Host ""
 Write-Host "  Next steps:" -ForegroundColor White
 Write-Host "    1. Update RELEASE_NOTES.md with the SHA-256 above"
-Write-Host "    2. git tag v$Version && git push --tags"
-Write-Host "    3. gh release create v$Version dist\OpenFrequency-$Version.zip --prerelease"
+$ReleaseTag = if ($Version.ToLower().StartsWith("v")) { $Version } else { "v$Version" }
+Write-Host "    2. git tag $ReleaseTag && git push --tags"
+Write-Host "    3. gh release create $ReleaseTag dist\OpenFrequency-$Version.zip --prerelease"
 Write-Host ""
