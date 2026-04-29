@@ -80,9 +80,6 @@ def _send_ping():
 
     cfg = _get_config()
     workers_url = (cfg.get('cloud', {}).get('workers_url') or _WORKERS_URL).rstrip('/')
-    token = cfg.get('cloud', {}).get('client_token') or os.environ.get('OPENFREQUENCY_CLIENT_TOKEN', '')
-    if not token:
-        return
 
     payload = {
         'app_version': _get_version(),
@@ -96,7 +93,6 @@ def _send_ping():
         resp = requests.post(
             f"{workers_url}/api/ping",
             json=payload,
-            headers={'X-OF-Token': token},
             timeout=8,
         )
         if resp.status_code == 200:

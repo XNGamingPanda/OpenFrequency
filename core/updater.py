@@ -64,11 +64,6 @@ def _get_workers_url() -> str:
     return (cfg.get('cloud', {}).get('workers_url') or _DEFAULT_WORKERS_URL).rstrip('/')
 
 
-def _get_token() -> str:
-    cfg = _get_config()
-    return cfg.get('cloud', {}).get('client_token') or os.environ.get('OPENFREQUENCY_CLIENT_TOKEN', '')
-
-
 # ---------------------------------------------------------------------------
 # Version helpers
 # ---------------------------------------------------------------------------
@@ -137,14 +132,12 @@ def check_update(socketio=None, silent: bool = True) -> dict | None:
 
     try:
         workers_url = _get_workers_url()
-        token = _get_token()
 
         if not workers_url:
             raise ValueError('Workers URL not configured')
 
         resp = requests.get(
             f"{workers_url}/api/version",
-            headers={'X-OF-Token': token},
             timeout=15,
         )
         resp.raise_for_status()
@@ -207,7 +200,6 @@ def download_update(asset_key: str = 'win_x64', socketio=None) -> Path | None:
             return None
 
         workers_url = _get_workers_url()
-        token = _get_token()
         # dl_path from Workers may already be a full URL (contains ://) or a path-only string
         if dl_path.startswith('http://') or dl_path.startswith('https://'):
             url = dl_path
@@ -224,7 +216,7 @@ def download_update(asset_key: str = 'win_x64', socketio=None) -> Path | None:
         if dest.exists():
             downloaded = dest.stat().st_size
 
-        headers = {'X-OF-Token': token}
+        headers = {}
         if downloaded > 0:
             headers['Range'] = f'bytes={downloaded}-'
 

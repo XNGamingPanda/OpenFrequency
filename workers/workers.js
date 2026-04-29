@@ -2,21 +2,21 @@
  * OpenFrequency Cloudflare Workers Backend
  *
  * Routes:
- *   GET  /health              — health check (no auth)
- *   GET  /api/version         — latest release info (cached 5 min)
- *   GET  /dl/latest/:asset    — proxy latest release asset download
- *   GET  /dl/:tag/:asset      — proxy specific tagged release asset download
- *   POST /api/crash           — store crash report in KV
- *   POST /api/feedback        — store feedback in KV
- *   POST /api/ping            — daily active user heartbeat (privacy-preserving)
- *   GET  /api/stats           — aggregated usage statistics (auth required)
+ *   GET  /health              - health check (no auth)
+ *   GET  /api/version         - latest release info (cached 5 min)
+ *   GET  /dl/latest/:asset    - proxy latest release asset download
+ *   GET  /dl/:tag/:asset      - proxy specific tagged release asset download
+ *   POST /api/crash           - store crash report in KV
+ *   POST /api/feedback        - store feedback in KV
+ *   POST /api/ping            - daily active user heartbeat (privacy-preserving)
+ *   GET  /api/stats           - aggregated usage statistics (admin auth required)
  *
  * Environment variables (set via wrangler.toml [vars] or `wrangler secret put`):
- *   CLIENT_TOKEN         — shared secret, required in X-OF-Token header
- *   GITHUB_OWNER         — GitHub repo owner
- *   GITHUB_REPO          — GitHub repo name
- *   GITHUB_TOKEN         — (optional) GitHub PAT for higher API rate limits
- *   MIN_REQUIRED_VERSION — semver string, default "0.0.0"
+ *   GITHUB_OWNER         - GitHub repo owner
+ *   GITHUB_REPO          - GitHub repo name
+ *   GITHUB_TOKEN         - (optional) GitHub PAT for higher API rate limits
+ *   STATS_TOKEN          - admin secret for GET /api/stats
+ *   MIN_REQUIRED_VERSION - semver string, default "0.0.0"
  *
  * KV binding: OF_KV
  */
@@ -28,8 +28,8 @@
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-OF-Token",
-  "Access-Control-Expose-Headers": "Content-Type, X-OF-Token",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-OF-Admin-Token",
+  "Access-Control-Expose-Headers": "Content-Type",
 };
 
 const RATE_LIMITS = {
@@ -65,22 +65,17 @@ export default {
     const path = url.pathname;
 
     try {
-      // Health check — no auth required
+      // Health check - no auth required
       if (request.method === "GET" && path === "/health") {
         return corsJSON({ status: "ok", ts: new Date().toISOString() }, 200);
       }
 
-      // Public download redirect — no auth required, rate-limited
-      // GET /pub/dl/latest  → resolves latest tag and redirects to MSI asset
+      // Public download redirect - no auth required, rate-limited
+      // GET /pub/dl/latest -> resolves latest tag and redirects to MSI asset
       if (request.method === "GET" && path === "/pub/dl/latest") {
         return handlePublicDownload(request, env, ctx);
       }
 
-      // All other routes require authentication
-      const authErr = requireToken(request, env);
-      if (authErr) return authErr;
-
-      // Router
       if (request.method === "GET" && path === "/api/version") {
         return handleVersion(request, env, ctx);
       }
@@ -108,6 +103,8 @@ export default {
       }
 
       if (request.method === "GET" && path === "/api/stats") {
+        const authErr = requireStatsToken(request, env);
+        if (authErr) return authErr;
         return handleStats(request, env, ctx);
       }
 
@@ -120,7 +117,7 @@ export default {
 };
 
 // ---------------------------------------------------------------------------
-// Handler: GET /pub/dl/latest  — public redirect to latest MSI (no auth)
+// Handler: GET /pub/dl/latest  - public redirect to latest MSI (no auth)
 // ---------------------------------------------------------------------------
 
 async function handlePublicDownload(request, env, ctx) {
@@ -144,13 +141,13 @@ async function handlePublicDownload(request, env, ctx) {
     return corsJSON({ error: "No installer asset found in latest release" }, 404);
   }
 
-  // Proxy through the authenticated download handler rather than exposing the raw GitHub URL
+  // Proxy through the rate-limited download handler rather than exposing the raw GitHub URL
   const tag = encodeURIComponent(release.tag_name);
   const asset = encodeURIComponent(msiAsset.name);
   const workerOrigin = new URL(request.url).origin;
   const proxyUrl = `${workerOrigin}/dl/${tag}/${asset}`;
 
-  // Redirect to the proxied download — client follows the redirect
+  // Redirect to the proxied download - client follows the redirect
   return new Response(null, {
     status: 302,
     headers: {
@@ -164,13 +161,15 @@ async function handlePublicDownload(request, env, ctx) {
 // Auth
 // ---------------------------------------------------------------------------
 
-function requireToken(request, env) {
-  const token = request.headers.get("X-OF-Token");
-  if (!env.CLIENT_TOKEN) {
-    // Misconfigured — fail closed
-    return corsJSON({ error: "Server misconfigured: missing CLIENT_TOKEN" }, 500);
+function requireStatsToken(request, env) {
+  const expected = env.STATS_TOKEN || env.ADMIN_TOKEN;
+  if (!expected) {
+    return corsJSON({ error: "Server misconfigured: missing STATS_TOKEN" }, 500);
   }
-  if (!token || token !== env.CLIENT_TOKEN) {
+  const auth = request.headers.get("Authorization") || "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  const token = request.headers.get("X-OF-Admin-Token") || bearer;
+  if (!token || token !== expected) {
     return corsJSON({ error: "Unauthorized" }, 401);
   }
   return null;
@@ -502,7 +501,7 @@ async function handleDownload(request, env, ctx, tag, assetName) {
     );
   }
 
-  // Build response headers — forward relevant ones from GitHub
+  // Build response headers - forward relevant ones from GitHub
   const responseHeaders = {
     ...CORS_HEADERS,
     "Cache-Control": "public, max-age=86400",
@@ -524,7 +523,7 @@ async function handleDownload(request, env, ctx, tag, assetName) {
   // Content-Disposition: suggest filename
   responseHeaders["Content-Disposition"] = `attachment; filename="${assetName}"`;
 
-  // Stream the body directly — no buffering
+  // Stream the body directly - no buffering
   return new Response(ghResponse.body, {
     status: ghResponse.status,
     headers: responseHeaders,
@@ -684,13 +683,13 @@ async function handleFeedback(request, env, ctx) {
 }
 
 // ---------------------------------------------------------------------------
-// Handler: POST /api/ping  — daily active user heartbeat
+// Handler: POST /api/ping  - daily active user heartbeat
 // ---------------------------------------------------------------------------
 // Body: { app_version, os, sim_type, locale }
 // Privacy: IP is hashed (SHA-256 truncated 16 hex), never stored raw.
 // KV keys:
-//   ping:YYYY-MM-DD:<ip_hash>          → "1"          (TTL 25h, uniqueness guard)
-//   stats:daily:YYYY-MM-DD             → JSON object  (TTL 8d, aggregate)
+//   ping:YYYY-MM-DD:<ip_hash>          -> "1"          (TTL 25h, uniqueness guard)
+//   stats:daily:YYYY-MM-DD             -> JSON object  (TTL 8d, aggregate)
 
 async function handlePing(request, env, ctx) {
   const ip = getClientIP(request);
@@ -713,7 +712,7 @@ async function handlePing(request, env, ctx) {
   const locale_  = sanitizeString(body.locale, 16) || "unknown";
 
   if (!alreadyCounted) {
-    // Rate-limit check (fire-and-forget style — we accept the ping regardless)
+    // Rate-limit check (fire-and-forget style - we accept the ping regardless)
     await checkRateLimit(env, "ping", ip);
 
     // Mark this IP as counted today
@@ -753,7 +752,7 @@ async function handlePing(request, env, ctx) {
 }
 
 // ---------------------------------------------------------------------------
-// Handler: GET /api/stats  — aggregated statistics for the last N days
+// Handler: GET /api/stats  - aggregated statistics for the last N days
 // ---------------------------------------------------------------------------
 // Query params: ?days=7 (default 7, max 30)
 

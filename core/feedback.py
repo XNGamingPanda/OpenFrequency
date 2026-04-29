@@ -169,9 +169,6 @@ def submit_feedback(
     _DEFAULT_WORKERS_URL = 'https://robertwren.qzz.io'
     cfg = _get_config()
     workers_url = (cfg.get('cloud', {}).get('workers_url') or _DEFAULT_WORKERS_URL).rstrip('/')
-    token = cfg.get('cloud', {}).get('client_token') or os.environ.get('OPENFREQUENCY_CLIENT_TOKEN', '')
-    if not token:
-        return False, 'Cloud client token is not configured.'
 
     payload: dict = {
         'type': type_,
@@ -199,7 +196,6 @@ def submit_feedback(
         resp = requests.post(
             f"{workers_url}/api/feedback",
             json=payload,
-            headers={'X-OF-Token': token},
             timeout=20,
         )
         if resp.status_code == 201:

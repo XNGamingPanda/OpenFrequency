@@ -123,7 +123,7 @@ wrangler kv:namespace create OF_KV --preview
 # → Copy into preview_id
 
 # 4. Set secrets (never commit)
-wrangler secret put CLIENT_TOKEN     # shared token used by the app
+wrangler secret put STATS_TOKEN      # admin-only stats endpoint
 wrangler secret put GITHUB_TOKEN     # optional — raises GH API rate limit
 
 # 5. Edit workers/wrangler.toml
@@ -141,7 +141,7 @@ wrangler deploy
 | `GITHUB_OWNER` | GitHub repo owner |
 | `GITHUB_REPO` | GitHub repo name |
 | `MIN_REQUIRED_VERSION` | Force-update floor version (semver) |
-| `CLIENT_TOKEN` *(secret)* | Token the app sends in `X-OF-Token` header |
+| `STATS_TOKEN` *(secret)* | Admin token for `GET /api/stats`; client endpoints are public and rate-limited |
 | `GITHUB_TOKEN` *(secret)* | GitHub PAT — optional, raises rate limit |
 
 ### Pages (`workers/pages/index.html`)

@@ -242,9 +242,6 @@ class TelemetryManager:
         _DEFAULT_WORKERS_URL = 'https://robertwren.qzz.io'
         cfg = _get_config()
         workers_url = (cfg.get('cloud', {}).get('workers_url') or _DEFAULT_WORKERS_URL).rstrip('/')
-        token = cfg.get('cloud', {}).get('client_token') or os.environ.get('OPENFREQUENCY_CLIENT_TOKEN', '')
-        if not token:
-            return False
 
         payload = dict(data)
         if user_note is not None:
@@ -254,7 +251,6 @@ class TelemetryManager:
             resp = requests.post(
                 f"{workers_url}/api/crash",
                 json=payload,
-                headers={'X-OF-Token': token},
                 timeout=10,
             )
             if resp.status_code in (201, 409):
