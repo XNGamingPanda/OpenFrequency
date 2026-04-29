@@ -3,580 +3,929 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OpenFrequency</title>
-  <meta name="description" content="The AI ATC for Everyone. Free, open-source air traffic control for MSFS and X-Plane." />
+  <title>OpenFrequency — AI ATC for Everyone</title>
+  <meta name="description" content="Free, open-source AI Air Traffic Control for MSFS and X-Plane 12. Powered by LLMs." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>" />
   <style>
-    /* ── Reset ─────────────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ═══════════════════════════════════════════════════
+   RESET + ROOT
+═══════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── Design tokens (dark = always) ─────────────────────── */
-    :root {
-      --bg:          #06080f;
-      --bg2:         #0a0d16;
-      --blue:        #0a84ff;
-      --blue-dim:    rgba(10,132,255,0.15);
-      --green:       #30d158;
-      --amber:       #ffd60a;
-      --red:         #ff453a;
-      --cyan:        #64d2ff;
-      --t1:          #f5f5f7;
-      --t2:          rgba(245,245,247,0.62);
-      --t3:          rgba(245,245,247,0.32);
-      --glass:       rgba(255,255,255,0.065);
-      --glass-hvy:   rgba(255,255,255,0.11);
-      --border:      rgba(255,255,255,0.12);
-      --shine:       rgba(255,255,255,0.20);
-      --shadow-sm:   0 4px 18px rgba(0,0,0,0.40);
-      --shadow-lg:   0 16px 48px rgba(0,0,0,0.55);
-      --blur:        blur(22px) saturate(160%);
-      --r-xl: 28px; --r-lg: 20px; --r-md: 14px; --r-pill: 999px; --r-chip: 12px;
-      --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
-      --mono: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
-      --ease: cubic-bezier(0.25,0.1,0.25,1);
-      --spring: cubic-bezier(0.34,1.56,0.64,1);
-    }
+:root {
+  --bg:        #06080f;
+  --bg2:       #0a0d17;
+  --blue:      #0a84ff;
+  --green:     #30d158;
+  --amber:     #ffd60a;
+  --red:       #ff453a;
+  --cyan:      #64d2ff;
+  --purple:    #bf5af2;
+  --t1:        #f5f5f7;
+  --t2:        rgba(245,245,247,.62);
+  --t3:        rgba(245,245,247,.32);
+  --t4:        rgba(245,245,247,.18);
+  --glass:     rgba(255,255,255,.065);
+  --glass2:    rgba(255,255,255,.10);
+  --border:    rgba(255,255,255,.11);
+  --shine:     rgba(255,255,255,.18);
+  --sh-sm:     0 4px 20px rgba(0,0,0,.45);
+  --sh-lg:     0 16px 52px rgba(0,0,0,.60);
+  --blur:      blur(24px) saturate(160%);
+  --r-xl: 28px; --r-lg: 20px; --r-md: 14px;
+  --r-sm: 10px; --r-pill: 999px; --r-chip: 10px;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+          "Helvetica Neue", Arial, sans-serif;
+  --mono: "SF Mono","Fira Code","Cascadia Code",Consolas,monospace;
+  --ease:   cubic-bezier(.25,.1,.25,1);
+  --spring: cubic-bezier(.34,1.56,.64,1);
+}
 
-    html, body {
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--t1);
-      font-family: var(--font);
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
-    }
+html, body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--t1);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
 
-    /* ── Animated mesh background ───────────────────────────── */
-    .bg-mesh {
-      position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      background:
-        radial-gradient(ellipse 70% 60% at 15% 20%, rgba(10,132,255,0.12) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 85% 75%, rgba(48,209,88,0.07)  0%, transparent 60%),
-        radial-gradient(ellipse 80% 70% at 50% 50%, rgba(100,210,255,0.05) 0%, transparent 70%),
-        linear-gradient(170deg, #06080f 0%, #0a0d16 50%, #07091a 100%);
-      animation: meshMove 18s ease-in-out infinite alternate;
-    }
-    @keyframes meshMove {
-      0%   { filter: hue-rotate(0deg); }
-      100% { filter: hue-rotate(12deg); }
-    }
+/* ═══════════════════════════════════════════════════
+   ANIMATED BACKGROUND
+═══════════════════════════════════════════════════ */
+.bg-wrap {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  overflow: hidden;
+}
+.bg-layer {
+  position: absolute; inset: -20%;
+  background:
+    radial-gradient(ellipse 65% 55% at 12% 18%, rgba(10,132,255,.14) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 88% 80%, rgba(48,209,88,.08)  0%, transparent 55%),
+    radial-gradient(ellipse 75% 65% at 52% 52%, rgba(100,210,255,.05) 0%, transparent 65%),
+    radial-gradient(ellipse 40% 35% at 80% 15%, rgba(191,90,242,.07)  0%, transparent 50%),
+    linear-gradient(175deg, #06080f 0%, #09090f 40%, #060a18 100%);
+  animation: bgDrift 22s ease-in-out infinite alternate;
+}
+@keyframes bgDrift {
+  0%   { transform: scale(1.00) rotate(0deg); filter: hue-rotate(0deg); }
+  100% { transform: scale(1.04) rotate(2deg); filter: hue-rotate(14deg); }
+}
+/* Noise grain overlay */
+.bg-wrap::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: .40;
+  pointer-events: none;
+}
 
-    /* ── Glass surface ──────────────────────────────────────── */
-    .glass {
-      background: var(--glass);
-      border: 1px solid var(--border);
-      backdrop-filter: var(--blur);
-      -webkit-backdrop-filter: var(--blur);
-      position: relative;
-      overflow: hidden;
-    }
-    .glass::before {
-      content: '';
-      position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
-      background: linear-gradient(90deg, transparent, var(--shine), transparent);
-      pointer-events: none;
-    }
+/* ═══════════════════════════════════════════════════
+   GLASS SURFACE
+═══════════════════════════════════════════════════ */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  position: relative; overflow: hidden;
+}
+.glass::before {
+  content: ''; pointer-events: none;
+  position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--shine), transparent);
+  z-index: 1;
+}
 
-    /* ── Layout ─────────────────────────────────────────────── */
-    .page {
-      position: relative; z-index: 1;
-      display: flex; flex-direction: column; align-items: center;
-      padding: 0 20px 80px;
-      min-height: 100vh;
-    }
+/* ═══════════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════════ */
+.page {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 0 20px 100px;
+}
+.section {
+  width: 100%; max-width: 860px;
+  margin-top: 80px;
+}
+.section-label {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .10em;
+  text-transform: uppercase; color: var(--t3);
+  margin-bottom: 18px; text-align: center;
+}
 
-    /* ── Navbar ─────────────────────────────────────────────── */
-    .nav {
-      position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
-      display: flex; align-items: center; gap: 6px;
-      padding: 0 16px; height: 46px;
-      border-radius: var(--r-pill);
-      box-shadow: 0 8px 28px rgba(0,0,0,0.50), 0 1px 0 rgba(255,255,255,0.08) inset;
-      z-index: 100;
-      width: auto; max-width: calc(100vw - 28px);
-    }
-    .nav-brand {
-      display: flex; align-items: center; gap: 8px;
-      font-weight: 600; font-size: 15px; color: var(--t1);
-      white-space: nowrap; text-decoration: none;
-    }
-    .nav-brand span { font-size: 20px; }
-    .nav-sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
-    .lang-btn {
-      background: none; border: none; cursor: pointer;
-      color: var(--t3); font-size: 12.5px; font-family: var(--font);
-      font-weight: 500; padding: 4px 8px; border-radius: 8px;
-      transition: color 0.15s, background 0.15s;
-    }
-    .lang-btn:hover    { color: var(--t1); background: rgba(255,255,255,0.08); }
-    .lang-btn.active   { color: var(--t1); background: rgba(255,255,255,0.10); }
-    .nav-gh {
-      display: flex; align-items: center; gap: 5px;
-      color: var(--t2); font-size: 12.5px; font-weight: 500;
-      text-decoration: none; padding: 4px 10px; border-radius: 8px;
-      transition: color 0.15s, background 0.15s; margin-left: 2px;
-    }
-    .nav-gh:hover { color: var(--t1); background: rgba(255,255,255,0.08); }
-    .nav-gh svg   { width: 15px; height: 15px; fill: currentColor; flex-shrink: 0; }
+/* ═══════════════════════════════════════════════════
+   NAVBAR
+═══════════════════════════════════════════════════ */
+.nav {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px;
+  padding: 0 14px; height: 46px;
+  border-radius: var(--r-pill);
+  box-shadow: 0 8px 32px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.08) inset;
+  z-index: 200;
+  max-width: calc(100vw - 28px);
+}
+.nav-brand {
+  display: flex; align-items: center; gap: 7px;
+  font-weight: 700; font-size: 14.5px; color: var(--t1);
+  white-space: nowrap; text-decoration: none;
+  margin-right: 4px;
+}
+.nav-brand-icon { font-size: 19px; }
+.nav-sep { width: 1px; height: 20px; background: var(--border); margin: 0 3px; flex-shrink: 0; }
 
-    /* ── Hero ───────────────────────────────────────────────── */
-    .hero {
-      margin-top: 110px;
-      display: flex; flex-direction: column; align-items: center;
-      text-align: center; max-width: 680px; width: 100%;
-    }
-    .hero-icon {
-      font-size: 72px; line-height: 1;
-      filter: drop-shadow(0 0 28px rgba(10,132,255,0.45));
-      animation: iconPulse 3s ease-in-out infinite;
-      margin-bottom: 20px;
-    }
-    @keyframes iconPulse {
-      0%,100% { filter: drop-shadow(0 0 28px rgba(10,132,255,0.45)); }
-      50%     { filter: drop-shadow(0 0 44px rgba(10,132,255,0.70)); }
-    }
-    .hero h1 {
-      font-size: clamp(2.8rem, 6vw, 4rem);
-      font-weight: 700; letter-spacing: -0.03em;
-      line-height: 1.08;
-      background: linear-gradient(135deg, #f5f5f7 30%, rgba(245,245,247,0.60) 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 14px;
-    }
-    .hero-tag {
-      font-size: 1.2rem; color: var(--t2); line-height: 1.5;
-      max-width: 500px; margin-bottom: 10px;
-    }
-    .badge-row {
-      display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
-      margin: 16px 0 32px;
-    }
-    .badge {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 4px 13px; border-radius: var(--r-pill);
-      font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
-    }
-    .badge-ver { background: rgba(255,214,10,0.14); color: var(--amber); border: 1px solid rgba(255,214,10,0.28); }
-    .badge-mit { background: rgba(48,209,88,0.12);  color: var(--green); border: 1px solid rgba(48,209,88,0.26); }
-    .badge-sim { background: rgba(10,132,255,0.12); color: var(--blue);  border: 1px solid rgba(10,132,255,0.26); }
-    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: blink 2s ease-in-out infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+/* Language switcher */
+.lang-pill {
+  display: flex; align-items: center;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--r-pill); padding: 3px;
+  gap: 1px;
+}
+.lb {
+  background: none; border: none; cursor: pointer;
+  color: var(--t3); font-size: 11.5px; font-family: var(--font);
+  font-weight: 600; padding: 3px 9px; border-radius: var(--r-pill);
+  transition: color .12s, background .12s;
+  white-space: nowrap;
+}
+.lb:hover { color: var(--t2); }
+.lb.on { background: rgba(255,255,255,.12); color: var(--t1); }
 
-    /* ── Download card ──────────────────────────────────────── */
-    .dl-card {
-      width: 100%; max-width: 520px;
-      border-radius: var(--r-xl);
-      padding: 28px 28px 24px;
-      box-shadow: var(--shadow-lg);
-      margin-bottom: 14px;
-      animation: cardIn 0.55s var(--spring) both;
-    }
-    @keyframes cardIn {
-      from { opacity:0; transform: translateY(24px) scale(0.96); }
-      to   { opacity:1; transform: translateY(0)     scale(1);   }
-    }
-    .dl-platform {
-      display: flex; align-items: center; gap: 10px;
-      margin-bottom: 6px;
-    }
-    .dl-platform-icon { font-size: 22px; }
-    .dl-platform-name { font-size: 18px; font-weight: 700; color: var(--t1); }
-    .dl-sub {
-      font-size: 13px; color: var(--t3); margin-bottom: 22px;
-      line-height: 1.5;
-    }
+/* Nav links */
+.nav-link {
+  color: var(--t3); font-size: 12.5px; font-weight: 500;
+  text-decoration: none; padding: 4px 9px; border-radius: 8px;
+  transition: color .13s, background .13s; white-space: nowrap;
+  display: flex; align-items: center; gap: 5px;
+}
+.nav-link:hover { color: var(--t1); background: rgba(255,255,255,.07); }
+.nav-link svg   { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
 
-    /* Main download button */
-    .btn-dl {
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      width: 100%; padding: 16px 24px;
-      background: var(--blue); color: #fff;
-      border: none; border-radius: var(--r-lg);
-      font-family: var(--font); font-size: 16px; font-weight: 600;
-      cursor: pointer; text-decoration: none;
-      box-shadow: 0 0 0 0 rgba(10,132,255,0);
-      transition: filter 0.15s, transform 0.15s, box-shadow 0.2s;
-      position: relative; overflow: hidden;
-    }
-    .btn-dl::before {
-      content: '';
-      position: absolute; inset: 0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, transparent 50%);
-      pointer-events: none;
-    }
-    .btn-dl:hover:not(.loading) {
-      filter: brightness(1.10);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 28px rgba(10,132,255,0.50);
-    }
-    .btn-dl:active { transform: scale(0.98) !important; }
-    .btn-dl.loading { opacity: 0.72; pointer-events: none; }
+/* ═══════════════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════════════ */
+.hero {
+  margin-top: 116px;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; width: 100%; max-width: 720px;
+  animation: fadeUp .6s var(--spring) both;
+}
+.hero-icon {
+  font-size: 80px; line-height: 1; margin-bottom: 22px;
+  filter: drop-shadow(0 0 30px rgba(10,132,255,.50));
+  animation: iconGlow 3.5s ease-in-out infinite;
+}
+@keyframes iconGlow {
+  0%,100% { filter: drop-shadow(0 0 28px rgba(10,132,255,.45)); transform: scale(1);    }
+  50%     { filter: drop-shadow(0 0 50px rgba(10,132,255,.70)); transform: scale(1.04); }
+}
+.hero h1 {
+  font-size: clamp(3rem, 6.5vw, 4.4rem);
+  font-weight: 800; letter-spacing: -.04em; line-height: 1.06;
+  background: linear-gradient(140deg, #f5f5f7 20%, rgba(245,245,247,.55) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 16px;
+}
+.hero-sub {
+  font-size: 1.15rem; color: var(--t2); line-height: 1.6;
+  max-width: 520px; margin-bottom: 24px;
+}
+.badge-row {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  margin-bottom: 36px;
+}
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: var(--r-pill);
+  font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+}
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: blink 2.2s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+.bv { background: rgba(255,214,10,.13); color: var(--amber); border: 1px solid rgba(255,214,10,.28); }
+.bm { background: rgba(48,209,88,.11);  color: var(--green); border: 1px solid rgba(48,209,88,.26); }
+.bs { background: rgba(10,132,255,.12); color: var(--blue);  border: 1px solid rgba(10,132,255,.25); }
+.bf { background: rgba(245,245,247,.07); color: var(--t2);   border: 1px solid var(--border); }
 
-    .btn-dl-icon { font-size: 20px; flex-shrink: 0; }
-    .btn-dl-text { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
-    .btn-dl-label { font-size: 16px; font-weight: 600; }
-    .btn-dl-file  { font-size: 11px; font-family: var(--mono); opacity: 0.80; font-weight: 400; }
+/* ═══════════════════════════════════════════════════
+   DOWNLOAD CARD
+═══════════════════════════════════════════════════ */
+.dl-wrap {
+  width: 100%; max-width: 560px;
+  animation: fadeUp .6s .07s var(--spring) both;
+}
+.dl-card {
+  border-radius: var(--r-xl);
+  padding: 28px 28px 22px;
+  box-shadow: var(--sh-lg);
+}
+.dl-top {
+  display: flex; align-items: flex-start; gap: 14px;
+  margin-bottom: 20px;
+}
+.dl-icon { font-size: 36px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+.dl-info { flex: 1; }
+.dl-title { font-size: 19px; font-weight: 700; color: var(--t1); margin-bottom: 4px; }
+.dl-desc  { font-size: 12.5px; color: var(--t3); line-height: 1.55; }
 
-    /* Source badge under button */
-    .dl-source {
-      display: flex; align-items: center; gap: 6px;
-      margin-top: 12px; justify-content: center;
-      font-size: 12px; color: var(--t3);
-    }
-    .dl-source-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink:0; }
-    .dl-source-dot.workers { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
-    .dl-source-dot.github  { background: var(--green);  box-shadow: 0 0 6px var(--green); }
+/* Big download button */
+.btn-dl {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  width: 100%; padding: 17px 24px;
+  background: var(--blue); color: #fff;
+  border: none; border-radius: var(--r-lg);
+  font-family: var(--font); font-size: 16px; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  transition: filter .15s, transform .15s, box-shadow .2s;
+  position: relative; overflow: hidden;
+  box-shadow: 0 4px 20px rgba(10,132,255,.40);
+}
+.btn-dl::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.16) 0%, transparent 55%);
+  pointer-events: none;
+}
+.btn-dl:hover:not(.loading) {
+  filter: brightness(1.10);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 32px rgba(10,132,255,.56);
+}
+.btn-dl:active { transform: scale(.98) !important; }
+.btn-dl.loading { opacity: .7; pointer-events: none; }
+.btn-dl-icon { font-size: 22px; flex-shrink: 0; }
+.btn-dl-text { display: flex; flex-direction: column; align-items: flex-start; }
+.btn-dl-label { font-size: 16px; font-weight: 600; line-height: 1.2; }
+.btn-dl-file  { font-size: 11px; font-family: var(--mono); opacity: .75; font-weight: 400; }
+.spinner {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2.5px solid rgba(255,255,255,.25); border-top-color: #fff;
+  animation: spin .7s linear infinite; display: none; flex-shrink: 0;
+}
+.loading .spinner    { display: block; }
+.loading .btn-dl-icon { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-    .alt-link {
-      display: block; text-align: center; margin-top: 10px;
-      font-size: 12.5px; color: var(--t3); text-decoration: none;
-      transition: color 0.15s;
-    }
-    .alt-link:hover { color: var(--blue); }
+/* Source indicator */
+.dl-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 14px; gap: 12px;
+}
+.dl-source {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--t3);
+}
+.src-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.src-dot.cf { background: var(--amber); box-shadow: 0 0 8px rgba(255,214,10,.60); }
+.src-dot.gh { background: var(--green);  box-shadow: 0 0 8px rgba(48,209,88,.55); }
+.dl-alt {
+  font-size: 12px; color: var(--blue); text-decoration: none; white-space: nowrap;
+  flex-shrink: 0;
+  transition: opacity .15s;
+}
+.dl-alt:hover { opacity: .75; }
 
-    /* ── Feature grid ───────────────────────────────────────── */
-    .features {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      width: 100%; max-width: 820px;
-      margin: 36px 0 16px;
-      animation: cardIn 0.55s 0.10s var(--spring) both;
-    }
-    .feat {
-      border-radius: var(--r-md);
-      padding: 18px 16px;
-      transition: transform 0.18s var(--ease), box-shadow 0.18s;
-    }
-    .feat:hover {
-      transform: translateY(-3px);
-      box-shadow: var(--shadow-lg);
-    }
-    .feat-icon { font-size: 26px; margin-bottom: 10px; line-height: 1; }
-    .feat-title { font-size: 13.5px; font-weight: 600; color: var(--t1); margin-bottom: 4px; }
-    .feat-desc  { font-size: 12px; color: var(--t3); line-height: 1.55; }
+/* ─ Divider ─ */
+.dl-divider {
+  height: 1px; background: var(--border); margin: 22px 0 18px;
+}
 
-    /* ── Separator ──────────────────────────────────────────── */
-    .sep {
-      width: 100%; max-width: 820px;
-      height: 1px; background: var(--border);
-      margin: 20px 0;
-    }
+/* Version row */
+.ver-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12.5px;
+}
+.ver-label { color: var(--t3); }
+.ver-value { color: var(--t1); font-family: var(--mono); font-weight: 600; }
+.ver-date  { color: var(--t3); font-size: 11.5px; }
 
-    /* ── Requirements ───────────────────────────────────────── */
-    .reqs {
-      width: 100%; max-width: 520px;
-      border-radius: var(--r-lg); padding: 20px 24px;
-      animation: cardIn 0.55s 0.18s var(--spring) both;
-    }
-    .reqs-title { font-size: 12px; font-weight: 600; color: var(--t3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
-    .req-row {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
-      font-size: 13px;
-    }
-    .req-row:last-child { border-bottom: none; }
-    .req-icon { font-size: 17px; width: 24px; text-align: center; flex-shrink: 0; }
-    .req-label { color: var(--t1); font-weight: 500; flex: 1; }
-    .req-val   { color: var(--t3); font-size: 12px; }
+/* Checksum row */
+.hash-row {
+  margin-top: 10px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11.5px; color: var(--t3);
+}
+.hash-tag {
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 6px; padding: 2px 7px;
+  font-family: var(--mono); font-size: 11px; color: var(--t2); flex-shrink: 0;
+}
 
-    /* ── Footer links ───────────────────────────────────────── */
-    .footer-links {
-      display: flex; gap: 24px; flex-wrap: wrap; justify-content: center;
-      margin-top: 40px; padding-top: 28px;
-      border-top: 1px solid var(--border);
-      width: 100%; max-width: 820px;
-    }
-    .footer-links a {
-      color: var(--t3); font-size: 13px; text-decoration: none;
-      transition: color 0.15s;
-    }
-    .footer-links a:hover { color: var(--blue); }
-    .footer-copy {
-      margin-top: 18px; font-size: 12px; color: var(--t3);
-      text-align: center;
-    }
+/* ═══════════════════════════════════════════════════
+   FEATURES GRID
+═══════════════════════════════════════════════════ */
+.feat-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 12px; width: 100%;
+}
+.feat {
+  border-radius: var(--r-md); padding: 20px 18px;
+  transition: transform .18s var(--ease), box-shadow .18s;
+  cursor: default;
+}
+.feat:hover { transform: translateY(-4px); box-shadow: var(--sh-lg); }
+.feat-icon  { font-size: 28px; margin-bottom: 12px; line-height: 1; display: block; }
+.feat-title { font-size: 13.5px; font-weight: 700; color: var(--t1); margin-bottom: 5px; }
+.feat-body  { font-size: 12.5px; color: var(--t3); line-height: 1.60; }
+.feat-tags  { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.ftag {
+  font-size: 10.5px; font-weight: 500; padding: 2px 8px;
+  border-radius: var(--r-pill); background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08); color: var(--t3);
+}
 
-    /* ── Shimmer loader ─────────────────────────────────────── */
-    .spinner {
-      width: 18px; height: 18px; border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.25);
-      border-top-color: #fff;
-      animation: spin 0.7s linear infinite;
-      display: none;
-    }
-    .loading .spinner { display: block; }
-    .loading .btn-dl-icon { display: none; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+/* ═══════════════════════════════════════════════════
+   WHAT'S NEW SECTION
+═══════════════════════════════════════════════════ */
+.changelog-list {
+  display: flex; flex-direction: column; gap: 0;
+  border-radius: var(--r-lg); overflow: hidden;
+  border: 1px solid var(--border);
+}
+.cl-item {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 16px 20px;
+  background: var(--glass);
+  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  border-bottom: 1px solid var(--border);
+  transition: background .13s;
+}
+.cl-item:last-child { border-bottom: none; }
+.cl-item:hover { background: var(--glass2); }
+.cl-kind {
+  flex-shrink: 0; padding: 2px 9px; border-radius: var(--r-pill);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .03em;
+  text-transform: uppercase; margin-top: 1px;
+}
+.fix  { background: rgba(255,69,58,.15); color: var(--red);   border: 1px solid rgba(255,69,58,.28); }
+.new  { background: rgba(48,209,88,.12); color: var(--green); border: 1px solid rgba(48,209,88,.26); }
+.imp  { background: rgba(10,132,255,.12);color: var(--blue);  border: 1px solid rgba(10,132,255,.24); }
+.cl-text { font-size: 13.5px; color: var(--t2); line-height: 1.55; flex: 1; }
+.cl-text strong { color: var(--t1); font-weight: 600; }
 
-    /* ── Responsive ─────────────────────────────────────────── */
-    @media (max-width: 700px) {
-      .features { grid-template-columns: 1fr 1fr; }
-      .hero h1  { font-size: 2.4rem; }
-      .dl-card  { padding: 22px 18px 20px; }
-    }
-    @media (max-width: 460px) {
-      .features { grid-template-columns: 1fr; }
-      .hero-icon { font-size: 56px; }
-      .nav-gh .nav-gh-label { display: none; }
-    }
+/* ═══════════════════════════════════════════════════
+   HOW IT WORKS
+═══════════════════════════════════════════════════ */
+.steps {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 12px; width: 100%;
+}
+.step {
+  border-radius: var(--r-md); padding: 22px 16px;
+  text-align: center;
+  transition: transform .18s var(--ease);
+}
+.step:hover { transform: translateY(-3px); }
+.step-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(10,132,255,.18); border: 1px solid rgba(10,132,255,.30);
+  color: var(--blue); font-size: 14px; font-weight: 700;
+  margin-bottom: 12px;
+}
+.step-title { font-size: 13px; font-weight: 700; color: var(--t1); margin-bottom: 6px; }
+.step-body  { font-size: 12px; color: var(--t3); line-height: 1.55; }
+
+/* ═══════════════════════════════════════════════════
+   REQUIREMENTS TABLE
+═══════════════════════════════════════════════════ */
+.req-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; width: 100%;
+}
+.req-card {
+  border-radius: var(--r-md); padding: 16px 18px;
+  display: flex; align-items: center; gap: 14px;
+}
+.req-card-icon { font-size: 26px; flex-shrink: 0; }
+.req-card-label { font-size: 13px; color: var(--t2); margin-bottom: 2px; }
+.req-card-val   { font-size: 14px; font-weight: 600; color: var(--t1); }
+
+/* ═══════════════════════════════════════════════════
+   SIMULATOR SUPPORT PILLS
+═══════════════════════════════════════════════════ */
+.sim-pills {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  justify-content: center; width: 100%;
+}
+.sim-pill {
+  display: flex; align-items: center; gap: 9px;
+  padding: 12px 20px; border-radius: var(--r-md);
+  font-size: 13.5px; font-weight: 600; color: var(--t1);
+}
+.sim-pill-icon { font-size: 20px; }
+.sim-pill-sub  { font-size: 11px; color: var(--t3); font-weight: 400; margin-top: 1px; display: block; }
+
+/* ═══════════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════════ */
+.footer {
+  width: 100%; max-width: 860px;
+  margin-top: 70px; padding-top: 30px;
+  border-top: 1px solid var(--border);
+}
+.footer-inner {
+  display: flex; flex-wrap: wrap; gap: 40px;
+  justify-content: space-between; margin-bottom: 32px;
+}
+.footer-col-title {
+  font-size: 11.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--t3);
+  margin-bottom: 14px;
+}
+.footer-col a {
+  display: block; color: var(--t3); font-size: 13px; text-decoration: none;
+  margin-bottom: 9px; transition: color .13s;
+}
+.footer-col a:hover { color: var(--blue); }
+.footer-bottom {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px;
+  padding-top: 20px; border-top: 1px solid rgba(255,255,255,.06);
+  font-size: 12px; color: var(--t4);
+}
+.footer-brand { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--t2); }
+
+/* ═══════════════════════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════════════════════ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(22px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0)     scale(1);  }
+}
+.anim-1 { animation: fadeUp .55s .00s var(--spring) both; }
+.anim-2 { animation: fadeUp .55s .08s var(--spring) both; }
+.anim-3 { animation: fadeUp .55s .16s var(--spring) both; }
+.anim-4 { animation: fadeUp .55s .24s var(--spring) both; }
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════ */
+@media (max-width: 720px) {
+  .feat-grid { grid-template-columns: 1fr 1fr; }
+  .steps     { grid-template-columns: 1fr 1fr; }
+  .req-grid  { grid-template-columns: 1fr; }
+  .nav-link .nav-gh-label { display: none; }
+}
+@media (max-width: 500px) {
+  .feat-grid { grid-template-columns: 1fr; }
+  .steps     { grid-template-columns: 1fr; }
+  .hero h1   { font-size: 2.6rem; }
+  .hero-icon { font-size: 64px; }
+  .dl-card   { padding: 20px 16px 18px; }
+  .footer-inner { gap: 28px; }
+  .sim-pills { gap: 8px; }
+}
   </style>
 </head>
 <body>
 
-<div class="bg-mesh"></div>
+<div class="bg-wrap"><div class="bg-layer"></div></div>
 
-<!-- ── Navbar ──────────────────────────────────────────────────── -->
+<!-- ═══ NAVBAR ═══════════════════════════════════════════════════════ -->
 <nav class="nav glass">
   <a class="nav-brand" href="#">
-    <span>📡</span>OpenFrequency
+    <span class="nav-brand-icon">📡</span>OpenFrequency
   </a>
   <div class="nav-sep"></div>
-  <button class="lang-btn" onclick="setLang('en')" id="lb-en">EN</button>
-  <button class="lang-btn" onclick="setLang('zh')" id="lb-zh">中文</button>
-  <button class="lang-btn" onclick="setLang('ja')" id="lb-ja">日本語</button>
+  <div class="lang-pill">
+    <button class="lb" id="lb-en" onclick="setLang('en')">EN</button>
+    <button class="lb" id="lb-zh" onclick="setLang('zh')">中文</button>
+    <button class="lb" id="lb-ja" onclick="setLang('ja')">日本語</button>
+  </div>
   <div class="nav-sep"></div>
-  <a class="nav-gh" href="https://github.com/XNGamingPanda/OpenFrequency" target="_blank" rel="noopener">
+  <a class="nav-link" href="https://github.com/XNGamingPanda/OpenFrequency" target="_blank" rel="noopener">
     <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.49.5.09.66-.22.66-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0 1 12 6.8c.85.004 1.7.11 2.5.33 1.9-1.29 2.74-1.02 2.74-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.93.36.31.68.92.68 1.86v2.76c0 .27.16.58.67.48A10.01 10.01 0 0 0 22 12c0-5.52-4.48-10-10-10z"/></svg>
-    <span class="nav-gh-label" data-i18n="nav_gh">GitHub</span>
+    <span class="nav-gh-label" data-i18n="nav_github">GitHub</span>
   </a>
 </nav>
 
-<!-- ── Page ────────────────────────────────────────────────────── -->
+<!-- ═══ PAGE ══════════════════════════════════════════════════════════ -->
 <div class="page">
 
-  <!-- Hero -->
-  <section class="hero">
+  <!-- ── HERO ─────────────────────────────────────────────────── -->
+  <section class="hero anim-1">
     <div class="hero-icon">📡</div>
-    <h1 data-i18n="hero_title">OpenFrequency</h1>
-    <p class="hero-tag" data-i18n="hero_sub">The AI ATC for Everyone</p>
+    <h1 data-i18n="hero_h1">OpenFrequency</h1>
+    <p class="hero-sub" data-i18n="hero_sub">The AI ATC for Everyone — free, open-source, and powered by LLMs. No subscription. No compromise.</p>
     <div class="badge-row">
-      <span class="badge badge-ver"><span class="badge-dot"></span> v3.9-alpha</span>
-      <span class="badge badge-mit">MIT</span>
-      <span class="badge badge-sim">MSFS · X-Plane 12</span>
+      <span class="badge bv"><span class="badge-dot"></span> v3.9-alpha</span>
+      <span class="badge bm">MIT</span>
+      <span class="badge bs">MSFS · X-Plane 12</span>
+      <span class="badge bf" data-i18n="badge_free">Free Forever</span>
     </div>
   </section>
 
-  <!-- Download card -->
-  <div class="dl-card glass">
-    <div class="dl-platform">
-      <span class="dl-platform-icon">🪟</span>
-      <span class="dl-platform-name" data-i18n="dl_platform">Windows Installer</span>
-    </div>
-    <p class="dl-sub" data-i18n="dl_sub">
-      Windows 10/11 · Per-machine MSI · Start Menu &amp; Desktop shortcuts
-    </p>
-
-    <a id="btn-dl" class="btn-dl" href="#" onclick="handleDownload(event)">
-      <div class="spinner"></div>
-      <span class="btn-dl-icon">⬇</span>
-      <div class="btn-dl-text">
-        <span class="btn-dl-label" data-i18n="dl_btn">Download</span>
-        <span class="btn-dl-file" id="dl-filename">OpenFrequency-v3.9-alpha-Setup.msi</span>
+  <!-- ── DOWNLOAD CARD ─────────────────────────────────────────── -->
+  <div class="dl-wrap anim-2">
+    <div class="dl-card glass">
+      <div class="dl-top">
+        <span class="dl-icon">🪟</span>
+        <div class="dl-info">
+          <div class="dl-title" data-i18n="dl_title">Windows Installer</div>
+          <div class="dl-desc" data-i18n="dl_desc">MSI installer for Windows 10/11 (x64). Creates Start Menu and Desktop shortcuts. Models and config stored in <code style="font-family:var(--mono);font-size:11px;color:var(--blue)">%APPDATA%\OpenFrequency</code>.</div>
+        </div>
       </div>
-    </a>
 
-    <div class="dl-source" id="dl-source-row">
-      <span class="dl-source-dot" id="dl-dot"></span>
-      <span id="dl-source-text">—</span>
-    </div>
-    <a class="alt-link" id="alt-link" href="https://github.com/XNGamingPanda/OpenFrequency/releases" target="_blank" rel="noopener" data-i18n="dl_alt">
-      View all releases on GitHub →
-    </a>
-  </div>
+      <a id="btn-dl" class="btn-dl" href="#" onclick="return handleDownload(event)">
+        <div class="spinner"></div>
+        <span class="btn-dl-icon">⬇</span>
+        <div class="btn-dl-text">
+          <span class="btn-dl-label" data-i18n="dl_btn_label">Download</span>
+          <span class="btn-dl-file">OpenFrequency-v3.9-alpha-Setup.msi</span>
+        </div>
+      </a>
 
-  <!-- Features -->
-  <div class="features">
-    <div class="feat glass">
-      <div class="feat-icon">🧠</div>
-      <div class="feat-title" data-i18n="f1t">LLM-Powered ATC</div>
-      <div class="feat-desc" data-i18n="f1d">Gemini · OpenAI · Gemma — context-aware, natural phraseology</div>
-    </div>
-    <div class="feat glass">
-      <div class="feat-icon">📡</div>
-      <div class="feat-title" data-i18n="f2t">CPDLC Datalink</div>
-      <div class="feat-desc" data-i18n="f2d">Pre-departure clearance, oceanic &amp; en-route data-link messages</div>
-    </div>
-    <div class="feat glass">
-      <div class="feat-icon">🛣️</div>
-      <div class="feat-title" data-i18n="f3t">Taxi Routing</div>
-      <div class="feat-desc" data-i18n="f3d">Graph-based weighted path planning with real taxiway awareness</div>
-    </div>
-    <div class="feat glass">
-      <div class="feat-icon">🇨🇳</div>
-      <div class="feat-title" data-i18n="f4t">Metric RVSM</div>
-      <div class="feat-desc" data-i18n="f4d">Auto-switch to metric altitude levels in Chinese airspace</div>
-    </div>
-    <div class="feat glass">
-      <div class="feat-icon">📻</div>
-      <div class="feat-title" data-i18n="f5t">Bilingual ATIS</div>
-      <div class="feat-desc" data-i18n="f5d">Chinese airports generate full EN + ZH ATIS with CAAC phrasing</div>
-    </div>
-    <div class="feat glass">
-      <div class="feat-icon">🔌</div>
-      <div class="feat-title" data-i18n="f6t">Plugin System</div>
-      <div class="feat-desc" data-i18n="f6d">DLC browser · one-click FlyByWire A32NX · auto-update</div>
+      <div class="dl-meta">
+        <div class="dl-source">
+          <span class="src-dot" id="src-dot"></span>
+          <span id="src-text" data-i18n="dl_src_loading">Detecting…</span>
+        </div>
+        <a class="dl-alt" id="dl-alt-link" href="https://github.com/XNGamingPanda/OpenFrequency/releases" target="_blank" rel="noopener" data-i18n="dl_all_releases">All releases →</a>
+      </div>
+
+      <div class="dl-divider"></div>
+
+      <div class="ver-row">
+        <span class="ver-label" data-i18n="dl_version">Version</span>
+        <span style="display:flex;align-items:center;gap:10px">
+          <span class="ver-value">v3.9-alpha</span>
+          <span class="ver-date">2026-04-29</span>
+        </span>
+      </div>
+      <div class="hash-row">
+        <span class="hash-tag">SHA-256</span>
+        <span data-i18n="dl_sha_note">Verified automatically on install</span>
+      </div>
     </div>
   </div>
 
-  <div class="sep"></div>
-
-  <!-- Requirements -->
-  <div class="reqs glass">
-    <div class="reqs-title" data-i18n="req_title">Requirements</div>
-    <div class="req-row">
-      <span class="req-icon">🪟</span>
-      <span class="req-label">Windows</span>
-      <span class="req-val">10 / 11 (x64)</span>
-    </div>
-    <div class="req-row">
-      <span class="req-icon">✈️</span>
-      <span class="req-label" data-i18n="req_sim">Simulator</span>
-      <span class="req-val">MSFS 2020/2024 · X-Plane 12</span>
-    </div>
-    <div class="req-row">
-      <span class="req-icon">🔑</span>
-      <span class="req-label" data-i18n="req_api">API Key</span>
-      <span class="req-val" data-i18n="req_api_val">Gemini (free tier available)</span>
-    </div>
-    <div class="req-row">
-      <span class="req-icon">🤝</span>
-      <span class="req-label" data-i18n="req_free">Price</span>
-      <span class="req-val" style="color:var(--green)" data-i18n="req_free_val">Free &amp; Open Source</span>
+  <!-- ── FEATURES ──────────────────────────────────────────────── -->
+  <div class="section anim-3">
+    <div class="section-label" data-i18n="sec_features">Features</div>
+    <div class="feat-grid">
+      <div class="feat glass">
+        <span class="feat-icon">🧠</span>
+        <div class="feat-title" data-i18n="f_atc_t">LLM-Powered ATC</div>
+        <div class="feat-body" data-i18n="f_atc_b">Context-aware ATC powered by Gemini, OpenAI, or Gemma. Remembers your flight plan, handles complex clearances, and speaks naturally.</div>
+        <div class="feat-tags"><span class="ftag">Gemini</span><span class="ftag">OpenAI</span><span class="ftag">Gemma</span></div>
+      </div>
+      <div class="feat glass">
+        <span class="feat-icon">📡</span>
+        <div class="feat-title" data-i18n="f_cpdlc_t">CPDLC Datalink</div>
+        <div class="feat-body" data-i18n="f_cpdlc_b">Controller–Pilot Data Link Communications for pre-departure clearance, oceanic, and en-route messages. Dual LLM routing for quality.</div>
+        <div class="feat-tags"><span class="ftag">PDC</span><span class="ftag">Oceanic</span><span class="ftag">En-route</span></div>
+      </div>
+      <div class="feat glass">
+        <span class="feat-icon">📻</span>
+        <div class="feat-title" data-i18n="f_atis_t">Bilingual ATIS</div>
+        <div class="feat-body" data-i18n="f_atis_b">Chinese airports automatically generate full English + Chinese ATIS with proper CAAC-style phrasing and metric RVSM levels.</div>
+        <div class="feat-tags"><span class="ftag">CAAC</span><span class="ftag">Metric RVSM</span></div>
+      </div>
+      <div class="feat glass">
+        <span class="feat-icon">🛣️</span>
+        <div class="feat-title" data-i18n="f_taxi_t">Smart Taxi Routing</div>
+        <div class="feat-body" data-i18n="f_taxi_b">Graph-based weighted path planning. Knows real taxiway names, avoids hotspots, and highlights your route on the live map.</div>
+        <div class="feat-tags"><span class="ftag">OSM</span><span class="ftag">X-Plane apt.dat</span></div>
+      </div>
+      <div class="feat glass">
+        <span class="feat-icon">💼</span>
+        <div class="feat-title" data-i18n="f_career_t">Career Mode</div>
+        <div class="feat-body" data-i18n="f_career_b">Build your pilot career from student to captain. Airline contracts, SimBrief integration, XP system, and violation tracking.</div>
+        <div class="feat-tags"><span class="ftag">SimBrief</span><span class="ftag">XP</span><span class="ftag">Licenses</span></div>
+      </div>
+      <div class="feat glass">
+        <span class="feat-icon">🎙️</span>
+        <div class="feat-title" data-i18n="f_tts_t">Voice & TTS</div>
+        <div class="feat-body" data-i18n="f_tts_b">Edge-TTS cloud voices or local streaming TTS. Radio noise filter, radio-free cabin audio, and aviation pronunciation rules.</div>
+        <div class="feat-tags"><span class="ftag">Edge-TTS</span><span class="ftag">Kokoro</span><span class="ftag">PTT</span></div>
+      </div>
+      <div class="feat glass">
+        <span class="feat-icon">🗺️</span>
+        <div class="feat-title" data-i18n="f_map_t">Radar Vectoring</div>
+        <div class="feat-body" data-i18n="f_map_b">Issue HDG / ALT / SPD vectors from the dashboard. Live flight map with altitude coloring, traffic markers, and route prediction.</div>
+        <div class="feat-tags"><span class="ftag">HDG</span><span class="ftag">ALT</span><span class="ftag">SPD</span></div>
+      </div>
+      <div class="feat glass">
+        <span class="feat-icon">🔌</span>
+        <div class="feat-title" data-i18n="f_plugin_t">Plugin System</div>
+        <div class="feat-body" data-i18n="f_plugin_b">Community plugin support with lifecycle hooks. Built-in DLC catalog browser — one-click FlyByWire A32NX download to MSFS.</div>
+        <div class="feat-tags"><span class="ftag">DLC</span><span class="ftag">A32NX</span></div>
+      </div>
+      <div class="feat glass">
+        <span class="feat-icon">🔄</span>
+        <div class="feat-title" data-i18n="f_update_t">Auto-Update</div>
+        <div class="feat-body" data-i18n="f_update_b">Daily update checks via Cloudflare Workers with SHA-256 verification. China-accelerated downloads. Crash telemetry (opt-in).</div>
+        <div class="feat-tags"><span class="ftag">Cloudflare</span><span class="ftag">SHA-256</span></div>
+      </div>
     </div>
   </div>
 
-  <!-- Footer -->
-  <div class="footer-links">
-    <a href="https://github.com/XNGamingPanda/OpenFrequency" target="_blank" rel="noopener" data-i18n="lnk_gh">GitHub</a>
-    <a href="https://github.com/XNGamingPanda/OpenFrequency/releases" target="_blank" rel="noopener" data-i18n="lnk_rel">Releases</a>
-    <a href="https://github.com/XNGamingPanda/OpenFrequency/blob/main/RELEASE_NOTES.md" target="_blank" rel="noopener" data-i18n="lnk_rn">Release Notes</a>
-    <a href="https://github.com/XNGamingPanda/OpenFrequency/blob/main/README_zh-CN.md" target="_blank" rel="noopener">中文文档</a>
-    <a href="https://github.com/XNGamingPanda/OpenFrequency/issues" target="_blank" rel="noopener" data-i18n="lnk_issue">Report Issue</a>
+  <!-- ── WHAT'S NEW ─────────────────────────────────────────────── -->
+  <div class="section anim-4">
+    <div class="section-label" data-i18n="sec_whats_new">What's New in v3.9-alpha</div>
+    <div class="changelog-list">
+      <div class="cl-item"><span class="cl-kind new" data-i18n="cl_new">NEW</span><span class="cl-text"><strong data-i18n="cl1t">CPDLC Datalink</strong> — <span data-i18n="cl1b">Controller-Pilot data link with pre-departure clearance, oceanic, and en-route messaging support</span></span></div>
+      <div class="cl-item"><span class="cl-kind new" data-i18n="cl_new">NEW</span><span class="cl-text"><strong data-i18n="cl2t">Metric RVSM</strong> — <span data-i18n="cl2b">Auto-switch to metric altitude levels when operating in Chinese airspace</span></span></div>
+      <div class="cl-item"><span class="cl-kind new" data-i18n="cl_new">NEW</span><span class="cl-text"><strong data-i18n="cl3t">MSI Installer</strong> — <span data-i18n="cl3b">WiX 4 MSI with major-upgrade support, Start Menu and Desktop shortcuts</span></span></div>
+      <div class="cl-item"><span class="cl-kind new" data-i18n="cl_new">NEW</span><span class="cl-text"><strong data-i18n="cl4t">Dual LLM Models</strong> — <span data-i18n="cl4b">Configure lightweight and reasoning models; complex situations auto-escalate to the reasoning model</span></span></div>
+      <div class="cl-item"><span class="cl-kind new" data-i18n="cl_new">NEW</span><span class="cl-text"><strong data-i18n="cl5t">Local Streaming TTS</strong> — <span data-i18n="cl5b">Switch between Edge-TTS and a local streaming TTS model; models stored in AppData</span></span></div>
+      <div class="cl-item"><span class="cl-kind imp" data-i18n="cl_imp">IMPROVED</span><span class="cl-text"><strong data-i18n="cl6t">ATC Proactive Speaking</strong> — <span data-i18n="cl6b">Better local-rule detection before invoking AI — fewer false positives, more timely interventions</span></span></div>
+      <div class="cl-item"><span class="cl-kind imp" data-i18n="cl_imp">IMPROVED</span><span class="cl-text"><strong data-i18n="cl7t">Radio Effects</strong> — <span data-i18n="cl7b">Improved band-pass noise filter; cabin audio now plays without radio effect</span></span></div>
+      <div class="cl-item"><span class="cl-kind fix" data-i18n="cl_fix">FIXED</span><span class="cl-text"><strong data-i18n="cl8t">LAN Dashboard Access</strong> — <span data-i18n="cl8b">Dashboard was unreachable from other devices on the local network</span></span></div>
+      <div class="cl-item"><span class="cl-kind fix" data-i18n="cl_fix">FIXED</span><span class="cl-text"><strong data-i18n="cl9t">Career Callsign Lock</strong> — <span data-i18n="cl9b">Callsign was incorrectly locked to mission callsign after switching to free flight</span></span></div>
+      <div class="cl-item"><span class="cl-kind fix" data-i18n="cl_fix">FIXED</span><span class="cl-text"><strong data-i18n="cl10t">ATIS Always "Alpha"</strong> — <span data-i18n="cl10b">Information letter was stuck at Alpha instead of advancing each update cycle</span></span></div>
+      <div class="cl-item"><span class="cl-kind fix" data-i18n="cl_fix">FIXED</span><span class="cl-text"><strong data-i18n="cl11t">V/S Calculation</strong> — <span data-i18n="cl11b">Vertical speed was not computing correctly in certain simulator states</span></span></div>
+    </div>
   </div>
-  <p class="footer-copy" data-i18n="footer_copy">OpenFrequency · MIT License · Free forever</p>
-</div>
+
+  <!-- ── HOW IT WORKS ───────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-label" data-i18n="sec_how">How It Works</div>
+    <div class="steps">
+      <div class="step glass">
+        <div class="step-num">1</div>
+        <div class="step-title" data-i18n="st1t">Install</div>
+        <div class="step-body" data-i18n="st1b">Run the MSI installer. OpenFrequency creates its config in AppData on first launch.</div>
+      </div>
+      <div class="step glass">
+        <div class="step-num">2</div>
+        <div class="step-title" data-i18n="st2t">Configure</div>
+        <div class="step-body" data-i18n="st2b">Add your Gemini API key (free tier) and select your simulator in the Settings page.</div>
+      </div>
+      <div class="step glass">
+        <div class="step-num">3</div>
+        <div class="step-title" data-i18n="st3t">Fly</div>
+        <div class="step-body" data-i18n="st3b">Load a SimBrief plan, spawn your aircraft, and press Push-to-Talk to speak to ATC.</div>
+      </div>
+      <div class="step glass">
+        <div class="step-num">4</div>
+        <div class="step-title" data-i18n="st4t">Immerse</div>
+        <div class="step-body" data-i18n="st4b">Real cabin crew, bilingual ATIS, radar vectoring, taxi guidance — full flight experience.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SIMULATOR SUPPORT ─────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-label" data-i18n="sec_sim">Simulator Support</div>
+    <div class="sim-pills">
+      <div class="sim-pill glass">
+        <span class="sim-pill-icon">🛩</span>
+        <div><div>Microsoft Flight Simulator</div><span class="sim-pill-sub">2020 · 2024 · SimConnect (auto-bundled)</span></div>
+      </div>
+      <div class="sim-pill glass">
+        <span class="sim-pill-icon">✈️</span>
+        <div><div>X-Plane 12</div><span class="sim-pill-sub">Local Web API · LiveTraffic support</span></div>
+      </div>
+      <div class="sim-pill glass">
+        <span class="sim-pill-icon">🏗️</span>
+        <div><div>Prepar3D · FSX</div><span class="sim-pill-sub">SimConnect compatible</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── REQUIREMENTS ──────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-label" data-i18n="sec_req">System Requirements</div>
+    <div class="req-grid">
+      <div class="req-card glass">
+        <span class="req-card-icon">🪟</span>
+        <div><div class="req-card-label" data-i18n="req_os">Operating System</div><div class="req-card-val">Windows 10 / 11 (x64)</div></div>
+      </div>
+      <div class="req-card glass">
+        <span class="req-card-icon">✈️</span>
+        <div><div class="req-card-label" data-i18n="req_sim">Simulator</div><div class="req-card-val">MSFS 2020/2024 · X-Plane 12</div></div>
+      </div>
+      <div class="req-card glass">
+        <span class="req-card-icon">🔑</span>
+        <div><div class="req-card-label" data-i18n="req_api">API Key</div><div class="req-card-val" data-i18n="req_api_val">Google Gemini (free tier)</div></div>
+      </div>
+      <div class="req-card glass">
+        <span class="req-card-icon">💰</span>
+        <div><div class="req-card-label" data-i18n="req_price">Price</div><div class="req-card-val" style="color:var(--green)" data-i18n="req_price_val">Free &amp; Open Source</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FOOTER ─────────────────────────────────────────────────── -->
+  <div class="footer">
+    <div class="footer-inner">
+      <div class="footer-col">
+        <div class="footer-col-title" data-i18n="ft_project">Project</div>
+        <a href="https://github.com/XNGamingPanda/OpenFrequency" target="_blank" rel="noopener" data-i18n="ft_github">GitHub Repository</a>
+        <a href="https://github.com/XNGamingPanda/OpenFrequency/releases" target="_blank" rel="noopener" data-i18n="ft_releases">Releases</a>
+        <a href="https://github.com/XNGamingPanda/OpenFrequency/blob/main/RELEASE_NOTES.md" target="_blank" rel="noopener" data-i18n="ft_rn">Release Notes</a>
+        <a href="https://github.com/XNGamingPanda/OpenFrequency/blob/main/RELEASE_NOTES_zh-CN.md" target="_blank" rel="noopener">发布说明（中文）</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title" data-i18n="ft_docs">Documentation</div>
+        <a href="https://github.com/XNGamingPanda/OpenFrequency/blob/main/README.md" target="_blank" rel="noopener">README</a>
+        <a href="https://github.com/XNGamingPanda/OpenFrequency/blob/main/README_zh-CN.md" target="_blank" rel="noopener">中文文档</a>
+        <a href="https://github.com/XNGamingPanda/OpenFrequency/blob/main/config.example.json" target="_blank" rel="noopener" data-i18n="ft_config">Config Reference</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title" data-i18n="ft_community">Community</div>
+        <a href="https://github.com/XNGamingPanda/OpenFrequency/issues" target="_blank" rel="noopener" data-i18n="ft_issues">Report an Issue</a>
+        <a href="https://github.com/XNGamingPanda/OpenFrequency/discussions" target="_blank" rel="noopener" data-i18n="ft_discuss">Discussions</a>
+        <a href="https://github.com/XNGamingPanda/OpenFrequency/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-brand"><span>📡</span> OpenFrequency</div>
+      <span data-i18n="ft_copy">MIT License · Free forever · Made for flight sim enthusiasts</span>
+    </div>
+  </div>
+
+</div><!-- /page -->
 
 <script>
-// ─── Config ─────────────────────────────────────────────────────────────────
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
 const WORKERS_URL  = "https://openfrequency-api.REPLACE_ACCOUNT.workers.dev";
-const GITHUB_BASE  = "https://github.com/XNGamingPanda/OpenFrequency";
-const GH_RELEASES  = GITHUB_BASE + "/releases";
-const GH_DL_LATEST = GITHUB_BASE + "/releases/latest/download/OpenFrequency-v3.9-alpha-Setup.msi";
-const MSI_NAME     = "OpenFrequency-v3.9-alpha-Setup.msi";
+const GH_DL_LATEST = "https://github.com/XNGamingPanda/OpenFrequency/releases/latest/download/OpenFrequency-v3.9-alpha-Setup.msi";
+const GH_RELEASES  = "https://github.com/XNGamingPanda/OpenFrequency/releases";
 
 // ─── i18n ────────────────────────────────────────────────────────────────────
-const I18N = {
+const T = {
   en: {
-    hero_title:   "OpenFrequency",
-    hero_sub:     "The AI ATC for Everyone",
-    nav_gh:       "GitHub",
-    dl_platform:  "Windows Installer",
-    dl_sub:       "Windows 10/11 · Per-machine MSI · Start Menu & Desktop shortcuts",
-    dl_btn:       "Download",
-    dl_alt:       "View all releases on GitHub →",
-    dl_src_cf:    "Served via Cloudflare Workers · faster in China",
-    dl_src_gh:    "Served directly from GitHub Releases",
-    f1t:"LLM-Powered ATC",    f1d:"Gemini · OpenAI · Gemma — context-aware, natural phraseology",
-    f2t:"CPDLC Datalink",     f2d:"Pre-departure clearance, oceanic & en-route data-link messages",
-    f3t:"Taxi Routing",       f3d:"Graph-based weighted path planning with real taxiway awareness",
-    f4t:"Metric RVSM",        f4d:"Auto-switch to metric altitude levels in Chinese airspace",
-    f5t:"Bilingual ATIS",     f5d:"Chinese airports generate full EN + ZH ATIS with CAAC phrasing",
-    f6t:"Plugin System",      f6d:"DLC browser · one-click FlyByWire A32NX · auto-update",
-    req_title:    "Requirements",
-    req_sim:      "Simulator",
-    req_api:      "API Key",
-    req_api_val:  "Gemini (free tier available)",
-    req_free:     "Price",
-    req_free_val: "Free & Open Source",
-    lnk_gh:       "GitHub",
-    lnk_rel:      "Releases",
-    lnk_rn:       "Release Notes",
-    lnk_issue:    "Report Issue",
-    footer_copy:  "OpenFrequency · MIT License · Free forever",
+    nav_github:"GitHub",
+    hero_h1:"OpenFrequency",
+    hero_sub:"The AI ATC for Everyone — free, open-source, and powered by LLMs. No subscription. No compromise.",
+    badge_free:"Free Forever",
+    dl_title:"Windows Installer",
+    dl_desc:"MSI installer for Windows 10/11 (x64). Creates Start Menu and Desktop shortcuts. Models and config stored in %APPDATA%\\OpenFrequency.",
+    dl_btn_label:"Download",
+    dl_src_loading:"Detecting…",
+    dl_src_cf:"Served via Cloudflare Workers · accelerated for China",
+    dl_src_gh:"Served directly from GitHub Releases",
+    dl_all_releases:"All releases →",
+    dl_version:"Version",
+    dl_sha_note:"Verified automatically on install",
+    sec_features:"Features",
+    f_atc_t:"LLM-Powered ATC",         f_atc_b:"Context-aware ATC powered by Gemini, OpenAI, or Gemma. Remembers your flight plan, handles complex clearances, and speaks naturally.",
+    f_cpdlc_t:"CPDLC Datalink",        f_cpdlc_b:"Controller–Pilot Data Link Communications for pre-departure clearance, oceanic, and en-route messages. Dual LLM routing for quality.",
+    f_atis_t:"Bilingual ATIS",         f_atis_b:"Chinese airports automatically generate full English + Chinese ATIS with proper CAAC-style phrasing and metric RVSM levels.",
+    f_taxi_t:"Smart Taxi Routing",     f_taxi_b:"Graph-based weighted path planning. Knows real taxiway names, avoids hotspots, and highlights your route on the live map.",
+    f_career_t:"Career Mode",          f_career_b:"Build your pilot career from student to captain. Airline contracts, SimBrief integration, XP system, and violation tracking.",
+    f_tts_t:"Voice & TTS",             f_tts_b:"Edge-TTS cloud voices or local streaming TTS. Radio noise filter, radio-free cabin audio, and aviation pronunciation rules.",
+    f_map_t:"Radar Vectoring",         f_map_b:"Issue HDG / ALT / SPD vectors from the dashboard. Live flight map with altitude coloring, traffic markers, and route prediction.",
+    f_plugin_t:"Plugin System",        f_plugin_b:"Community plugin support with lifecycle hooks. Built-in DLC catalog browser — one-click FlyByWire A32NX download to MSFS.",
+    f_update_t:"Auto-Update",          f_update_b:"Daily update checks via Cloudflare Workers with SHA-256 verification. China-accelerated downloads. Crash telemetry (opt-in).",
+    sec_whats_new:"What's New in v3.9-alpha",
+    cl_new:"NEW", cl_imp:"IMPROVED", cl_fix:"FIXED",
+    cl1t:"CPDLC Datalink",             cl1b:"Controller-Pilot data link with pre-departure clearance, oceanic, and en-route messaging support",
+    cl2t:"Metric RVSM",               cl2b:"Auto-switch to metric altitude levels when operating in Chinese airspace",
+    cl3t:"MSI Installer",             cl3b:"WiX 4 MSI with major-upgrade support, Start Menu and Desktop shortcuts",
+    cl4t:"Dual LLM Models",           cl4b:"Configure lightweight and reasoning models; complex situations auto-escalate to the reasoning model",
+    cl5t:"Local Streaming TTS",       cl5b:"Switch between Edge-TTS and a local streaming TTS model; models stored in AppData",
+    cl6t:"ATC Proactive Speaking",    cl6b:"Better local-rule detection before invoking AI — fewer false positives, more timely interventions",
+    cl7t:"Radio Effects",             cl7b:"Improved band-pass noise filter; cabin audio now plays without radio effect",
+    cl8t:"LAN Dashboard Access",      cl8b:"Dashboard was unreachable from other devices on the local network",
+    cl9t:"Career Callsign Lock",      cl9b:"Callsign was incorrectly locked to mission callsign after switching to free flight",
+    cl10t:"ATIS Always \"Alpha\"",    cl10b:"Information letter was stuck at Alpha instead of advancing each update cycle",
+    cl11t:"V/S Calculation",          cl11b:"Vertical speed was not computing correctly in certain simulator states",
+    sec_how:"How It Works",
+    st1t:"Install",  st1b:"Run the MSI installer. OpenFrequency creates its config in AppData on first launch.",
+    st2t:"Configure",st2b:"Add your Gemini API key (free tier) and select your simulator in the Settings page.",
+    st3t:"Fly",      st3b:"Load a SimBrief plan, spawn your aircraft, and press Push-to-Talk to speak to ATC.",
+    st4t:"Immerse",  st4b:"Real cabin crew, bilingual ATIS, radar vectoring, taxi guidance — full flight experience.",
+    sec_sim:"Simulator Support",
+    sec_req:"System Requirements",
+    req_os:"Operating System", req_sim:"Simulator",
+    req_api:"API Key", req_api_val:"Google Gemini (free tier)",
+    req_price:"Price", req_price_val:"Free & Open Source",
+    ft_project:"Project", ft_github:"GitHub Repository", ft_releases:"Releases",
+    ft_rn:"Release Notes", ft_docs:"Documentation", ft_config:"Config Reference",
+    ft_community:"Community", ft_issues:"Report an Issue", ft_discuss:"Discussions",
+    ft_copy:"MIT License · Free forever · Made for flight sim enthusiasts",
   },
   zh: {
-    hero_title:   "OpenFrequency",
-    hero_sub:     "面向所有人的 AI 空中交通管制",
-    nav_gh:       "GitHub",
-    dl_platform:  "Windows 安装程序",
-    dl_sub:       "Windows 10/11 · 全机 MSI 安装 · 创建开始菜单和桌面快捷方式",
-    dl_btn:       "下载",
-    dl_alt:       "在 GitHub 查看所有版本 →",
-    dl_src_cf:    "通过 Cloudflare Workers 加速下载（国内推荐）",
-    dl_src_gh:    "直接从 GitHub Releases 下载",
-    f1t:"AI 驱动 ATC",        f1d:"Gemini · OpenAI · Gemma，理解上下文，自然用语",
-    f2t:"CPDLC 数据链",       f2d:"支持起飞前放行、洋区及航路数字链消息",
-    f3t:"滑行寻路",            f3d:"基于图算法的加权滑行路径规划，识别真实滑行道",
-    f4t:"米制 RVSM",          f4d:"在中国 RVSM 空域自动切换公制飞行高度层",
-    f5t:"双语 ATIS",          f5d:"中国机场生成英文 + 中文双语 ATIS，符合 CAAC 规范",
-    f6t:"插件系统",            f6d:"DLC 目录 · 一键安装 FlyByWire A32NX · 自动更新",
-    req_title:    "系统要求",
-    req_sim:      "模拟器",
-    req_api:      "API 密钥",
-    req_api_val:  "Gemini（有免费额度）",
-    req_free:     "价格",
-    req_free_val: "免费开源",
-    lnk_gh:       "GitHub",
-    lnk_rel:      "历史版本",
-    lnk_rn:       "发布说明",
-    lnk_issue:    "反馈问题",
-    footer_copy:  "OpenFrequency · MIT 许可证 · 永久免费",
+    nav_github:"GitHub",
+    hero_h1:"OpenFrequency",
+    hero_sub:"面向所有人的 AI 空中交通管制 — 免费开源，大语言模型驱动。无订阅费，零妥协。",
+    badge_free:"永久免费",
+    dl_title:"Windows 安装程序",
+    dl_desc:"适用于 Windows 10/11 (x64) 的 MSI 安装包，自动创建开始菜单和桌面快捷方式。模型和配置文件存储在 %APPDATA%\\OpenFrequency。",
+    dl_btn_label:"下载",
+    dl_src_loading:"检测中…",
+    dl_src_cf:"通过 Cloudflare Workers 加速下载（国内推荐）",
+    dl_src_gh:"直接从 GitHub Releases 下载",
+    dl_all_releases:"所有版本 →",
+    dl_version:"版本",
+    dl_sha_note:"安装时自动验证 SHA-256 完整性",
+    sec_features:"功能特性",
+    f_atc_t:"AI 驱动 ATC",            f_atc_b:"由 Gemini、OpenAI 或 Gemma 驱动，理解上下文、处理复杂放行指令，使用自然航空用语。",
+    f_cpdlc_t:"CPDLC 数据链",         f_cpdlc_b:"支持管制员-飞行员数据链，包括起飞前放行、洋区及航路数字链消息，双层 LLM 保障质量。",
+    f_atis_t:"双语 ATIS",              f_atis_b:"中国机场自动生成英文+中文双语 ATIS，符合 CAAC 规范，支持米制 RVSM 高度层。",
+    f_taxi_t:"智能滑行寻路",           f_taxi_b:"基于图算法的加权滑行路径规划，识别真实滑行道名称，规避热点区域并在实时地图高亮显示路线。",
+    f_career_t:"生涯模式",             f_career_b:"从学员成长为机长，包含航司签约、SimBrief 集成、XP 系统和违规记录。",
+    f_tts_t:"语音与 TTS",              f_tts_b:"Edge-TTS 云端声音或本地流式 TTS 模型，无线电噪声滤波，机舱广播无线电效果分离。",
+    f_map_t:"雷达引导",                f_map_b:"从仪表盘直接下达 HDG / ALT / SPD 引导指令，实时飞行地图含高度着色、流量标记和航路预测。",
+    f_plugin_t:"插件系统",             f_plugin_b:"社区插件支持，提供生命周期钩子，内置 DLC 目录浏览器，一键安装 FlyByWire A32NX 到 MSFS。",
+    f_update_t:"自动更新",             f_update_b:"通过 Cloudflare Workers 每日检查更新，SHA-256 验证，国内加速下载，崩溃遥测（需同意）。",
+    sec_whats_new:"v3.9-alpha 更新内容",
+    cl_new:"新功能", cl_imp:"优化", cl_fix:"修复",
+    cl1t:"CPDLC 数据链",               cl1b:"支持起飞前放行、洋区及航路管制员-飞行员数据链消息",
+    cl2t:"米制 RVSM",                  cl2b:"在中国 RVSM 空域自动切换为公制飞行高度层",
+    cl3t:"MSI 安装程序",               cl3b:"WiX 4 全机安装，支持大版本升级，创建开始菜单和桌面快捷方式",
+    cl4t:"双层 LLM 模型",              cl4b:"可分别配置轻量模型与思考模型，复杂情境自动升级至思考模型处理",
+    cl5t:"本地流式 TTS",               cl5b:"支持在 Edge-TTS 和本地流式 TTS 模型之间切换，模型存储在 AppData",
+    cl6t:"ATC 主动发话",               cl6b:"优化本地规则检测，减少误触发，提升干预时机的准确性",
+    cl7t:"无线电效果",                  cl7b:"改进带通滤波效果，机组广播不再有无线电噪声",
+    cl8t:"局域网仪表盘访问",            cl8b:"修复局域网其他设备无法访问仪表盘的问题",
+    cl9t:"生涯呼号锁定",               cl9b:"修复切换自由飞行后呼号仍被锁定在任务呼号的问题",
+    cl10t:"ATIS 字母始终为 Alpha",      cl10b:"修复 Information 字母不随 ATIS 更新周期推进的问题",
+    cl11t:"V/S 计算错误",              cl11b:"修复在特定模拟器状态下垂直速度计算不正确的问题",
+    sec_how:"使用流程",
+    st1t:"安装",     st1b:"运行 MSI 安装包，OpenFrequency 首次启动时自动在 AppData 创建配置文件。",
+    st2t:"配置",     st2b:"在设置页填入 Gemini API 密钥（有免费额度）并选择模拟器类型。",
+    st3t:"起飞",     st3b:"加载 SimBrief 飞行计划，生成飞机，按 PTT 按钮与 ATC 通话。",
+    st4t:"沉浸",     st4b:"真实机组广播、双语 ATIS、雷达引导、滑行寻路——完整飞行体验。",
+    sec_sim:"支持的模拟器",
+    sec_req:"系统要求",
+    req_os:"操作系统", req_sim:"模拟器",
+    req_api:"API 密钥", req_api_val:"Google Gemini（有免费额度）",
+    req_price:"价格", req_price_val:"免费开源",
+    ft_project:"项目", ft_github:"GitHub 仓库", ft_releases:"历史版本",
+    ft_rn:"发布说明", ft_docs:"文档", ft_config:"配置参考",
+    ft_community:"社区", ft_issues:"反馈问题", ft_discuss:"讨论区",
+    ft_copy:"MIT 许可证 · 永久免费 · 为飞行模拟爱好者打造",
   },
   ja: {
-    hero_title:   "OpenFrequency",
-    hero_sub:     "すべての人のための AI ATC",
-    nav_gh:       "GitHub",
-    dl_platform:  "Windows インストーラー",
-    dl_sub:       "Windows 10/11 · MSI インストーラー · スタートメニューとデスクトップショートカット",
-    dl_btn:       "ダウンロード",
-    dl_alt:       "GitHub で全バージョンを見る →",
-    dl_src_cf:    "Cloudflare Workers 経由で配信",
-    dl_src_gh:    "GitHub Releases から直接ダウンロード",
-    f1t:"LLM 搭載 ATC",       f1d:"Gemini · OpenAI · Gemma — 文脈を理解し自然な用語を使用",
-    f2t:"CPDLC データリンク",  f2d:"出発前クリアランス、外洋、航路データリンクメッセージ対応",
-    f3t:"タクシーイング経路",   f3d:"グラフベースの加重経路計画。実際の誘導路に対応",
-    f4t:"メトリック RVSM",    f4d:"中国空域でメートル単位の高度層へ自動切替",
-    f5t:"バイリンガル ATIS",   f5d:"中国の空港は EN + ZH の ATIS を CAAC 準拠で生成",
-    f6t:"プラグインシステム",   f6d:"DLC ブラウザ · FlyByWire A32NX 一発インストール · 自動更新",
-    req_title:    "システム要件",
-    req_sim:      "シミュレーター",
-    req_api:      "API キー",
-    req_api_val:  "Gemini（無料枠あり）",
-    req_free:     "価格",
-    req_free_val: "無料 / オープンソース",
-    lnk_gh:       "GitHub",
-    lnk_rel:      "リリース一覧",
-    lnk_rn:       "リリースノート",
-    lnk_issue:    "問題を報告",
-    footer_copy:  "OpenFrequency · MIT ライセンス · 永久無料",
+    nav_github:"GitHub",
+    hero_h1:"OpenFrequency",
+    hero_sub:"すべての人のための AI ATC — 無料・オープンソース・LLM 駆動。サブスクなし、妥協なし。",
+    badge_free:"永久無料",
+    dl_title:"Windows インストーラー",
+    dl_desc:"Windows 10/11 (x64) 用 MSI インストーラー。スタートメニューとデスクトップショートカットを自動作成。モデルと設定は %APPDATA%\\OpenFrequency に保存されます。",
+    dl_btn_label:"ダウンロード",
+    dl_src_loading:"検出中…",
+    dl_src_cf:"Cloudflare Workers 経由で配信",
+    dl_src_gh:"GitHub Releases から直接ダウンロード",
+    dl_all_releases:"全バージョン →",
+    dl_version:"バージョン",
+    dl_sha_note:"インストール時に SHA-256 を自動検証",
+    sec_features:"機能",
+    f_atc_t:"LLM 搭載 ATC",           f_atc_b:"Gemini・OpenAI・Gemma が文脈を理解し、複雑なクリアランスを自然な航空用語で処理します。",
+    f_cpdlc_t:"CPDLC データリンク",    f_cpdlc_b:"出発前クリアランス、外洋・航路データリンクに対応。品質向上のためデュアル LLM ルーティング。",
+    f_atis_t:"バイリンガル ATIS",       f_atis_b:"中国の空港は CAAC 準拠のフレーズで英語＋中国語の ATIS を自動生成。メトリック RVSM 対応。",
+    f_taxi_t:"スマートタクシーガイド",  f_taxi_b:"グラフベースの加重経路計画。実際の誘導路名を把握し、ホットスポットを回避してライブマップにルートを表示。",
+    f_career_t:"キャリアモード",        f_career_b:"学生から機長までキャリアを築く。航空会社契約、SimBrief 連携、XP システム、違反追跡。",
+    f_tts_t:"音声・TTS",               f_tts_b:"Edge-TTS クラウドまたはローカルストリーミング TTS。ラジオノイズフィルター、キャビン音声分離。",
+    f_map_t:"レーダーベクタリング",     f_map_b:"ダッシュボードから HDG / ALT / SPD ベクターを指示。高度カラーリング・トラフィック表示付きライブマップ。",
+    f_plugin_t:"プラグインシステム",    f_plugin_b:"ライフサイクルフック付きコミュニティプラグイン。DLC カタログブラウザー、A32NX ワンクリックインストール。",
+    f_update_t:"自動アップデート",      f_update_b:"Cloudflare Workers による毎日のアップデートチェック、SHA-256 検証、クラッシュ遥測（オプトイン）。",
+    sec_whats_new:"v3.9-alpha の新機能",
+    cl_new:"新機能", cl_imp:"改善", cl_fix:"修正",
+    cl1t:"CPDLC データリンク",         cl1b:"出発前クリアランス、外洋・航路データリンクメッセージに対応",
+    cl2t:"メトリック RVSM",            cl2b:"中国空域でのメートル単位の高度層への自動切替",
+    cl3t:"MSI インストーラー",         cl3b:"WiX 4 MSI、メジャーアップグレード対応、ショートカット自動作成",
+    cl4t:"デュアル LLM モデル",        cl4b:"軽量モデルと推論モデルを設定可能、複雑な状況は自動的に推論モデルへエスカレート",
+    cl5t:"ローカルストリーミング TTS",  cl5b:"Edge-TTS とローカル TTS モデルの切替に対応、モデルは AppData に保存",
+    cl6t:"ATC プロアクティブ発話",     cl6b:"AI 呼び出し前のローカルルール検出を改善、誤検知を削減",
+    cl7t:"ラジオエフェクト",            cl7b:"バンドパスノイズフィルターを改善、キャビン音声はラジオエフェクトなしで再生",
+    cl8t:"LAN ダッシュボードアクセス", cl8b:"ローカルネットワーク上の他デバイスからダッシュボードにアクセスできなかった問題を修正",
+    cl9t:"キャリアコールサイン固定",    cl9b:"フリーフライトへ切り替え後もコールサインがミッションのものに固定されていた問題を修正",
+    cl10t:"ATIS が常に「Alpha」",      cl10b:"インフォメーションレターが更新サイクルで進まなかった問題を修正",
+    cl11t:"V/S 計算",                  cl11b:"特定のシミュレーター状態で垂直速度が正しく計算されなかった問題を修正",
+    sec_how:"使い方",
+    st1t:"インストール",  st1b:"MSI インストーラーを実行。初回起動時に AppData に設定ファイルを自動作成。",
+    st2t:"設定",          st2b:"設定ページで Gemini API キー（無料枠あり）を入力し、シミュレーターを選択。",
+    st3t:"フライト",      st3b:"SimBrief のフライトプランを読み込み、機体をスポーンして PTT ボタンで ATC に話しかける。",
+    st4t:"没入",          st4b:"リアルなキャビンクルー、バイリンガル ATIS、レーダーベクタリング、タクシーガイド。",
+    sec_sim:"対応シミュレーター",
+    sec_req:"システム要件",
+    req_os:"OS", req_sim:"シミュレーター",
+    req_api:"API キー", req_api_val:"Google Gemini（無料枠あり）",
+    req_price:"価格", req_price_val:"無料・オープンソース",
+    ft_project:"プロジェクト", ft_github:"GitHub リポジトリ", ft_releases:"リリース一覧",
+    ft_rn:"リリースノート", ft_docs:"ドキュメント", ft_config:"設定リファレンス",
+    ft_community:"コミュニティ", ft_issues:"問題を報告", ft_discuss:"ディスカッション",
+    ft_copy:"MIT ライセンス · 永久無料 · フライトシム愛好家のために",
   }
 };
 
-// ─── Download logic ──────────────────────────────────────────────────────────
-// Chinese browser → Workers proxy (faster in China)
-// All others      → GitHub Releases direct link
+// ─── DOWNLOAD ROUTING ────────────────────────────────────────────────────────
+// Rule: Chinese UI language → Workers (accelerated)
+//       Any other language  → GitHub direct
+let currentLang = 'en';
 
-function isChineseBrowser() {
-  const l = (navigator.language || navigator.userLanguage || '').toLowerCase();
-  return l.startsWith('zh');
+function useWorkers() {
+  return currentLang === 'zh';
 }
 
-let useWorkers = false;
-
-function initDownload() {
-  useWorkers = isChineseBrowser();
-  const dot  = document.getElementById('dl-dot');
-  const text = document.getElementById('dl-source-text');
-  const lang = currentLang;
-
-  if (useWorkers) {
-    dot.className   = 'dl-source-dot workers';
-    text.textContent = I18N[lang].dl_src_cf;
+function updateDownloadUI() {
+  const dot  = document.getElementById('src-dot');
+  const text = document.getElementById('src-text');
+  const t    = T[currentLang];
+  if (useWorkers()) {
+    dot.className    = 'src-dot cf';
+    text.textContent = t.dl_src_cf;
   } else {
-    dot.className   = 'dl-source-dot github';
-    text.textContent = I18N[lang].dl_src_gh;
+    dot.className    = 'src-dot gh';
+    text.textContent = t.dl_src_gh;
   }
 }
 
@@ -584,57 +933,58 @@ function handleDownload(e) {
   e.preventDefault();
   const btn = document.getElementById('btn-dl');
   btn.classList.add('loading');
-
-  if (useWorkers) {
-    window.location.href = WORKERS_URL + "/pub/dl/latest";
-  } else {
-    window.location.href = GH_DL_LATEST;
-  }
-
-  setTimeout(() => btn.classList.remove('loading'), 4500);
+  window.location.href = useWorkers()
+    ? WORKERS_URL + "/pub/dl/latest"
+    : GH_DL_LATEST;
+  setTimeout(() => btn.classList.remove('loading'), 5000);
   return false;
 }
 
-// ─── i18n engine ─────────────────────────────────────────────────────────────
-let currentLang = 'en';
-
-function detectLang() {
-  const saved = localStorage.getItem('of_lang');
-  if (saved && I18N[saved]) return saved;
-  const l = (navigator.language || '').toLowerCase();
-  if (l.startsWith('zh')) return 'zh';
-  if (l.startsWith('ja')) return 'ja';
-  return 'en';
+// ─── i18n ENGINE ─────────────────────────────────────────────────────────────
+function applyLang(lang) {
+  const t = T[lang];
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang === 'ja' ? 'ja' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if (t[k] !== undefined) el.textContent = t[k];
+  });
+  // Update dl-desc separately (contains <code> tag)
+  const descKey = 'dl_desc';
+  const descEl = document.querySelector('[data-i18n="dl_desc"]');
+  if (descEl) {
+    const desc = t[descKey] || '';
+    const parts = desc.split('%APPDATA%\\OpenFrequency');
+    if (parts.length === 2) {
+      descEl.innerHTML = parts[0] + '<code style="font-family:var(--mono);font-size:11px;color:var(--blue)">%APPDATA%\\OpenFrequency</code>' + parts[1];
+    } else {
+      descEl.textContent = desc;
+    }
+  }
 }
 
 function setLang(lang) {
-  if (!I18N[lang]) return;
+  if (!T[lang]) return;
   currentLang = lang;
   localStorage.setItem('of_lang', lang);
-  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang === 'ja' ? 'ja' : 'en';
-
-  const t = I18N[lang];
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.getAttribute('data-i18n');
-    if (t[key] !== undefined) el.textContent = t[key];
-  });
-
-  // Update lang button active states
-  ['en','zh','ja'].forEach(l => {
-    document.getElementById('lb-' + l).classList.toggle('active', l === lang);
-  });
-
-  // Update download source label
-  const text = document.getElementById('dl-source-text');
-  if (useWorkers) text.textContent = t.dl_src_cf;
-  else            text.textContent = t.dl_src_gh;
+  applyLang(lang);
+  ['en','zh','ja'].forEach(l =>
+    document.getElementById('lb-' + l).classList.toggle('on', l === lang)
+  );
+  updateDownloadUI();
 }
 
-// ─── Init ────────────────────────────────────────────────────────────────────
-(function init() {
-  const lang = detectLang();
+// ─── INIT ────────────────────────────────────────────────────────────────────
+(function () {
+  const saved = localStorage.getItem('of_lang');
+  let lang = 'en';
+  if (saved && T[saved]) {
+    lang = saved;
+  } else {
+    const bl = (navigator.language || '').toLowerCase();
+    if (bl.startsWith('zh')) lang = 'zh';
+    else if (bl.startsWith('ja')) lang = 'ja';
+  }
   setLang(lang);
-  initDownload();
 })();
 </script>
 
