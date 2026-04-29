@@ -1,0 +1,10 @@
+{
+  "name": "openfrequency-glass",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "liquid-glass-react": "^1.1.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

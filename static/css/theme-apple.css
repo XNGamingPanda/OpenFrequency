@@ -1,0 +1,841 @@
+/* ═══════════════════════════════════════════════════════════════════
+   theme-apple.css  ·  OpenFrequency  ·  Apple Liquid Glass Theme
+   ─────────────────────────────────────────────────────────────────
+   • 默认：Apple 浅色模式（systemGroupedBackground 风格）
+   • html.theme-apple body.dark-mode：Apple 深色模式
+   • 所有规则限定在 html.theme-apple 前缀，不影响经典主题
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════
+   §1  CSS 变量 — 浅色模式（默认）
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple {
+  /* 背景 */
+  --apple-bg:       #f2f2f7;
+  --apple-bg-alt:   #e5e5ea;
+
+  /* 强调色（iOS Light） */
+  --apple-blue:     #007aff;
+  --apple-green:    #34c759;
+  --apple-red:      #ff3b30;
+  --apple-amber:    #ff9500;
+  --apple-cyan:     #32ade6;
+  --apple-purple:   #af52de;
+
+  /* 文字 */
+  --apple-t1:       #1c1c1e;
+  --apple-t2:       rgba(28,28,30,0.62);
+  --apple-t3:       rgba(28,28,30,0.36);
+
+  /* 玻璃层 */
+  --glass-fill:     rgba(255,255,255,0.72);
+  --glass-fill-hvy: rgba(255,255,255,0.88);
+  --glass-border:   rgba(60,60,67,0.12);
+  --glass-shine:    rgba(255,255,255,0.90);
+  --glass-blur:     blur(22px) saturate(180%);
+  --glass-shadow:   0 4px 20px rgba(0,0,0,0.08), 0 1px 0 rgba(255,255,255,0.80) inset;
+
+  /* 表面语义色（随深浅模式切换） */
+  --surface-nav:        rgba(242,242,247,0.88);
+  --surface-card-hdr:   rgba(0,0,0,0.03);
+  --surface-card-ftr:   rgba(0,0,0,0.02);
+  --surface-tab-border: rgba(0,0,0,0.08);
+  --surface-tab-hover:  rgba(0,0,0,0.05);
+  --surface-tab-active: rgba(0,0,0,0.07);
+  --surface-tab-cont:   rgba(0,0,0,0.02);
+  --surface-tab-cb:     rgba(0,0,0,0.06);
+  --surface-ctrl-btn:   rgba(255,255,255,0.80);
+  --surface-ctrl-brdr:  rgba(0,0,0,0.12);
+  --surface-ctrl-hover: rgba(255,255,255,0.92);
+  --surface-ptt:        rgba(0,0,0,0.05);
+  --surface-ptt-brdr:   rgba(0,0,0,0.12);
+  --surface-ptt-hover:  rgba(0,0,0,0.08);
+  --surface-chat-atc:   rgba(0,0,0,0.06);
+  --surface-chat-ab:    rgba(0,0,0,0.08);
+  --surface-chat-sys:   rgba(0,0,0,0.04);
+  --surface-chat-sysb:  rgba(0,0,0,0.06);
+  --surface-instr-pnl:  rgba(240,240,245,0.92);
+  --surface-instr-card: rgba(0,0,0,0.05);
+  --surface-instr-brdr: rgba(0,0,0,0.09);
+  --surface-modal:      rgba(250,250,254,0.96);
+  --surface-modal-brdr: rgba(0,0,0,0.08);
+  --surface-modal-div:  rgba(0,0,0,0.06);
+  --surface-toast:      rgba(255,255,255,0.96);
+  --surface-toast-brdr: rgba(0,0,0,0.10);
+  --surface-list:       rgba(0,0,0,0.03);
+  --surface-list-brdr:  rgba(0,0,0,0.06);
+  --surface-list-hover: rgba(0,0,0,0.05);
+  --surface-form:       rgba(255,255,255,0.80);
+  --surface-form-brdr:  rgba(0,0,0,0.12);
+  --surface-form-focus: rgba(255,255,255,0.95);
+  --surface-select-opt: #f2f2f7;
+  --surface-input-grp:  rgba(0,0,0,0.04);
+  --surface-acc:        rgba(0,0,0,0.03);
+  --surface-acc-brdr:   rgba(0,0,0,0.05);
+  --surface-prog:       rgba(0,0,0,0.08);
+  --surface-scroll:     rgba(0,0,0,0.16);
+  --surface-radio-grp:  rgba(0,0,0,0.06);
+  --surface-radio-brdr: rgba(0,0,0,0.08);
+  --surface-radio-chk:  rgba(255,255,255,0.82);
+  --surface-tooltip:    rgba(50,50,60,0.94);
+  --surface-tooltip-b:  rgba(0,0,0,0.08);
+  --surface-overlay:    rgba(12,14,20,0.80);
+  --surface-badge-sec:  rgba(0,0,0,0.10);
+  --surface-btn-sec:    rgba(0,0,0,0.06);
+  --surface-btn-sb:     rgba(0,0,0,0.12);
+  --surface-atis-bg:    rgba(255,149,0,0.10);
+  --surface-atis-br:    rgba(255,149,0,0.28);
+  --color-atis:         #b35900;
+  --nav-link-hover:     rgba(0,0,0,0.06);
+  --nav-shadow:         0 4px 18px rgba(0,0,0,0.08), 0 1px 0 rgba(255,255,255,0.72) inset;
+
+  /* 圆角 */
+  --r-xl:   24px;
+  --r-lg:   20px;
+  --r-md:   14px;
+  --r-sm:   10px;
+  --r-pill: 999px;
+  --r-chip: 12px;
+
+  /* 字体 */
+  --font-ui:   -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+
+  /* 缓动 */
+  --ease-apple:  cubic-bezier(0.25, 0.1, 0.25, 1.0);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §2  CSS 变量 — 深色模式覆盖
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple body.dark-mode {
+  --apple-bg:       #08090d;
+  --apple-bg-alt:   #0d1018;
+  --apple-blue:     #0a84ff;
+  --apple-green:    #30d158;
+  --apple-red:      #ff453a;
+  --apple-amber:    #ffd60a;
+  --apple-cyan:     #64d2ff;
+  --apple-t1:       #f5f5f7;
+  --apple-t2:       rgba(245,245,247,0.62);
+  --apple-t3:       rgba(245,245,247,0.32);
+  --glass-fill:     rgba(255,255,255,0.07);
+  --glass-fill-hvy: rgba(255,255,255,0.13);
+  --glass-border:   rgba(255,255,255,0.13);
+  --glass-shine:    rgba(255,255,255,0.22);
+  --glass-shadow:   0 8px 32px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.09) inset;
+
+  --surface-nav:        rgba(14,16,22,0.88);
+  --surface-card-hdr:   rgba(255,255,255,0.04);
+  --surface-card-ftr:   rgba(255,255,255,0.03);
+  --surface-tab-border: rgba(255,255,255,0.09);
+  --surface-tab-hover:  rgba(255,255,255,0.07);
+  --surface-tab-active: rgba(255,255,255,0.09);
+  --surface-tab-cont:   rgba(255,255,255,0.03);
+  --surface-tab-cb:     rgba(255,255,255,0.08);
+  --surface-ctrl-btn:   rgba(12,14,20,0.78);
+  --surface-ctrl-brdr:  rgba(255,255,255,0.18);
+  --surface-ctrl-hover: rgba(30,34,44,0.88);
+  --surface-ptt:        rgba(255,255,255,0.08);
+  --surface-ptt-brdr:   rgba(255,255,255,0.17);
+  --surface-ptt-hover:  rgba(255,255,255,0.12);
+  --surface-chat-atc:   rgba(255,255,255,0.09);
+  --surface-chat-ab:    rgba(255,255,255,0.12);
+  --surface-chat-sys:   rgba(255,255,255,0.05);
+  --surface-chat-sysb:  rgba(255,255,255,0.08);
+  --surface-instr-pnl:  rgba(10,12,18,0.82);
+  --surface-instr-card: rgba(255,255,255,0.08);
+  --surface-instr-brdr: rgba(255,255,255,0.13);
+  --surface-modal:      rgba(18,20,28,0.96);
+  --surface-modal-brdr: rgba(255,255,255,0.12);
+  --surface-modal-div:  rgba(255,255,255,0.08);
+  --surface-toast:      rgba(22,24,32,0.96);
+  --surface-toast-brdr: rgba(255,255,255,0.12);
+  --surface-list:       rgba(255,255,255,0.05);
+  --surface-list-brdr:  rgba(255,255,255,0.07);
+  --surface-list-hover: rgba(255,255,255,0.09);
+  --surface-form:       rgba(255,255,255,0.06);
+  --surface-form-brdr:  rgba(255,255,255,0.13);
+  --surface-form-focus: rgba(255,255,255,0.09);
+  --surface-select-opt: #1a1d23;
+  --surface-input-grp:  rgba(255,255,255,0.06);
+  --surface-acc:        rgba(255,255,255,0.05);
+  --surface-acc-brdr:   rgba(255,255,255,0.05);
+  --surface-prog:       rgba(255,255,255,0.10);
+  --surface-scroll:     rgba(255,255,255,0.18);
+  --surface-radio-grp:  rgba(255,255,255,0.07);
+  --surface-radio-brdr: rgba(255,255,255,0.11);
+  --surface-radio-chk:  rgba(255,255,255,0.18);
+  --surface-tooltip:    rgba(28,30,40,0.96);
+  --surface-tooltip-b:  rgba(255,255,255,0.12);
+  --surface-overlay:    rgba(12,14,20,0.92);
+  --surface-badge-sec:  rgba(255,255,255,0.14);
+  --surface-btn-sec:    rgba(255,255,255,0.10);
+  --surface-btn-sb:     rgba(255,255,255,0.18);
+  --surface-atis-bg:    rgba(255,214,10,0.10);
+  --surface-atis-br:    rgba(255,214,10,0.28);
+  --color-atis:         #ffd60a;
+  --nav-link-hover:     rgba(255,255,255,0.10);
+  --nav-shadow:         0 8px 28px rgba(0,0,0,0.50), 0 1px 0 rgba(255,255,255,0.08) inset;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §3  全局基础
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple,
+html.theme-apple body {
+  font-family: var(--font-ui) !important;
+  background: linear-gradient(150deg, var(--apple-bg) 0%, var(--apple-bg-alt) 100%) !important;
+  background-attachment: fixed !important;
+  color: var(--apple-t1) !important;
+}
+
+/* 颜色工具类 */
+html.theme-apple .text-success { color: var(--apple-green)  !important; }
+html.theme-apple .text-danger  { color: var(--apple-red)    !important; }
+html.theme-apple .text-info    { color: var(--apple-cyan)   !important; }
+html.theme-apple .text-warning { color: var(--apple-amber)  !important; }
+html.theme-apple .text-primary { color: var(--apple-blue)   !important; }
+html.theme-apple .text-muted   { color: var(--apple-t3)     !important; }
+html.theme-apple strong        { color: inherit !important; }
+html.theme-apple small         { color: var(--apple-t3) !important; }
+html.theme-apple h1,h2,h3,h4,h5,h6 { color: var(--apple-t1) !important; }
+html.theme-apple a             { color: var(--apple-blue) !important; }
+html.theme-apple a:hover       { color: var(--apple-blue) !important; opacity: 0.80; }
+
+html.theme-apple .bg-light { background: rgba(0,0,0,0.04)   !important; }
+html.theme-apple .bg-white { background: rgba(255,255,255,0.72) !important; }
+html.theme-apple .bg-dark  { background: rgba(0,0,0,0.40)   !important; }
+html.theme-apple .border         { border-color: var(--glass-border) !important; }
+html.theme-apple .border-bottom  { border-bottom-color: var(--glass-border) !important; }
+html.theme-apple .border-top     { border-top-color:    var(--glass-border) !important; }
+
+/* 滚动条 */
+html.theme-apple ::-webkit-scrollbar       { width: 4px; height: 4px; }
+html.theme-apple ::-webkit-scrollbar-track { background: transparent; }
+html.theme-apple ::-webkit-scrollbar-thumb { background: var(--surface-scroll); border-radius: 2px; }
+
+/* ══════════════════════════════════════════════════════════════════
+   §4  导航栏 — 浮动磨砂胶囊
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .navbar {
+  position: fixed !important;
+  top: 10px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  min-width: min(560px, calc(100vw - 20px)) !important;
+  max-width: calc(100vw - 20px) !important;
+  height: 46px !important;
+  border-radius: var(--r-pill) !important;
+  background: var(--surface-nav) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--nav-shadow) !important;
+  padding: 0 18px !important;
+  z-index: 1050 !important;
+  transition: box-shadow 0.3s var(--ease-apple) !important;
+}
+html.theme-apple .navbar-brand {
+  color: var(--apple-t1) !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  letter-spacing: -0.01em !important;
+}
+html.theme-apple .navbar .nav-link {
+  color: var(--apple-t2) !important;
+  font-size: 13.5px !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  transition: background 0.15s, color 0.15s !important;
+}
+html.theme-apple .navbar .nav-link:hover {
+  background: var(--nav-link-hover) !important;
+  color: var(--apple-t1) !important;
+}
+html.theme-apple .navbar .nav-link.active,
+html.theme-apple .navbar .nav-link[aria-current="page"] {
+  color: var(--apple-blue) !important;
+}
+html.theme-apple .container-fluid.p-3 { padding-top: 66px !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   §5  卡片 — 磨砂玻璃面板
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .card {
+  background: var(--glass-fill) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--r-lg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  box-shadow: var(--glass-shadow) !important;
+  color: var(--apple-t1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+/* 顶部高光线 */
+html.theme-apple .card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+html.theme-apple .card-header {
+  background: var(--surface-card-hdr) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  color: var(--apple-t1) !important;
+}
+html.theme-apple .card-body  { color: var(--apple-t1) !important; }
+html.theme-apple .card-footer {
+  background: var(--surface-card-ftr) !important;
+  border-top: 1px solid var(--glass-border) !important;
+  color: var(--apple-t2) !important;
+}
+html.theme-apple .card:has(#log-container) { overflow: visible !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   §6  仪表卡片
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .gauge-card { border-radius: var(--r-md) !important; }
+html.theme-apple .gauge-card .card-body { padding: 10px 6px !important; }
+html.theme-apple .gauge-card small {
+  display: block;
+  font-size: 9.5px !important;
+  letter-spacing: 0.10em !important;
+  text-transform: uppercase !important;
+  color: var(--apple-t3) !important;
+  font-weight: 300 !important;
+  margin-bottom: 2px;
+}
+html.theme-apple .gauge-card h4 {
+  font-family: var(--font-mono) !important;
+  font-size: 1.45rem !important;
+  font-weight: 700 !important;
+  font-variant-numeric: tabular-nums !important;
+  color: var(--apple-t1) !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* 仪表数据刷新闪光（JS 添加 .lg-flash） */
+html.theme-apple .lg-flash { animation: lgNumFlash 0.22s ease-out !important; }
+@keyframes lgNumFlash {
+  0%   { color: var(--apple-blue); text-shadow: 0 0 10px rgba(0,122,255,0.45); }
+  100% { text-shadow: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §7  标签页
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .nav-tabs {
+  border-bottom: 1px solid var(--surface-tab-border) !important;
+  gap: 2px;
+}
+html.theme-apple .nav-tabs .nav-link {
+  color: var(--apple-t2) !important;
+  border: none !important;
+  border-radius: 10px 10px 0 0 !important;
+  font-size: 13px !important;
+  padding: 6px 14px !important;
+  background: transparent !important;
+  transition: background 0.15s, color 0.15s !important;
+}
+html.theme-apple .nav-tabs .nav-link:hover {
+  background: var(--surface-tab-hover) !important;
+  color: var(--apple-t1) !important;
+}
+html.theme-apple .nav-tabs .nav-link.active {
+  background: var(--surface-tab-active) !important;
+  color: var(--apple-blue) !important;
+  border-bottom: 2px solid var(--apple-blue) !important;
+}
+html.theme-apple .tab-content {
+  background: var(--surface-tab-cont) !important;
+  border: 1px solid var(--surface-tab-cb) !important;
+  border-radius: 0 0 var(--r-lg) var(--r-lg) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §8  地图
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple #map-pane {
+  border-radius: 0 0 var(--r-lg) var(--r-lg) !important;
+  overflow: hidden !important;
+}
+html.theme-apple .control-stack .btn {
+  background: var(--surface-ctrl-btn) !important;
+  backdrop-filter: blur(14px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(150%) !important;
+  border: 1px solid var(--surface-ctrl-brdr) !important;
+  border-radius: var(--r-pill) !important;
+  color: var(--apple-t1) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12) !important;
+  transition: all 0.15s var(--ease-apple) !important;
+  min-width: unset !important;
+}
+html.theme-apple .control-stack .btn:hover {
+  background: var(--surface-ctrl-hover) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.16) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §9  通讯记录 — iMessage 风格气泡
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple #log-container {
+  background: transparent !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+  padding: 10px !important;
+}
+html.theme-apple #log-container > div {
+  border-radius: 18px !important;
+  padding: 8px 13px !important;
+  font-size: 13.5px !important;
+  line-height: 1.46 !important;
+  max-width: 86% !important;
+  margin: 0 !important;
+  animation: lgBubbleIn 0.26s var(--ease-spring) !important;
+  background-color: transparent !important;
+  color: var(--apple-t1) !important;
+}
+/* ATC / 其他（左对齐） */
+html.theme-apple #log-container > div[data-sender]:not([data-sender="Pilot"]):not([data-sender="SYSTEM"]):not([data-sender="ATIS"]) {
+  align-self: flex-start !important;
+  background: var(--surface-chat-atc) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid var(--surface-chat-ab) !important;
+  border-radius: 4px 18px 18px 18px !important;
+  color: var(--apple-t1) !important;
+}
+/* 飞行员（右对齐，蓝色） */
+html.theme-apple #log-container > div[data-sender="Pilot"] {
+  align-self: flex-end !important;
+  background: var(--apple-blue) !important;
+  border: none !important;
+  border-radius: 18px 18px 4px 18px !important;
+  color: #fff !important;
+}
+/* SYSTEM（居中小字） */
+html.theme-apple #log-container > div[data-sender="SYSTEM"] {
+  align-self: center !important;
+  background: var(--surface-chat-sys) !important;
+  border: 1px solid var(--surface-chat-sysb) !important;
+  border-radius: var(--r-pill) !important;
+  color: var(--apple-t3) !important;
+  font-size: 11px !important;
+  padding: 3px 14px !important;
+  text-align: center !important;
+  max-width: 100% !important;
+}
+/* ATIS（全宽琥珀） */
+html.theme-apple #log-container > div[data-sender="ATIS"] {
+  align-self: stretch !important;
+  max-width: 100% !important;
+  background: var(--surface-atis-bg) !important;
+  border: 1px solid var(--surface-atis-br) !important;
+  border-radius: var(--r-md) !important;
+  color: var(--color-atis) !important;
+}
+/* 无 data-sender 兜底 */
+html.theme-apple #log-container > div.text-end {
+  align-self: flex-end !important;
+  background: var(--apple-blue) !important;
+  border: none !important;
+  border-radius: 18px 18px 4px 18px !important;
+  color: #fff !important;
+}
+html.theme-apple #log-container > div.text-start,
+html.theme-apple #log-container > div:not(.text-end) {
+  align-self: flex-start !important;
+  background: var(--surface-chat-atc) !important;
+  border: 1px solid var(--surface-chat-ab) !important;
+  border-radius: 4px 18px 18px 18px !important;
+}
+html.theme-apple #log-container > div strong {
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  opacity: 0.55 !important;
+  display: block !important;
+  margin-bottom: 1px !important;
+}
+@keyframes lgBubbleIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);   }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §10  指令卡片条
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple #instruction-cards-panel {
+  background: var(--surface-instr-pnl) !important;
+  backdrop-filter: blur(18px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+  border-top: 1px solid var(--glass-border) !important;
+  border-radius: 0 0 var(--r-lg) var(--r-lg) !important;
+}
+html.theme-apple .instruction-card {
+  background: var(--surface-instr-card) !important;
+  border: 1px solid var(--surface-instr-brdr) !important;
+  border-radius: var(--r-chip) !important;
+  color: var(--apple-t1) !important;
+  font-size: 12px !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+  transition: transform 0.15s var(--ease-apple), box-shadow 0.15s !important;
+  animation: lgChipIn 0.24s var(--ease-spring) !important;
+}
+html.theme-apple .instruction-card:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+}
+html.theme-apple .instruction-card .instruction-type {
+  color: var(--apple-blue) !important;
+  font-weight: 600 !important;
+  font-size: 10px !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+}
+html.theme-apple .instruction-card .instruction-value {
+  font-family: var(--font-mono) !important;
+  font-weight: 700 !important;
+}
+@keyframes lgChipIn {
+  from { opacity: 0; transform: scale(0.82) translateY(4px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §11  无线电频道分段控件
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .btn-group[role="group"][aria-label="Radio channel selector"] {
+  background: var(--surface-radio-grp) !important;
+  border-radius: var(--r-pill) !important;
+  padding: 3px !important;
+  border: 1px solid var(--surface-radio-brdr) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  gap: 2px !important;
+}
+html.theme-apple .btn-group[aria-label="Radio channel selector"] label.btn {
+  border-radius: var(--r-pill) !important;
+  border: none !important;
+  color: var(--apple-t2) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 5px 16px !important;
+  transition: all 0.18s var(--ease-apple) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+html.theme-apple .btn-check:checked + label.btn {
+  background: var(--surface-radio-chk) !important;
+  color: var(--apple-t1) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §12  PTT 按钮
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple #ptt-btn {
+  background: var(--surface-ptt) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--surface-ptt-brdr) !important;
+  border-radius: var(--r-pill) !important;
+  color: var(--apple-t1) !important;
+  font-family: var(--font-ui) !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  letter-spacing: 0.04em !important;
+  box-shadow: var(--glass-shadow) !important;
+  transition: all 0.15s var(--ease-apple) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+html.theme-apple #ptt-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+  pointer-events: none;
+}
+html.theme-apple #ptt-btn:hover:not(:active) {
+  background: var(--surface-ptt-hover) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.16) !important;
+}
+html.theme-apple body.ptt-active #ptt-btn,
+html.theme-apple #ptt-btn.ptt-active {
+  background: var(--apple-red) !important;
+  border-color: rgba(255,59,48,0.45) !important;
+  color: #fff !important;
+  transform: scale(0.98) !important;
+  animation: lgPttGlow 1.6s ease-in-out infinite !important;
+}
+@keyframes lgPttGlow {
+  0%,100% { box-shadow: 0 0 0 4px rgba(255,59,48,0.22), 0 0 0 9px rgba(255,59,48,0.09); }
+  50%     { box-shadow: 0 0 0 8px rgba(255,59,48,0.16), 0 0 0 17px rgba(255,59,48,0.05); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §13  通用按钮
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .btn {
+  border-radius: var(--r-pill) !important;
+  font-weight: 500 !important;
+  transition: all 0.15s var(--ease-apple) !important;
+}
+html.theme-apple .btn-primary   { background: var(--apple-blue)  !important; border-color: var(--apple-blue)  !important; color:#fff !important; }
+html.theme-apple .btn-success   { background: var(--apple-green) !important; border-color: var(--apple-green) !important; color:#fff !important; }
+html.theme-apple .btn-danger    { background: var(--apple-red)   !important; border-color: var(--apple-red)   !important; color:#fff !important; }
+html.theme-apple .btn-warning   { background: var(--apple-amber) !important; border-color: var(--apple-amber) !important; color:#000 !important; }
+html.theme-apple .btn-primary:hover  { filter: brightness(1.10) !important; transform: translateY(-1px) !important; }
+html.theme-apple .btn-success:hover  { filter: brightness(1.08) !important; transform: translateY(-1px) !important; }
+html.theme-apple .btn-danger:hover   { filter: brightness(1.08) !important; transform: translateY(-1px) !important; }
+html.theme-apple .btn-secondary {
+  background: var(--surface-btn-sec) !important;
+  border-color: var(--surface-btn-sb) !important;
+  color: var(--apple-t1) !important;
+}
+html.theme-apple .btn-outline-primary  { background: rgba(0,122,255,0.10)  !important; border-color: rgba(0,122,255,0.40)  !important; color: var(--apple-blue)  !important; }
+html.theme-apple .btn-outline-secondary{ background: var(--surface-btn-sec) !important; border-color: var(--surface-btn-sb) !important; color: var(--apple-t2)   !important; }
+html.theme-apple .btn-outline-danger   { background: rgba(255,59,48,0.08)   !important; border-color: rgba(255,59,48,0.38)  !important; color: var(--apple-red)   !important; }
+html.theme-apple .btn-outline-success  { background: rgba(52,199,89,0.08)   !important; border-color: rgba(52,199,89,0.38)  !important; color: var(--apple-green) !important; }
+html.theme-apple .btn-outline-info     { background: rgba(50,173,230,0.08)  !important; border-color: rgba(50,173,230,0.38) !important; color: var(--apple-cyan)  !important; }
+html.theme-apple .btn-outline-warning  { background: rgba(255,149,0,0.08)   !important; border-color: rgba(255,149,0,0.38)  !important; color: var(--apple-amber) !important; }
+html.theme-apple .btn:active { transform: scale(0.97) !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   §14  徽章
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .badge { border-radius: var(--r-pill) !important; font-weight: 500 !important; }
+html.theme-apple .badge.bg-primary   { background: var(--apple-blue)  !important; }
+html.theme-apple .badge.bg-success   { background: var(--apple-green) !important; }
+html.theme-apple .badge.bg-danger    { background: var(--apple-red)   !important; }
+html.theme-apple .badge.bg-warning   { background: var(--apple-amber) !important; color:#000 !important; }
+html.theme-apple .badge.bg-info      { background: var(--apple-cyan)  !important; color:#000 !important; }
+html.theme-apple .badge.bg-secondary { background: var(--surface-badge-sec) !important; color: var(--apple-t2) !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   §15  表单控件
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .form-control,
+html.theme-apple .form-select {
+  background: var(--surface-form) !important;
+  border: 1px solid var(--surface-form-brdr) !important;
+  border-radius: var(--r-md) !important;
+  color: var(--apple-t1) !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
+}
+html.theme-apple .form-control:focus,
+html.theme-apple .form-select:focus {
+  background: var(--surface-form-focus) !important;
+  border-color: var(--apple-blue) !important;
+  box-shadow: 0 0 0 3px rgba(0,122,255,0.20) !important;
+  color: var(--apple-t1) !important;
+}
+html.theme-apple .form-control::placeholder { color: var(--apple-t3) !important; }
+html.theme-apple .form-control option,
+html.theme-apple .form-select option    { background: var(--surface-select-opt); color: var(--apple-t1); }
+html.theme-apple .form-label           { color: var(--apple-t2) !important; font-size: 13px !important; }
+html.theme-apple .form-text            { color: var(--apple-t3) !important; }
+html.theme-apple .input-group-text {
+  background: var(--surface-input-grp) !important;
+  border: 1px solid var(--surface-form-brdr) !important;
+  color: var(--apple-t3) !important;
+  border-radius: var(--r-md) 0 0 var(--r-md) !important;
+}
+html.theme-apple .input-group > .form-control:not(:first-child) {
+  border-radius: 0 var(--r-md) var(--r-md) 0 !important;
+}
+
+/* iOS 风格开关 */
+html.theme-apple .form-check-input[type="checkbox"] {
+  width: 38px !important; height: 22px !important;
+  background-color: rgba(120,120,128,0.30) !important;
+  border-color: transparent !important;
+  border-radius: 11px !important;
+  cursor: pointer !important;
+  transition: background-color 0.22s var(--ease-apple) !important;
+  appearance: none !important; -webkit-appearance: none !important;
+  position: relative !important; flex-shrink: 0 !important;
+}
+html.theme-apple .form-check-input[type="checkbox"]::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 3px !important; left: 3px !important;
+  width: 16px !important; height: 16px !important;
+  background: #fff !important;
+  border-radius: 50% !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.28) !important;
+  transition: transform 0.22s var(--ease-apple) !important;
+}
+html.theme-apple .form-check-input[type="checkbox"]:checked {
+  background-color: var(--apple-green) !important; border-color: transparent !important;
+}
+html.theme-apple .form-check-input[type="checkbox"]:checked::after {
+  transform: translateX(16px) !important;
+}
+html.theme-apple .form-check-label { color: var(--apple-t2) !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   §16  手风琴（设置页）
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .accordion-item {
+  background: var(--surface-acc) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--surface-acc-brdr) !important;
+}
+html.theme-apple .accordion-item:first-child { border-radius: var(--r-lg) var(--r-lg) 0 0 !important; }
+html.theme-apple .accordion-item:last-child  { border-bottom: none !important; border-radius: 0 0 var(--r-lg) var(--r-lg) !important; }
+html.theme-apple .accordion-button {
+  background: transparent !important;
+  color: var(--apple-t1) !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  box-shadow: none !important;
+}
+html.theme-apple .accordion-button:not(.collapsed) {
+  color: var(--apple-blue) !important;
+  background: rgba(0,122,255,0.06) !important;
+}
+html.theme-apple .accordion-button::after { filter: none !important; opacity: 0.50 !important; }
+html.theme-apple body.dark-mode .accordion-button::after { filter: invert(1) !important; opacity: 0.45 !important; }
+html.theme-apple .accordion-body { background: transparent !important; color: var(--apple-t1) !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   §17  告警横幅
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .alert { border-radius: var(--r-md) !important; backdrop-filter: blur(12px) !important; }
+html.theme-apple .alert-warning { background: rgba(255,149,0,0.10) !important; border-color: rgba(255,149,0,0.28) !important; color: var(--apple-amber) !important; }
+html.theme-apple .alert-danger  { background: rgba(255,59,48,0.10)  !important; border-color: rgba(255,59,48,0.28)  !important; color: var(--apple-red)   !important; }
+html.theme-apple .alert-success { background: rgba(52,199,89,0.10)  !important; border-color: rgba(52,199,89,0.28)  !important; color: var(--apple-green) !important; }
+html.theme-apple .alert-info    { background: rgba(50,173,230,0.10) !important; border-color: rgba(50,173,230,0.28) !important; color: var(--apple-cyan)  !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   §18  Toast
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .toast {
+  background: var(--surface-toast) !important;
+  backdrop-filter: blur(22px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(180%) !important;
+  border: 1px solid var(--surface-toast-brdr) !important;
+  border-radius: var(--r-lg) !important;
+  color: var(--apple-t1) !important;
+  box-shadow: 0 10px 36px rgba(0,0,0,0.18) !important;
+  animation: lgToastIn 0.30s var(--ease-spring) !important;
+}
+html.theme-apple .toast-header {
+  background: transparent !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  color: var(--apple-t1) !important;
+}
+html.theme-apple .toast-body { color: var(--apple-t2) !important; }
+@keyframes lgToastIn {
+  from { opacity: 0; transform: translateX(16px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(0)    scale(1);    }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §19  列表组
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .list-group-item {
+  background: var(--surface-list) !important;
+  border-color: var(--surface-list-brdr) !important;
+  color: var(--apple-t1) !important;
+  transition: background 0.12s !important;
+}
+html.theme-apple .list-group-item:hover  { background: var(--surface-list-hover) !important; }
+html.theme-apple .list-group-item.active { background: var(--apple-blue) !important; border-color: var(--apple-blue) !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   §20  进度条
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .progress      { background: var(--surface-prog) !important; border-radius: var(--r-pill) !important; }
+html.theme-apple .progress-bar  { background: var(--apple-blue)   !important; border-radius: var(--r-pill) !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   §21  模态框
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .modal-content {
+  background: var(--surface-modal) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border: 1px solid var(--surface-modal-brdr) !important;
+  border-radius: var(--r-xl) !important;
+  color: var(--apple-t1) !important;
+}
+html.theme-apple .modal-header  { border-bottom: 1px solid var(--surface-modal-div) !important; }
+html.theme-apple .modal-footer  { border-top: 1px solid var(--surface-modal-div) !important; }
+html.theme-apple .modal-backdrop { background: rgba(0,0,0,0.50) !important; backdrop-filter: blur(4px) !important; }
+
+/* ══════════════════════════════════════════════════════════════════
+   §22  工具提示
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .tooltip .tooltip-inner {
+  background: var(--surface-tooltip) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--surface-tooltip-b) !important;
+  border-radius: 10px !important;
+  font-size: 12px !important;
+  padding: 5px 10px !important;
+  color: #fff !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §23  杂项
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple #radios-pane { background: transparent !important; }
+html.theme-apple #cabin-media-overlay .card {
+  background: var(--surface-overlay) !important;
+  backdrop-filter: blur(26px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(160%) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §24  仪表行入场动画
+   ══════════════════════════════════════════════════════════════════ */
+html.theme-apple .lg-stagger > * { animation: lgFadeUp 0.38s ease-out both; }
+html.theme-apple .lg-stagger > *:nth-child(1) { animation-delay:   0ms; }
+html.theme-apple .lg-stagger > *:nth-child(2) { animation-delay:  50ms; }
+html.theme-apple .lg-stagger > *:nth-child(3) { animation-delay: 100ms; }
+html.theme-apple .lg-stagger > *:nth-child(4) { animation-delay: 150ms; }
+@keyframes lgFadeUp {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)     scale(1);   }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   §25  液态玻璃 SVG 折射滤镜 & 边框高光
+   ══════════════════════════════════════════════════════════════════ */
+/* filter 由 liquid-glass.js 逐元素通过 el.style.filter 写入 */
+html.theme-apple .lg-glass-filter { will-change: filter; }
+
+/* 鼠标跟踪边框高光（--lg-angle 由 JS 实时更新） */
+html.theme-apple [data-lg-interactive]::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  padding: 1px !important;
+  background: linear-gradient(
+    var(--lg-angle, 135deg),
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.18) 35%,
+    rgba(255,255,255,0.45) 65%,
+    rgba(255,255,255,0.00) 100%
+  ) !important;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
+  -webkit-mask-composite: xor !important;
+  mask-composite: exclude !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+}

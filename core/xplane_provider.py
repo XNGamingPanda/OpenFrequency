@@ -9,6 +9,11 @@ from .sim_provider import SimProvider
 class XPlaneProvider(SimProvider):
     """X-Plane data provider using the official Local Web API."""
 
+    # Track last error to avoid spamming logs
+    _last_traffic_error = None
+    _traffic_error_count = 0
+    _max_traffic_error_log = 3  # Only log first 3 errors
+
     DATAREFS = {
         'latitude': 'sim/flightmodel/position/latitude',
         'longitude': 'sim/flightmodel/position/longitude',
@@ -217,10 +222,20 @@ class XPlaneProvider(SimProvider):
         self._set_dref('transponder', code)
 
     def set_com1_frequency(self, frequency: float):
-        # X-Plane Web API returns com1_frequency_hz_833 in kHz units (e.g. 118025 for 118.025 MHz).
-        # Send kHz to stay consistent with how get_com1_frequency reads it.
-        freq_khz = int(round(float(frequency) * 1000))
-        return self._set_dref('com1', freq_khz)
+        # Auto-detect whether X-Plane uses Hz or kHz by reading current value.
+        # X-Plane 12 Web API may return Hz (e.g. 118025000) while older versions use kHz (118025).
+        raw = self._get_dref('com1', 0)
+        try:
+            raw_val = float(raw or 0)
+        except Exception:
+            raw_val = 0.0
+        if raw_val > 1_000_000:
+            # X-Plane is using Hz format
+            freq_int = int(round(float(frequency) * 1_000_000))
+        else:
+            # X-Plane is using kHz format
+            freq_int = int(round(float(frequency) * 1000))
+        return self._set_dref('com1', freq_int)
 
     def get_com1_frequency(self) -> float:
         raw = self._get_dref('com1', 0)
@@ -322,6 +337,26 @@ class XPlaneProvider(SimProvider):
             ok = self._set_dref(dref_name, value) or ok
         return ok
 
+    def _parse_flight_id(self, raw_id, index) -> str:
+        """Parse a flight_id entry from TCAS array (handles byte-array, string, or flat-char formats)."""
+        if index >= len(raw_id):
+            return ''
+        fid = raw_id[index]
+        if isinstance(fid, list):
+            # List of chars or ints (byte array)
+            chars = []
+            for c in fid:
+                if isinstance(c, int):
+                    if c == 0:
+                        break
+                    chars.append(chr(c))
+                elif isinstance(c, str):
+                    if c == '\x00' or c == '':
+                        break
+                    chars.append(c)
+            return ''.join(chars).strip()
+        return str(fid).strip().rstrip('\x00')
+
     def get_traffic_targets(self) -> list:
         """Read TCAS target arrays (populated by LiveTraffic and other AI traffic plugins)."""
         if not self._connected:
@@ -329,65 +364,75 @@ class XPlaneProvider(SimProvider):
         try:
             results = {}
             for key, dref_name in self.TCAS_DREFS.items():
-                dataref_id = self._get_dataref_id(dref_name)
-                result = self._request('GET', f'/datarefs/{dataref_id}/value')
-                raw = result.get('data', result)
-                # TCAS datarefs are arrays; normalise to list
-                if isinstance(raw, list):
-                    results[key] = raw
-                elif isinstance(raw, dict) and 'value' in raw:
-                    v = raw['value']
-                    results[key] = v if isinstance(v, list) else [v]
-                else:
+                try:
+                    dataref_id = self._get_dataref_id(dref_name)
+                    result = self._request('GET', f'/datarefs/{dataref_id}/value')
+                    raw = result.get('data', result)
+                    if isinstance(raw, list):
+                        results[key] = raw
+                    elif isinstance(raw, dict) and 'value' in raw:
+                        v = raw['value']
+                        results[key] = v if isinstance(v, list) else [v]
+                    else:
+                        results[key] = []
+                except Exception as e:
+                    error_str = str(e)
+                    if self._traffic_error_count < self._max_traffic_error_log:
+                        print(f"XPlaneProvider: TCAS dref '{key}' failed - {e}")
+                        self._traffic_error_count += 1
+                        self._last_traffic_error = error_str
                     results[key] = []
 
-            if not results.get('lat'):
+            lat_arr = results.get('lat', [])
+            if not lat_arr:
                 return []
 
             targets = []
-            n = len(results['lat'])
-            for i in range(n):
-                def _f(key, idx):
-                    arr = results.get(key, [])
-                    return arr[idx] if idx < len(arr) else 0
+            raw_flight_ids = results.get('flight_id', [])
+            for i in range(len(lat_arr)):
+                try:
+                    lat = float(lat_arr[i] or 0)
+                    lon_arr = results.get('lon', [])
+                    lon = float(lon_arr[i] if i < len(lon_arr) else 0)
+                    # Empty TCAS slot
+                    if lat == 0.0 and lon == 0.0:
+                        continue
 
-                lat = float(_f('lat', i))
-                lon = float(_f('lon', i))
-                # Slots with lat==0 and lon==0 are empty
-                if lat == 0.0 and lon == 0.0:
+                    def _f(key, idx):
+                        arr = results.get(key, [])
+                        return arr[idx] if idx < len(arr) else 0
+
+                    ele_m = float(_f('ele', i) or 0)
+                    alt_ft = ele_m * 3.28084
+                    vvi_ms = float(_f('vvi', i) or 0)
+                    vs_fpm = vvi_ms * 196.85
+                    spd_ms = float(_f('speed', i) or 0)
+                    spd_kt = spd_ms * 1.94384
+                    hdg = float(_f('psi', i) or 0)
+                    on_ground = bool(_f('on_ground', i))
+
+                    callsign = self._parse_flight_id(raw_flight_ids, i) or f'TCAS{i+1:02d}'
+
+                    targets.append({
+                        'callsign': callsign,
+                        'latitude': lat,
+                        'longitude': lon,
+                        'altitude': alt_ft,
+                        'heading': hdg,
+                        'airspeed': spd_kt,
+                        'vertical_speed': vs_fpm,
+                        'on_ground': on_ground,
+                    })
+                except Exception:
                     continue
-
-                ele_m = float(_f('ele', i))
-                alt_ft = ele_m * 3.28084
-                vvi_ms = float(_f('vvi', i))
-                vs_fpm = vvi_ms * 196.85          # m/s → fpm
-                spd_ms = float(_f('speed', i))
-                spd_kt = spd_ms * 1.94384         # m/s → knots
-                hdg = float(_f('psi', i))
-                on_ground = bool(_f('on_ground', i))
-
-                # flight_id is an array of char arrays or a flat string list
-                raw_id = results.get('flight_id', [])
-                if i < len(raw_id):
-                    fid = raw_id[i]
-                    callsign = ''.join(fid).strip() if isinstance(fid, list) else str(fid).strip()
-                else:
-                    callsign = f'TCAS{i+1:02d}'
-
-                if not callsign:
-                    callsign = f'TCAS{i+1:02d}'
-
-                targets.append({
-                    'callsign': callsign,
-                    'latitude': lat,
-                    'longitude': lon,
-                    'altitude': alt_ft,
-                    'heading': hdg,
-                    'airspeed': spd_kt,
-                    'vertical_speed': vs_fpm,
-                    'on_ground': on_ground,
-                })
             return targets
         except Exception as e:
-            print(f"XPlaneProvider: get_traffic_targets failed - {e}")
+            error_str = str(e)
+            if self._traffic_error_count < self._max_traffic_error_log:
+                print(f"XPlaneProvider: get_traffic_targets failed - {e}")
+                self._last_traffic_error = error_str
+                self._traffic_error_count += 1
+            elif error_str != self._last_traffic_error:
+                print(f"XPlaneProvider: get_traffic_targets failed - {e}")
+                self._last_traffic_error = error_str
             return []

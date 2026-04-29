@@ -26,7 +26,15 @@ class ATCMonitor:
         self.last_llm_request = 0.0
         self.last_speak = 0.0
         self.issue_last_seen = {}
+        self.issue_repeat_count = {}   # how many times each issue type has fired
         self.pending_issue = None
+
+        # Track radar contact already given on this frequency (avoid repeat)
+        self._radar_contact_given_freq: float | None = None
+        # Track last known frequency for "first contact" detection
+        self._last_known_freq: float | None = None
+        # VFR pattern phase tracking
+        self._vfr_pattern_phase: str = "unknown"   # unknown | upwind | crosswind | downwind | base | final
 
         self.instructions = {
             "altitude_ft": None,
@@ -72,12 +80,20 @@ class ATCMonitor:
             "speed_kt": self._parse_speed(lower),
             "hold_short_runway": self._parse_hold_short(lower),
             "takeoff_cleared": "cleared for takeoff" in lower,
-            "landing_cleared": "cleared to land" in lower or "cleared for landing" in lower,
+            "landing_cleared": (
+                "cleared to land" in lower
+                or "cleared for landing" in lower
+                or "cleared touch-and-go" in lower
+                or "cleared for touch" in lower
+            ),
             "taxi_route": self._parse_taxi_route(text),
             "handoff_frequency": self._parse_frequency(lower),
             "timestamp": now,
             "text": text,
         }
+
+        # New instruction resets repeat counters so the monitor can fire again on fresh issues
+        self.issue_repeat_count.clear()
 
         # Preserve previous clearances unless a new instruction supersedes them.
         for key, value in parsed.items():
@@ -90,6 +106,11 @@ class ATCMonitor:
         if "contact " in lower and parsed["handoff_frequency"]:
             self.instructions["handoff_frequency"] = parsed["handoff_frequency"]
 
+        # If "radar contact" was said by ATC, mark this frequency as having received it
+        if "radar contact" in lower:
+            freq = parsed.get("handoff_frequency") or self._last_known_freq
+            self._radar_contact_given_freq = freq
+
     def on_telemetry_update(self, context_snapshot):
         if not self.enabled:
             return
@@ -101,12 +122,25 @@ class ATCMonitor:
         issue = self._detect_issue(context_snapshot)
         if not issue:
             return
-        if now - self.issue_last_seen.get(issue["type"], 0) < self.issue_cooldown:
+        itype = issue["type"]
+        if now - self.issue_last_seen.get(itype, 0) < self.issue_cooldown:
             return
         if now - self.last_llm_request < self.llm_timeout_cooldown:
             return
+        # Limit repeats per issue type
+        _max_repeats_map = {
+            "handoff_not_completed":      2,
+            "radar_contact_initial":      1,   # Only fire once per frequency
+            "vfr_base_final_no_clearance":2,
+            "vfr_pattern_high_departure": 1,
+            "traffic_proximity_conflict": 3,
+        }
+        max_repeats = _max_repeats_map.get(itype, 8)
+        if self.issue_repeat_count.get(itype, 0) >= max_repeats:
+            return
 
-        self.issue_last_seen[issue["type"]] = now
+        self.issue_last_seen[itype] = now
+        self.issue_repeat_count[itype] = self.issue_repeat_count.get(itype, 0) + 1
         self.last_llm_request = now
         self.pending_issue = issue
         event_bus.emit("atc_monitor_check", issue, context_snapshot)
@@ -120,6 +154,9 @@ class ATCMonitor:
         if now - self.last_speak < self.global_cooldown:
             return
         self.last_speak = now
+        # If this was the initial radar contact call, mark the frequency as having received it
+        if issue.get("type") == "radar_contact_initial" and self._last_known_freq:
+            self._radar_contact_given_freq = self._last_known_freq
         event_bus.emit("atc_broadcast", text)
         print(f"ATCMonitor: Proactive ATC triggered for {issue.get('type', 'unknown')}")
 
@@ -127,7 +164,10 @@ class ATCMonitor:
         aircraft = context_snapshot.get("aircraft", {}) or {}
         atc_state = context_snapshot.get("atc_state", {}) or {}
         role = atc_state.get("current_controller", "") or ""
+        flight_rules = context_snapshot.get("flight_rules", "IFR")
         now = time.time()
+
+        # Allow at least 12 s after a new ATC instruction before re-checking
         if now - self.instructions.get("timestamp", 0) < 12:
             return None
 
@@ -138,41 +178,172 @@ class ATCMonitor:
         vertical_speed = float(aircraft.get("vs", 0) or 0)
         current_freq = self._round_freq(aircraft.get("com1_freq"))
 
-        assigned_alt = self.instructions.get("altitude_ft")
-        if assigned_alt and not on_ground:
-            deviation = altitude - assigned_alt
-            moving_away = (deviation > 400 and vertical_speed > 300) or (deviation < -400 and vertical_speed < -300)
-            if abs(deviation) > 700 or moving_away:
-                return self._issue("altitude_deviation", aircraft, role, f"assigned {assigned_alt:.0f} ft, actual {altitude:.0f} ft")
+        # ── Track frequency changes for "radar contact" detection ─────────────
+        if current_freq and current_freq != self._last_known_freq:
+            self._last_known_freq = current_freq
+            # Clear radar-contact flag on any frequency change so it can re-fire
+            if current_freq != self._radar_contact_given_freq:
+                self._radar_contact_given_freq = None
 
-        assigned_heading = self.instructions.get("heading_deg")
-        if assigned_heading is not None and not on_ground and airspeed > 80:
-            delta = abs((heading - assigned_heading + 180) % 360 - 180)
-            if delta > 30:
-                return self._issue("heading_deviation", aircraft, role, f"assigned heading {assigned_heading:03.0f}, actual {heading:03.0f}, deviation {delta:.0f} degrees")
+        # ── Initial "Radar Contact" call (VFR flight following) ───────────────
+        # Fire once per new frequency when pilot is airborne and no radar contact yet given
+        if (not on_ground
+                and airspeed > 60
+                and current_freq
+                and self._radar_contact_given_freq != current_freq
+                and now - self.instructions.get("timestamp", 0) > 30
+                and now - self.issue_last_seen.get("radar_contact_initial", 0) > 600):
+            # Only do this for roles that should give radar contact
+            _radar_roles = ("Approach", "Departure", "Center", "Radar", "TRACON")
+            if any(r in role for r in _radar_roles):
+                return self._issue(
+                    "radar_contact_initial", aircraft, role,
+                    f"aircraft just tuned {current_freq:.3f}, no radar contact given yet on this frequency"
+                )
 
-        assigned_speed = self.instructions.get("speed_kt")
-        if assigned_speed and not on_ground and airspeed > 60:
-            if abs(airspeed - assigned_speed) > 35:
-                return self._issue("speed_deviation", aircraft, role, f"assigned {assigned_speed:.0f} kt, actual {airspeed:.0f} kt")
+        # ── IFR deviation checks ──────────────────────────────────────────────
+        if flight_rules != "VFR":
+            assigned_alt = self.instructions.get("altitude_ft")
+            if assigned_alt and not on_ground:
+                deviation = altitude - assigned_alt
+                moving_away = (deviation > 400 and vertical_speed > 300) or (deviation < -400 and vertical_speed < -300)
+                if abs(deviation) > 700 or moving_away:
+                    return self._issue("altitude_deviation", aircraft, role, f"assigned {assigned_alt:.0f} ft, actual {altitude:.0f} ft")
 
+            assigned_heading = self.instructions.get("heading_deg")
+            if assigned_heading is not None and not on_ground and airspeed > 80:
+                delta = abs((heading - assigned_heading + 180) % 360 - 180)
+                if delta > 30:
+                    return self._issue("heading_deviation", aircraft, role, f"assigned heading {assigned_heading:03.0f}, actual {heading:03.0f}, deviation {delta:.0f} degrees")
+
+            assigned_speed = self.instructions.get("speed_kt")
+            if assigned_speed and not on_ground and airspeed > 60:
+                if abs(airspeed - assigned_speed) > 35:
+                    return self._issue("speed_deviation", aircraft, role, f"assigned {assigned_speed:.0f} kt, actual {airspeed:.0f} kt")
+        else:
+            # ── VFR-specific checks ───────────────────────────────────────────
+
+            # VFR traffic pattern monitoring (Tower only)
+            if "Tower" in role and not on_ground:
+                pattern_issue = self._detect_vfr_pattern_issue(aircraft, altitude, vertical_speed, airspeed)
+                if pattern_issue:
+                    return pattern_issue
+
+        # ── Speed limit below 10,000 ft (both IFR and VFR) ───────────────────
         if not on_ground and altitude < 10000 and airspeed > 255 and "Center" not in role:
             return self._issue("below_10000_speed", aircraft, role, f"below 10000 ft at {airspeed:.0f} kt")
 
+        # ── Handoff reminder ──────────────────────────────────────────────────
         handoff_freq = self._round_freq(self.instructions.get("handoff_frequency"))
         if handoff_freq and current_freq and abs(current_freq - handoff_freq) >= 0.01 and now - self.instructions.get("timestamp", 0) > 45:
-            return self._issue("handoff_not_completed", aircraft, role, f"instructed contact {handoff_freq:.3f}, current COM1 {current_freq:.3f}")
+            # Aircraft stopped on ground: pilot likely parked — clear stale handoff, don't nag
+            if on_ground and airspeed < 5:
+                self.instructions["handoff_frequency"] = None
+            else:
+                return self._issue("handoff_not_completed", aircraft, role, f"instructed contact {handoff_freq:.3f}, current COM1 {current_freq:.3f}")
 
+        # ── Hold-short possible violation ─────────────────────────────────────
         if on_ground and "Ground" in role and self.instructions.get("hold_short_runway") and not self.instructions.get("takeoff_cleared"):
-            # Without exact runway geometry here, use speed as a practical cue: if the pilot
-            # accelerates after hold-short, ask AI whether to intervene.
             if airspeed > 35:
                 return self._issue("hold_short_possible_violation", aircraft, role, f"hold short {self.instructions.get('hold_short_runway')} but aircraft accelerating")
 
+        # ── Landing clearance missing ─────────────────────────────────────────
         if not on_ground and altitude < 800 and "Tower" in role and not self.instructions.get("landing_cleared") and vertical_speed < -150:
             return self._issue("landing_clearance_missing", aircraft, role, f"short final below 800 ft without tracked landing clearance")
 
+        # ── Traffic proximity conflict (both IFR and VFR) ─────────────────────
+        proximity_issue = self._detect_traffic_conflict(context_snapshot, aircraft, altitude, on_ground)
+        if proximity_issue:
+            return proximity_issue
+
         return None
+
+    def _detect_vfr_pattern_issue(self, aircraft, altitude, vertical_speed, airspeed):
+        """
+        Detect VFR traffic pattern anomalies. Returns an issue dict or None.
+        Pattern altitude heuristic: traffic pattern is typically 600–1500 ft AGL.
+        We use absolute altitude as a rough proxy (airport elevation unknown here).
+        """
+        role = "Tower"
+        # Aircraft ascending through pattern altitude range with takeoff cleared
+        if self.instructions.get("takeoff_cleared"):
+            if altitude > 1800 and vertical_speed > 200:
+                # Still climbing well above pattern — pilot may be departing (normal)
+                # or forgot to enter the pattern
+                if altitude > 3000 and vertical_speed > 300:
+                    return self._issue(
+                        "vfr_pattern_high_departure", aircraft, role,
+                        f"aircraft climbing through {altitude:.0f} ft after takeoff clearance with make-traffic instruction — possible departure vs. pattern confusion"
+                    )
+        # No landing clearance while below 1200 ft and descending
+        if (not self.instructions.get("landing_cleared")
+                and altitude < 1200
+                and vertical_speed < -200
+                and airspeed > 60):
+            return self._issue(
+                "vfr_base_final_no_clearance", aircraft, role,
+                f"aircraft descending through {altitude:.0f} ft at {vertical_speed:.0f} fpm, appears on base/final, no landing clearance issued"
+            )
+        return None
+
+    def _detect_traffic_conflict(self, context_snapshot, aircraft, altitude, on_ground):
+        """
+        Warn if a known traffic target is within 5 NM and within 1000 ft vertically.
+        Uses context_snapshot.environment.traffic_targets if available.
+        """
+        if on_ground:
+            return None
+        targets = context_snapshot.get("environment", {}).get("traffic_targets", []) or []
+        if not targets:
+            return None
+
+        own_lat = float(aircraft.get("latitude", 0) or 0)
+        own_lon = float(aircraft.get("longitude", 0) or 0)
+        own_alt = altitude
+
+        role = context_snapshot.get("atc_state", {}).get("current_controller", "ATC") or "ATC"
+        # Only Tower/Approach/Departure should give traffic advisories
+        _advisory_roles = ("Tower", "Approach", "Departure", "Center", "Radar")
+        if not any(r in role for r in _advisory_roles):
+            return None
+
+        CONFLICT_NM = 5.0
+        CONFLICT_ALT_FT = 1000.0
+        now = time.time()
+
+        for t in targets:
+            try:
+                t_lat = float(t.get("lat") or t.get("latitude", 0))
+                t_lon = float(t.get("lon") or t.get("longitude", 0))
+                t_alt = float(t.get("altitude", 0) or 0)
+                t_call = str(t.get("callsign") or "traffic").strip()
+            except Exception:
+                continue
+
+            if abs(t_alt - own_alt) > CONFLICT_ALT_FT:
+                continue
+
+            dist_nm = self._haversine_nm(own_lat, own_lon, t_lat, t_lon)
+            if dist_nm < CONFLICT_NM:
+                ikey = f"traffic_conflict_{t_call[:8]}"
+                if now - self.issue_last_seen.get(ikey, 0) > 120:
+                    self.issue_last_seen[ikey] = now
+                    return self._issue(
+                        "traffic_proximity_conflict",
+                        aircraft, role,
+                        f"{t_call} is {dist_nm:.1f} NM away at {t_alt:.0f} ft (own altitude {own_alt:.0f} ft)"
+                    )
+        return None
+
+    @staticmethod
+    def _haversine_nm(lat1, lon1, lat2, lon2) -> float:
+        """Great-circle distance in nautical miles."""
+        R = 3440.065  # Earth radius in NM
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlam = math.radians(lon2 - lon1)
+        a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     def _issue(self, issue_type, aircraft, role, detail, low_priority=False):
         return {

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -8,13 +8,23 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/theme-apple.css') }}" rel="stylesheet">
+    <!-- 在 <head> 最早时刻应用主题类，彻底消除 FOUC -->
+    <script>
+        (function(){
+            var t = localStorage.getItem('ui_theme') || 'classic';
+            document.documentElement.classList.add('theme-' + t);
+            if (localStorage.getItem('dark_mode') === '1') {
+                document.documentElement.classList.add('dark-mode-pending');
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
         // Global Socket Init
         window.socket = io();
-        window.SERVER_UI_PREFERENCES = {{ ui_preferences|tojson|safe }};
     </script>
     <style>
         /* Dark Mode Styles */
@@ -92,13 +102,9 @@
             <a class="navbar-brand fw-bold" href="/">OpenFrequency-ATC</a>
 
             <div class="d-flex align-items-center gap-2">
-                <a href="/plugins" class="btn btn-sm btn-outline-secondary" title="Plugin Manager">🧩 Plugins</a>
-                <a href="/settings" class="btn btn-sm btn-outline-secondary" title="Settings">⚙️ Settings</a>
-                <select id="lang-selector" class="form-select form-select-sm" style="width: auto;">
-                    <option value="en">English</option>
-                    <option value="zh">中文</option>
-                    <option value="ja">日本語</option>
-                </select>
+                <span class="badge bg-light text-secondary border">v3.9-beta</span>
+                <a href="/plugins" class="btn btn-sm btn-outline-secondary" title="Plugin Manager" data-i18n="nav_plugins">🧩 Plugins</a>
+                <a href="/settings" class="btn btn-sm btn-outline-secondary" title="Settings" data-i18n="nav_settings">⚙️ Settings</a>
             </div>
         </div>
     </nav>
@@ -115,6 +121,7 @@
                 "test_audio": "🔊 Test Audio",
                 "pilot_profile": "Pilot Profile",
                 "callsign": "Callsign",
+                "callsign_career_locked": "🔒 Career mode active — callsign locked to job",
                 "flight_plan": "Flight Plan",
                 "flight_plan_origin": "Origin ICAO",
                 "flight_plan_destination": "Destination ICAO",
@@ -131,17 +138,6 @@
                 "api_key_hint": "Existing key is hidden. Leave as ****** to keep current.",
                 "model_name": "Model Name",
                 "base_url": "Base URL (Local/Ollama)",
-                "ai_routing_title": "AI Routing",
-                "light_model_label": "Light Model",
-                "reasoning_model_label": "Reasoning Model",
-                "sync_primary_connection": "Sync API Key / Base URL with primary connection",
-                "light_api_key": "Light model API Key",
-                "light_base_url": "Light model Base URL",
-                "light_provider": "Light model Provider",
-                "reasoning_api_key": "Reasoning model API Key",
-                "reasoning_base_url": "Reasoning model Base URL",
-                "reasoning_provider": "Reasoning model Provider",
-                "light_conf_threshold": "Light Model Confidence Threshold",
                 "audio_controls": "Audio & Controls",
                 "joystick_ptt": "Joystick PTT",
                 "unbound": "Unbound",
@@ -157,6 +153,8 @@
                 "save_settings": "Save Settings",
                 "reload": "Reload",
                 "back_dashboard": "Back to Dashboard",
+                "nav_plugins": "🧩 Plugins",
+                "nav_settings": "⚙️ Settings",
                 "settings_btn": "⚙️ Settings",
                 "altitude": "ALTITUDE",
                 "airspeed": "AIRSPEED",
@@ -233,6 +231,10 @@
                 "ground_data_hint": "Choose simulator or third-party sources for airport frequencies and taxi/apron data.",
                 "career_btn": "🎖️ Career",
                 "clear_track_btn": "🗑️ Clear",
+                "ui_theme": "UI Theme",
+                "theme_classic": "🖥️ Classic",
+                "theme_apple": "🍎 Apple",
+                "theme_hint": "Apple / Liquid Glass theme. Classic is the default.",
                 "cabin_status_btn": "👩‍✈️ Crew Status",
                 "cabin_chat_btn": "💬 Cockpit Intercom",
                 "radio_atc": "📡 ATC",
@@ -248,13 +250,165 @@
                 "btn_deboarding": "🛬 Deboarding",
                 "btn_stop_sound": "🔇 Stop Sound",
                 "cabin_media_title": "Cabin Media",
-                "cabin_plugin_media": "✈ Airline Media"
+                "cabin_plugin_media": "✈ Airline Media",
+                "voice_engine": "🔊 Voice Engine (TTS / STT)",
+                "tts_backend": "TTS Backend",
+                "tts_edge_option": "Edge-TTS (Microsoft Cloud, recommended)",
+                "tts_local_option": "Local TTS (offline, streaming)",
+                "local_engine": "Local Engine",
+                "model_file_path": "Model File Path",
+                "voices_file": "Voices File (Kokoro only)",
+                "download_tts": "⬇ Download TTS Model",
+                "download_stt": "⬇ Download STT Model",
+                "local_tts_hint": "Local TTS streams audio sentence-by-sentence for lower latency. Kokoro: English voices; Chinese/Japanese: Edge-TTS recommended.",
+                "model_fast_label": "⚡ Fast Model",
+                "model_fast_desc": "— readbacks, simple acks",
+                "model_thinking_label": "🧠 Thinking Model",
+                "model_thinking_desc": "— clearances, emergencies, routing",
+                "model_dual_hint": "Leave either field empty to use the same model for both tiers.",
+                "auto_busy_label": "🤖 Auto Busy Level",
+                "auto_busy_desc": "— derive from real nearby aircraft count",
+                "busy_level_hint": "Used when Auto Busy is off or no traffic data is available.",
+                "allow_non_english_label": "🌐 Allow non-English comms outside Chinese airspace",
+                "allow_non_english_badge": "Not realistic",
+                "allow_non_english_hint": "When off, ATC uses English-only (ICAO standard) outside Chinese/Japanese airspace. Turn on to use your configured language everywhere.",
+                "privacy_updates": "☁️ Privacy & Updates",
+                "telemetry_toggle": "Auto-report crashes to help improve OpenFrequency",
+                "telemetry_sim_info": "Include sim/LLM provider info in crash reports",
+                "telemetry_hint": "No API keys, passwords, or personal info are ever sent. Crash logs are always saved locally regardless of this setting.",
+                "report_feedback_btn": "📤 Report / Feedback",
+                "upload_crash_log": "📤 Upload Recent Crash Log",
+                "check_updates": "🔄 Check for Updates",
+                "fb_type_label": "Type",
+                "fb_type_bug": "🐛 Bug Report",
+                "fb_type_suggestion": "💡 Feature Suggestion",
+                "fb_type_crash": "💥 Crash Follow-up",
+                "fb_type_other": "📝 Other",
+                "fb_title_label": "Title",
+                "fb_details_label": "Details",
+                "fb_crash_id_label": "Recent Crash ID (auto-filled)",
+                "fb_contact_label": "Contact (optional)",
+                "fb_attach_log": "Attach log excerpt",
+                "fb_attach_config": "Attach config summary",
+                "fb_send": "Send Report",
+                "plugin_manager_title": "🧩 Plugin Manager",
+                "plugin_manager_subtitle": "Community plugins & official DLC",
+                "tab_installed_plugins": "Installed Plugins",
+                "tab_official_dlc": "Official DLC & Add-ons",
+                "tab_install_zip": "Install from ZIP",
+                "tab_dev_guide": "Developer Guide",
+                "reload_all_plugins": "🔄 Reload All Plugins",
+                "msfs_community_hint": "Required to install DLC into MSFS. Saved in Settings.",
+                "install_zip_title": "Install Community Plugin from ZIP",
+                "install_zip_hint": "A plugin ZIP must contain a manifest.json at its root and a Python entry-point file.",
+                "install_plugin_btn": "📦 Install Plugin",
+                "dev_guide_title": "📝 OpenFrequency Plugin Development Guide",
+                "dev_guide_section1_title": "1. Prerequisites and Environment Setup",
+                "dev_guide_section1_content": "Before you begin developing plugins for OpenFrequency, it's essential to ensure your development environment is properly configured. This section covers all the prerequisites and recommended tools you'll need to create, test, and deploy successful plugins. OpenFrequency is built on Python and requires specific dependencies to function correctly. The plugin system is designed to be accessible to developers of all skill levels, but having the right tools and environment setup will significantly streamline your development process and reduce potential issues. The following requirements are mandatory for plugin development, while additional recommendations are provided to enhance your development experience. Please read through each requirement carefully and ensure your environment meets all specifications before proceeding to the next section. Skipping prerequisite setup often leads to frustrating debugging sessions later when issues arise from environment misconfigurations. Take the time to set up your development environment correctly—it will pay dividends throughout your plugin development journey.",
+                "dev_guide_section1_subsection1_title": "Python 3.10 or Higher",
+                "dev_guide_section1_subsection1_content": "OpenFrequency requires Python 3.10 or higher as its core runtime environment. This version requirement is not arbitrary; it's based on specific language features and performance improvements introduced in Python 3.10 that OpenFrequency leverages throughout its codebase. When installing Python, we recommend using the official Python installer from python.org rather than system package managers to ensure you have the most recent stable version with all necessary components. After installation, verify your Python version by running 'python --version' in your terminal or command prompt. The output should show a version number of 3.10.x or higher. If you have multiple Python versions installed, consider using a virtual environment manager like pyenv (on macOS/Linux) or the Python Launcher for Windows to ensure you're using the correct version for OpenFrequency development. Virtual environments are highly recommended for plugin development as they isolate your project dependencies from your system Python installation, preventing conflicts between different projects. To create a virtual environment, navigate to your plugin development directory and run 'python -m venv venv', then activate it with 'source venv/bin/activate' on macOS/Linux or 'venv\\Scripts\\activate' on Windows. This creates an isolated Python environment where you can install dependencies without affecting your system Python installation. Remember to activate your virtual environment before running any Python commands related to plugin development. Additionally, ensure you have pip (Python's package installer) up to date by running 'python -m pip install --upgrade pip' in your virtual environment. This ensures you have access to the latest package versions and security updates. Python 3.10 introduced several performance improvements and new features that OpenFrequency utilizes, including structural pattern matching, better error messages, and improved type hinting. While your plugin code doesn't necessarily need to use these features, the OpenFrequency core depends on them, so your development environment must support them.",
+                "dev_guide_section1_subsection2_title": "Text Editor or IDE",
+                "dev_guide_section1_subsection2_content": "A good text editor or Integrated Development Environment (IDE) is crucial for productive plugin development. While you can use any text editor that supports Python syntax highlighting, we strongly recommend Visual Studio Code (VS Code) for its excellent Python support, rich extension ecosystem, and lightweight footprint. VS Code provides features like IntelliSense code completion, real-time syntax and error checking, integrated terminal, Git integration, and a vast marketplace of extensions that can enhance your development workflow. For Python development, install the official Python extension from Microsoft, which adds features like code linting, formatting, debugging, testing, and Jupyter notebook support. Other popular IDEs for Python development include PyCharm Professional, which offers advanced features like database tools, remote development, and web development support, though it's a heavier solution with a steeper learning curve. Sublime Text and Atom are lightweight alternatives with good Python support through plugins. Regardless of your chosen editor, ensure it supports Python syntax highlighting to make your code more readable and easier to debug. Syntax highlighting differentiates keywords, strings, comments, and other code elements by color, making it much easier to spot syntax errors and understand code structure at a glance. If you're new to Python development, VS Code's Python extension provides an excellent learning experience with features like Pylance for intelligent code completion, integrated debugging that allows you to step through your code line by line, and built-in terminal that lets you run Python commands without leaving the editor. Configure your editor to use line endings appropriate for your operating system (LF for Unix/Linux/macOS, CRLF for Windows) to avoid cross-platform compatibility issues. Set your editor to use 4 spaces for indentation (Python standard) and ensure it's configured to strip trailing whitespace, which can cause issues in some Python files. Most modern editors can be configured to automatically format your code according to PEP 8 style guidelines, which is the official style guide for Python code. Following PEP 8 makes your code more readable and consistent with the broader Python community standards.",
+                "dev_guide_section1_subsection3_title": "OpenFrequency Installation",
+                "dev_guide_section1_subsection3_content": "Before developing plugins, you must have OpenFrequency installed and running on your system. If you haven't installed OpenFrequency yet, download the latest version from the official repository or release page. OpenFrequency is available as a standalone executable for Windows, macOS, and Linux, as well as a Python package for developers who prefer to run it from source. For plugin development, we recommend running OpenFrequency from source if you're comfortable with Python, as this gives you easier access to debug logs and allows you to test your plugins in a development environment. To install from source, clone the repository, navigate to the project directory, create a virtual environment, install the dependencies listed in requirements.txt, and run 'python app.py' to start the application. Ensure you have all required dependencies installed, including Flask, Socket.IO, and other libraries specified in the requirements file. OpenFrequency's plugin system is designed to work seamlessly regardless of whether you're running from source or using the standalone executable, but development from source provides additional debugging capabilities. Before beginning plugin development, verify that OpenFrequency launches correctly and that you can access the web interface at the default URL (typically http://localhost:5000 or as configured). Test the basic functionality to ensure your installation is working properly—try loading the dashboard, checking that all tabs load correctly, and verifying that the basic features are functional. This verification step is crucial because if your OpenFrequency installation has issues, you won't be able to properly test your plugins. Pay attention to any error messages in the console or logs when starting OpenFrequency, as these might indicate missing dependencies or configuration issues that need to be resolved before plugin development can proceed. If you encounter issues during installation, consult the official documentation or community forums for troubleshooting assistance. Keep your OpenFrequency installation up to date by regularly checking for updates, as newer versions may include bug fixes, performance improvements, and new plugin API features that you can leverage in your plugins. The plugin API is designed to be backward compatible where possible, but testing your plugins with the latest version of OpenFrequency ensures they work correctly for users who have updated to the newest release.",
+                "dev_guide_section1_item1": "Python 3.10+ environment",
+                "dev_guide_section1_item2": "Text editor (VS Code recommended)",
+                "dev_guide_section1_item3": "OpenFrequency installed and running",
+                "dev_guide_section2_title": "2. Creating Plugin Folder Structure",
+                "dev_guide_section2_content": "Setting up the correct folder structure is the foundational step in plugin development. OpenFrequency expects plugins to be organized in a specific directory structure to ensure proper discovery, loading, and resource management. This section will guide you through creating the necessary folder hierarchy for your plugin, explaining each component's purpose and best practices for organization. A well-structured plugin not only makes development easier but also ensures compatibility with future versions of OpenFrequency and makes your plugin more maintainable and understandable for other developers who might examine or modify your code. The plugin folder structure serves as the blueprint for how your plugin will be loaded and executed by the OpenFrequency system. Understanding this structure is crucial because incorrect folder organization can lead to plugin discovery failures, resource loading errors, and other runtime issues that can be difficult to debug. We'll cover the standard directory layout, naming conventions, file organization strategies, and common pitfalls to avoid when setting up your plugin folder. Following these guidelines from the start will save you significant time and frustration during the development process.",
+                "dev_guide_section2_subsection1_title": "Standard Directory Layout",
+                "dev_guide_section2_subsection1_content": "OpenFrequency plugins must reside in the 'plugins/community' subdirectory within your OpenFrequency installation folder. This is a non-negotiable requirement—the plugin discovery system only scans this specific directory for community plugins. Inside this directory, each plugin gets its own subdirectory named after the plugin's unique identifier. For example, if your plugin has the ID 'my_weather_plugin', your complete path would be 'OpenFrequency/plugins/community/my_weather_plugin/'. This separation ensures that plugins don't interfere with each other and allows the plugin manager to load, unload, and manage plugins independently. Within your plugin's directory, you'll create several files and subdirectories depending on your plugin's functionality. The most essential files are 'manifest.json' and your Python entry point file (typically named 'plugin.py'), which are required for all plugins. Additional files and directories are optional and depend on what your plugin does. For example, if your plugin includes media files like audio or video, you should create a 'media' subdirectory to organize these assets. If your plugin provides cabin scripts, you should create a 'cabin' subdirectory with a 'scripts.json' file inside. This hierarchical organization keeps your plugin tidy and makes it easy for users to understand what your plugin contains. When naming directories and files, stick to lowercase letters, numbers, and underscores. Avoid spaces and special characters in file and directory names as these can cause issues on different operating systems. The folder structure is not just about organization—it's about making your plugin portable and compatible across different systems. A well-structured plugin can be easily zipped, shared, and installed by other users without issues. The standard layout also makes it easier for the OpenFrequency plugin manager to validate your plugin's structure during installation and identify potential issues before the plugin is loaded.",
+                "dev_guide_section2_subsection2_title": "Required Files",
+                "dev_guide_section2_subsection2_content": "Every OpenFrequency plugin must contain at minimum two files: 'manifest.json' and a Python entry point file. The manifest.json file is the most critical file—it's the plugin's identity card and configuration document. It must be placed at the root of your plugin directory, not in any subdirectory. The manifest.json file contains essential metadata about your plugin including its unique identifier, display name, version number, author information, description, and configuration for hooks and features. The plugin manager reads this file first when discovering plugins, and any errors or missing required fields in the manifest will prevent your plugin from being loaded. We'll cover the manifest.json structure in detail in the next section, but for now, understand that this file is non-negotiable and must be correctly formatted as valid JSON. The second required file is your Python entry point file, which by convention is named 'plugin.py' but can be named anything as long as it's correctly specified in the manifest.json 'entry' field. This file contains your plugin's main class, which must inherit from the OpenFrequencyPlugin base class. This class defines your plugin's behavior through hook methods that respond to various events in the OpenFrequency system. The entry point file must be a valid Python file with proper syntax and must import the OpenFrequencyPlugin class from the core.plugin_api module. Unlike manifest.json, which is read during plugin discovery, the entry point file is loaded only when the plugin is actually enabled, which means syntax errors in this file won't prevent your plugin from being discovered but will cause it to fail to load when enabled. This separation allows the plugin manager to display plugin information even if the plugin code has errors, making debugging easier. Both required files should be in UTF-8 encoding to support international characters in strings and comments. Avoid using special characters in file names beyond alphanumeric characters, underscores, and hyphens. Keep these files in the root of your plugin directory alongside any subdirectories you create for resources.",
+                "dev_guide_section2_desc": "Create plugin folder in OpenFrequency installation directory:",
+                "dev_guide_section3_title": "3. Writing manifest.json",
+                "dev_guide_section3_content": "The manifest.json file is the heart of your plugin—it's the configuration document that tells OpenFrequency everything it needs to know about your plugin. This file must be a valid JSON document placed at the root of your plugin directory. The manifest serves multiple critical purposes: it identifies your plugin to the system, declares which hooks your plugin uses, specifies any resources or features your plugin provides, and defines version compatibility requirements. Getting the manifest.json right is essential because any errors in this file will prevent your plugin from being discovered or loaded by the plugin manager. This section provides a comprehensive guide to every field in the manifest.json, explains their purposes, provides examples, and outlines best practices for structuring your plugin's configuration. We'll cover required fields, optional fields, and advanced configuration options that allow you to create sophisticated, feature-rich plugins. The manifest.json follows a strict schema that the plugin manager validates during plugin discovery, so it's important to understand each field's expected data type, format, and constraints. Pay close attention to naming conventions—field names are case-sensitive and must match exactly as specified. The manifest also supports comments in JSON5 format, but for maximum compatibility, we recommend using standard JSON without comments. When editing manifest.json, use a JSON validator or linter to ensure your file is syntactically correct before testing your plugin.",
+                "dev_guide_section3_subsection1_title": "Required Fields",
+                "dev_guide_section3_subsection1_content": "The manifest.json file contains several required fields that must be present for your plugin to be considered valid. The 'id' field is the most fundamental—this is your plugin's unique identifier in snake_case format (lowercase letters, numbers, and underscores only). This ID must be unique across all installed plugins, so choose something descriptive but unlikely to conflict with other plugins. For example, 'my_weather_plugin' is better than 'weather' because it's more specific and less likely to conflict. The 'name' field is the human-readable display name that users will see in the plugin manager interface. This can include spaces, capital letters, and special characters, and should be descriptive and professional. The 'version' field follows semantic versioning (semver) format like '1.0.0' and is crucial for tracking updates and compatibility. The 'author' field identifies you as the plugin creator, and the 'description' field provides a brief summary of what your plugin does. These fields are all strings and are required for all plugins. The 'entry' field specifies the Python file that contains your plugin's main class, relative to the plugin directory. By convention this is 'plugin.py', but you can name it differently if you prefer, as long as you update this field accordingly. The 'hooks' field is an array of hook names that your plugin will use. This tells OpenFrequency which events your plugin wants to receive notifications about. For example, if your plugin needs to respond to ATC messages, include 'on_atc_response' in this array. Only hooks declared here will be called on your plugin instance, so be sure to include all hooks you implement in your Python code.",
+                "dev_guide_section3_subsection2_title": "Optional Fields and Features",
+                "dev_guide_section3_subsection2_content": "Beyond the required fields, manifest.json supports several optional fields that enable advanced plugin functionality. The 'min_app_version' field allows you to specify the minimum version of OpenFrequency required for your plugin to function correctly. This is particularly useful if your plugin uses newer API features that weren't available in earlier versions. The plugin manager will check this during installation and warn users if their OpenFrequency version is too old, or block installation entirely if critical features are missing. The 'settings_schema' field allows you to define a JSON-Schema for plugin-specific settings that users can configure through the OpenFrequency settings interface. This enables your plugin to have user-configurable options without needing to create your own UI. The schema defines what settings are available, their types, default values, and validation rules. The 'cabin_scripts' field is one of the most powerful optional features—it allows your plugin to provide cabin announcement scripts that follow the same format as the built-in cabin scripts in data/cabin/scripts.json. This field is a dictionary where keys are airline codes (like 'CCA', 'UAL', 'ANA') and values are objects containing script phases like 'welcome', 'door_close', 'safety_demo', etc. Each phase can be either a simple string (for TTS) or an object with 'text' and optional 'video' fields. This allows plugins to add airline-specific cabin announcements that integrate seamlessly with OpenFrequency's cabin media system. The 'api_permissions' field declares which API capabilities your plugin needs access to, such as network access or file system operations. This is used for security validation to ensure plugins don't request dangerous permissions.",
+                "dev_guide_section3_desc": "manifest.json defines plugin configuration and functionality:",
+                "dev_guide_section3_note_title": "Important Notes:",
+                "dev_guide_section3_note1": "id must be unique snake_case format",
+                "dev_guide_section3_note2": "cabin_scripts follows data/cabin/scripts.json format exactly",
+                "dev_guide_section3_note3": "Script phases can be string or object with text/video",
+                "dev_guide_section3_note4": "min_app_version can specify minimum compatible version",
+                "dev_guide_section4_title": "4. Writing plugin.py",
+                "dev_guide_section4_content": "The plugin.py file is where your plugin's actual logic lives. This Python file contains your plugin's main class, which must inherit from the OpenFrequencyPlugin base class provided by the core.plugin_api module. This base class provides the framework that allows your plugin to interact with OpenFrequency's event system, configuration management, logging, and other core services. Understanding how to properly structure and implement your plugin class is essential for creating stable, maintainable plugins that integrate seamlessly with OpenFrequency. This section covers the plugin class structure, hook methods, API methods, configuration management, error handling, and best practices for writing clean, efficient plugin code. We'll provide detailed explanations of each hook method, when they're called, what parameters they receive, and what they should return. We'll also cover the various API methods available to your plugin for logging, emitting events, subscribing to internal events, triggering TTS playback, sending notifications, and more. Proper error handling is crucial in plugin development—your plugin should never crash the entire OpenFrequency application, so we'll cover exception handling strategies and defensive programming techniques. We'll also discuss configuration management, including how to read and write plugin-specific settings that persist across sessions. The plugin.py file should be well-organized, with clear method names, comprehensive docstrings, and logical code structure. Following Python best practices (PEP 8 style guide) will make your code more readable and maintainable, both for yourself and for other developers who might examine your plugin.",
+                "dev_guide_section4_subsection1_title": "Plugin Class Structure",
+                "dev_guide_section4_subsection1_content": "Your plugin must define a class named 'Plugin' that inherits from OpenFrequencyPlugin. This is a strict requirement—the plugin manager looks specifically for a class with this name. The class can be defined in any Python file, but the file must be specified in the manifest.json 'entry' field. The OpenFrequencyPlugin base class provides several protected attributes and methods that your plugin can use. The 'self.config' attribute is a dictionary containing your plugin's configuration, which persists between sessions. You can read configuration values using 'self.config.get('key', default_value)' and save changes using 'self.save_config()'. The 'self.log()' method allows you to write log messages that will appear in OpenFrequency's log output with your plugin's ID as a prefix, making it easy to identify which plugin generated each log message. The 'self.emit()' method allows you to send socket.io events to the web interface, which is useful for updating UI elements or sending notifications to the user. The 'self.subscribe()' method allows you to subscribe to internal OpenFrequency events via the EventBus, enabling your plugin to respond to system-wide events beyond the standard hooks. Your plugin class should implement hook methods to respond to specific events. These methods are called by the plugin manager when the corresponding event occurs. For example, implementing 'on_atc_response(text, action)' allows your plugin to process ATC messages before they're displayed to the user. Hook methods can optionally return values—for example, on_atc_response can return a modified string to change the ATC message, or None to leave it unchanged. The 'on_load()' hook is called when your plugin is enabled, and 'on_unload()' is called when it's disabled. Use these hooks for initialization and cleanup tasks respectively.",
+                "dev_guide_section4_subsection2_title": "Implementing Hook Methods",
+                "dev_guide_section4_subsection2_content": "Hook methods are the primary way your plugin interacts with OpenFrequency. Each hook corresponds to a specific event or lifecycle stage. The 'on_load()' hook is called once when your plugin is first loaded or enabled. This is where you should perform initialization tasks like reading configuration, subscribing to events, setting up timers, or initializing internal state. The 'on_unload()' hook is called when your plugin is disabled or unloaded—use this for cleanup like cancelling timers, unsubscribing from events, or saving state. The 'on_atc_response(text, action)' hook is called every time an ATC response is generated. The 'text' parameter contains the ATC message, and 'action' indicates the type of action (like 'cleared', 'contact', etc.). You can return a modified string to change the message, or None to leave it unchanged. The 'on_telemetry(data)' hook receives real-time telemetry data approximately 10 times per second. The 'data' parameter is a dictionary containing aircraft state information like altitude, speed, position, etc. Use this hook for monitoring aircraft state or triggering actions based on specific conditions. The 'on_frequency_change(freq)' hook is called when the COM1 frequency changes. The 'on_radio_transmit(freq, text)' and 'on_radio_receive(freq, text)' hooks are called when you transmit or receive radio messages. The 'on_tts_request(text)' hook is called before text-to-speech synthesis, allowing you to modify the text before it's spoken. The 'on_config_change(config)' hook is called when the global configuration changes. The 'on_flight_phase_change(phase)' hook is called when the flight phase changes (like 'ground', 'takeoff', 'cruise', etc.). The 'on_cabin_event(event_type, data)' hook is called for cabin-related events. The 'on_emergency(level, info)' hook is called for emergency situations. Only implement hooks that your plugin actually uses—unused hooks don't need to be defined.",
+                "dev_guide_section4_desc": "Plugin entry point file defining plugin behavior:",
+                "dev_guide_section5_title": "5. Complete Hooks Reference",
+                "dev_guide_section5_content": "OpenFrequency provides a comprehensive set of hooks that allow your plugin to respond to various events throughout the application lifecycle. This section serves as a complete reference for all available hooks, including their parameters, when they're called, what they should return, and usage examples. Hooks are the primary mechanism for plugin integration with OpenFrequency—they allow your plugin to be notified of important events and optionally influence the application's behavior. Understanding each hook's purpose, timing, and return value semantics is crucial for writing effective plugins. Some hooks are called at specific lifecycle stages (like plugin loading/unloading), others are called in response to user actions (like frequency changes), and still others are called periodically (like telemetry updates). Some hooks allow you to return values that modify the application's behavior (like modifying ATC text), while others are purely for notification (like logging telemetry data). This reference is organized by hook category: lifecycle hooks, simulation hooks, communication hooks, telemetry hooks, and cabin hooks. For each hook, we provide the method signature, a description of when it's called, the parameters it receives, what it can return (if applicable), and common use cases. We also include important notes about performance considerations, threading context, and best practices for each hook. This reference should serve as your go-to guide when implementing plugins—consult it whenever you need to know which hook to use for a particular task or how to properly implement a hook you're already using.",
+                "dev_guide_section5_subsection1_title": "Lifecycle Hooks",
+                "dev_guide_section5_subsection1_content": "Lifecycle hooks are called at specific points in your plugin's lifetime. The 'on_load()' hook is called when your plugin is enabled or when OpenFrequency starts if the plugin is already enabled. This is your opportunity to initialize your plugin's state, read configuration, subscribe to events, set up timers, or perform any other one-time initialization tasks. This hook receives no parameters and returns nothing. The 'on_unload()' hook is called when your plugin is disabled or when OpenFrequency is shutting down. Use this hook for cleanup tasks like cancelling timers, unsubscribing from events, saving state, or releasing resources. This hook also receives no parameters and returns nothing. The 'on_app_start()' hook is called after OpenFrequency has fully initialized but before it connects to the simulator. This is useful for plugins that need to perform initialization that depends on OpenFrequency being fully ready but before simulation begins. The 'on_app_shutdown()' hook is called when OpenFrequency is beginning its shutdown sequence, giving plugins a chance to perform graceful cleanup before the application terminates. These lifecycle hooks are guaranteed to be called in the order: on_load, on_app_start, (normal operation), on_app_shutdown, on_unload. This predictable ordering allows you to structure your plugin's initialization and cleanup logic reliably.",
+                "dev_guide_section5_subsection2_title": "Simulation Hooks",
+                "dev_guide_section5_subsection2_content": "Simulation hooks relate to the connection to and state of the flight simulator. The 'on_sim_connected(sim_type)' hook is called when OpenFrequency successfully connects to a simulator. The sim_type parameter indicates which simulator type (like 'msfs', 'xplane', 'fsx', etc.). This is useful for plugins that need to perform simulator-specific initialization or adapt their behavior based on the simulator being used. The 'on_sim_disconnected()' hook is called when the connection to the simulator is lost, whether due to the simulator closing, network issues, or user action. Plugins should handle disconnection gracefully by disabling simulator-dependent features and potentially notifying the user. These hooks are important for robust plugin behavior—your plugin should handle the case where no simulator is connected or where the connection is lost during operation. Consider using these hooks to enable/disable features that depend on simulator data, and to provide user feedback about the connection status.",
+                "dev_guide_section5_subsection3_title": "Communication Hooks",
+                "dev_guide_section5_subsection3_content": "Communication hooks relate to radio communication and ATC interactions. The 'on_atc_response(text, action)' hook is one of the most powerful hooks—it's called every time OpenFrequency generates an ATC response. The text parameter contains the ATC message, and action indicates the type of action (like 'cleared', 'contact', 'handoff', etc.). You can return a modified string to change the ATC message before it's displayed to the user, or return None to leave it unchanged. This is useful for plugins that want to format ATC messages differently, translate them, add additional information, or filter certain types of messages. The 'on_pilot_input(text)' hook is called when the user inputs text that will be sent to the AI for processing. You can return modified text to change what the AI receives, or None to leave it unchanged. This is useful for plugins that want to preprocess user input, add context, or implement custom input handling. The 'on_frequency_change(freq)' hook is called when the COM1 frequency changes. The freq parameter is the new frequency as a float. This is useful for plugins that need to track frequency changes or perform actions when the pilot tunes to a new frequency. The 'on_radio_transmit(freq, text)' and 'on_radio_receive(freq, text)' hooks are called when you transmit or receive radio messages on any frequency. These hooks are useful for logging communication, implementing custom squelch logic, or adding radio effects.",
+
+                "dev_guide_section6_title": "6. Plugin API Methods Reference",
+                "dev_guide_section6_content": "The OpenFrequencyPlugin base class provides a rich set of API methods that your plugin can use to interact with the OpenFrequency system. These methods allow your plugin to log messages, emit events to the web interface, subscribe to internal events, trigger TTS playback, send notifications, inject synthetic ATC messages, schedule tasks, access shared context, and manage configuration. Understanding these API methods is essential for creating plugins that integrate deeply with OpenFrequency's functionality. This section serves as a comprehensive reference for all available API methods, including their parameters, return values, usage examples, and best practices. Each method is designed for a specific purpose—using the right method for the right task will make your plugin more efficient and easier to maintain. We'll cover logging methods, event methods, TTS methods, notification methods, ATC injection methods, scheduling methods, context access methods, and configuration management methods. For each method, we provide the method signature, a description of what it does, the parameters it accepts, what it returns (if anything), common use cases, performance considerations, and important notes about threading and synchronization. This reference should be consulted whenever you need to interact with OpenFrequency from your plugin—using these methods correctly will ensure your plugin is stable, performant, and well-integrated with the system.",
+                "dev_guide_section6_subsection1_title": "Logging and Debugging",
+                "dev_guide_section6_subsection1_content": "The 'self.log(msg)' method is your primary tool for logging messages from your plugin. This method accepts a string message and writes it to OpenFrequency's log output with your plugin's ID as a prefix, making it easy to identify which plugin generated each log message. This is invaluable for debugging and troubleshooting—when users report issues, they can provide the log output and you'll be able to see exactly what your plugin was doing. The log method is thread-safe and can be called from any context within your plugin. Use it liberally to log important events, state changes, errors, and debugging information. However, be mindful not to log excessively verbose information, as this can clutter the logs and make it harder to find relevant information. Consider adding a debug flag to your plugin's configuration that controls how much logging output is produced. The log messages appear in the same log output as OpenFrequency's own logs, typically in the console where OpenFrequency is running or in a log file if configured. When logging errors or warnings, prefix your message with 'ERROR:' or 'WARNING:' to make them stand out in the log output. The log method does not return a value. For more complex logging needs, you might consider using Python's built-in logging module, but be aware that this will create separate log output from OpenFrequency's logs.",
+                "dev_guide_section6_subsection2_title": "Event Communication",
+                "dev_guide_section6_subsection2_content": "The 'self.emit(event, data)' method allows your plugin to send socket.io events to the web interface. This is useful for updating UI elements, sending real-time notifications to the user, or communicating with custom JavaScript in the web interface. The event parameter is a string identifying the event type, and data is any JSON-serializable object containing the event payload. For example, you could emit a custom event like 'my_plugin_update' with data containing the current status of your plugin's operation. On the web interface side, you would need JavaScript code to listen for this event and handle it appropriately. The emit method is particularly useful for plugins that need to display real-time information in the UI or create custom dashboard widgets. The 'self.subscribe(event, callback)' method allows your plugin to subscribe to internal OpenFrequency events via the EventBus. This enables your plugin to respond to system-wide events beyond the standard hooks. The event parameter is a string identifying the event to subscribe to, and callback is a function that will be called when the event occurs. This is useful for plugins that need to monitor internal OpenFrequency state or respond to events that aren't exposed through the standard hook system. When subscribing to events, be sure to unsubscribe in your on_unload hook to prevent memory leaks. The subscribe method returns nothing.",
+
+                "dev_guide_section7_title": "7. Testing and Debugging Your Plugin",
+                "dev_guide_section7_content": "Testing is a critical phase of plugin development that ensures your plugin works correctly, doesn't cause errors, and provides a good user experience. This section covers comprehensive testing strategies, debugging techniques, and best practices for verifying your plugin's functionality. Testing should be an ongoing process throughout development, not just something you do at the end. We'll cover unit testing your plugin code, integration testing with OpenFrequency, manual testing procedures, automated testing strategies, and debugging techniques. We'll also discuss how to interpret error messages, use logging effectively, and troubleshoot common issues. Proper testing will help you catch bugs early, ensure your plugin is stable and reliable, and give you confidence when releasing your plugin to users. A well-tested plugin is more likely to be well-received by the community and less likely to generate support requests. We'll also cover testing on different platforms and configurations to ensure your plugin works for all users regardless of their setup.",
+                "dev_guide_section7_subsection1_title": "Manual Testing Workflow",
+                "dev_guide_section7_subsection1_content": "The manual testing workflow begins with placing your plugin folder in the correct location: OpenFrequency/plugins/community/your_plugin_id/. Ensure the folder structure is correct with manifest.json and your Python entry point file at the root. Open OpenFrequency and navigate to the Plugin Manager. Click the \"Reload All Plugins\" button to trigger plugin discovery. The plugin manager will scan the plugins/community directory, validate manifests, and attempt to load all plugins. Check the plugin list for your plugin—you should see it listed with its name, version, and author information. A green badge indicates the plugin loaded successfully, while a red badge indicates an error occurred during loading. If you see a red badge, click on your plugin to view the error message—this will tell you what went wrong during loading. Common errors include syntax errors in your Python code, missing required fields in manifest.json, or import errors if your plugin tries to import modules that aren't available. Fix any errors and reload the plugins again. Once your plugin loads successfully, test its specific functionality. For example, if your plugin modifies ATC responses, trigger some ATC interactions and verify that your modifications are applied as expected. If your plugin uses telemetry data, fly the aircraft and verify that your plugin responds correctly to different flight conditions. Check the OpenFrequency logs for any error messages or warnings from your plugin. The logs will show messages prefixed with your plugin's ID, making it easy to identify log entries from your plugin.",
+                "dev_guide_section7_subsection2_title": "Debugging Techniques",
+                "dev_guide_section7_subsection2_content": "Effective debugging is essential for identifying and fixing issues in your plugin. The most fundamental debugging tool is the self.log() method, which allows you to write messages to the OpenFrequency log output. Use logging extensively to track the flow of execution through your plugin—log when hooks are called, what parameters they receive, what decisions your plugin makes, and what values are returned. When debugging a specific issue, add logging around the code in question to understand what's happening. For example, if a hook isn't being called as expected, add a log statement at the beginning of the hook to verify it's being invoked. If a value isn't what you expect, log it to see its actual value. Python's built-in debugger (pdb) can be used by adding 'import pdb; pdb.set_trace()' in your code, which will pause execution and allow you to interactively debug. However, be aware that this will pause OpenFrequency's execution, so use it judiciously. For syntax errors, Python's error messages are usually clear about the problem location and nature. For runtime errors, the traceback will show the call stack leading to the error, helping you understand the execution path. Common issues include AttributeError (trying to access an attribute that doesn't exist), TypeError (using an object of the wrong type), and KeyError (trying to access a dictionary key that doesn't exist). When these occur, check the line indicated in the error and verify your assumptions about the objects you're working with. The OpenFrequency logs may also contain useful information from the plugin manager about why your plugin failed to load.",
+                "dev_guide_section7_item1": "Place plugin folder in plugins/community/",
+                "dev_guide_section7_item2": "Open OpenFrequency Plugin Manager",
+                "dev_guide_section7_item3": "Click \"Reload All Plugins\"",
+                "dev_guide_section7_item4": "Check if plugin loaded successfully (green badge)",
+                "dev_guide_section7_item5": "Check logs to verify functionality",
+                "dev_guide_section8_title": "8. Packaging and Distribution",
+                "dev_guide_section8_content": "Once your plugin is developed and tested, the next step is to package it for distribution to other users. Proper packaging ensures that your plugin can be easily installed by others without issues. This section covers the complete packaging process, including creating ZIP archives, organizing files correctly, naming conventions, version management, and distribution channels. We'll provide step-by-step instructions for packaging on Windows, macOS, and Linux, along with best practices for creating professional-quality plugin packages. A well-packaged plugin is easy to install, clearly identifies its contents and version, and follows community conventions that make it recognizable and trustworthy. We'll also cover how to handle plugin updates, how to structure your package for different distribution methods, and how to ensure compatibility across different OpenFrequency versions. Proper packaging is the final step in the plugin development lifecycle and is crucial for user adoption and satisfaction.",
+                "dev_guide_section8_subsection1_title": "Creating ZIP Archives",
+                "dev_guide_section8_subsection1_content": "The standard distribution format for OpenFrequency plugins is a ZIP archive containing your plugin's files and directories. The ZIP archive must have a specific structure: when extracted, it should create a single directory named after your plugin ID, containing all plugin files at the root of that directory. For example, if your plugin ID is 'my_weather_plugin', the ZIP should contain a top-level directory 'my_weather_plugin/' with manifest.json, plugin.py, and any subdirectories inside it. Do not ZIP the plugins/community directory itself—only ZIP your plugin's specific directory. On Windows, you can create a ZIP by right-clicking your plugin folder and selecting 'Send to' → 'Compressed (zipped) folder'. On macOS, right-click and select 'Compress'. On Linux, use the command 'zip -r my_plugin.zip my_plugin/'. The '-r' flag ensures subdirectories are included recursively. Verify your ZIP structure by extracting it to a temporary location and confirming the structure is correct. The manifest.json and entry point file must be at the root of the plugin directory within the ZIP, not in any subdirectory. Incorrect ZIP structure is a common cause of installation failures, so always verify your archive before distributing it.",
+                "dev_guide_section8_subsection2_title": "File Organization and Naming",
+                "dev_guide_section8_subsection2_content": "When packaging your plugin, consider how files are organized within the archive. Keep the structure simple and logical. All required files (manifest.json, plugin.py) should be at the root. Media files should be in a 'media/' subdirectory. Cabin scripts should be in a 'cabin/' subdirectory. Any additional Python modules your plugin uses should be in the root or in appropriately named subdirectories. Avoid deeply nested directory structures as this can complicate installation and make the plugin harder to understand. Use clear, descriptive names for files and directories. Avoid spaces and special characters in filenames—use underscores or hyphens instead. Include a README.md file in your plugin directory to provide users with installation instructions, usage information, and contact details for support. The README is especially important for complex plugins that require configuration or have specific usage instructions. Consider including a LICENSE file if you want to specify the terms under which your plugin can be used and distributed. Name your ZIP file clearly, ideally using the format 'plugin-id-version.zip' (e.g., 'my_weather_plugin-1.0.0.zip'). This makes it easy for users to identify the plugin and its version at a glance.",
+                "dev_guide_section8_desc": "Package plugin for distribution:",
+                "dev_guide_section8_item1": "Right-click plugin folder",
+                "dev_guide_section8_item2": "Select \"Send to\" → \"Compressed (zipped) folder\"",
+                "dev_guide_section8_item3": "Or use command line:",
+                "dev_guide_section8_note": "Note: ZIP must contain manifest.json and plugin.py at root level",
+                "dev_guide_section9_title": "9. Publishing and Sharing Your Plugin",
+                "dev_guide_section9_content": "Publishing your plugin makes it available to the OpenFrequency community and allows users to discover, install, and benefit from your work. This section covers the complete publishing workflow, including choosing distribution platforms, creating releases, writing documentation, managing version updates, and engaging with the community. A well-published plugin is easy to find, clearly documented, and professionally presented. We'll cover publishing on GitHub as the primary platform, along with alternative distribution methods. We'll also discuss how to handle user feedback, manage issues and bug reports, and maintain your plugin over time. Publishing is not just about making your plugin available—it's about creating a sustainable project that users can trust and rely on. Following these guidelines will help your plugin gain traction in the community and establish you as a credible plugin developer.",
+                "dev_guide_section9_subsection1_title": "GitHub Publishing Workflow",
+                "dev_guide_section9_subsection1_content": "GitHub is the recommended platform for publishing OpenFrequency plugins due to its widespread adoption, built-in release management, and integration with the OpenFrequency community. Start by creating a new GitHub repository for your plugin. Choose a descriptive repository name, ideally matching your plugin ID. Initialize the repository with a README.md file that provides essential information about your plugin. Upload your plugin source code to the repository—this should include manifest.json, plugin.py, and all other files that make up your plugin. Having the source code in the repository allows others to examine your code, contribute improvements, and verify the plugin's safety. Once your repository is set up, create a GitHub Release for your plugin. Go to the repository page, click 'Releases', then 'Create a new release'. Tag the release with your version number (e.g., 'v1.0.0'), write release notes describing what's new in this version, and attach your plugin ZIP file as a release asset. Users can then download the ZIP file directly from the release page. GitHub releases provide a clean, professional way to distribute versions of your plugin and allow users to easily see what's changed between versions. Make sure to include installation instructions in your README and in the release notes so users know how to install your plugin.",
+                "dev_guide_section9_subsection2_title": "Documentation and Community Engagement",
+                "dev_guide_section9_subsection2_content": "Good documentation is essential for user adoption and support. Your README.md should include: a clear description of what your plugin does, installation instructions (with screenshots if possible), configuration steps, usage examples, known limitations or compatibility notes, and contact information for support. Consider adding a CHANGELOG.md file to document version history and changes between releases. This helps users understand what's new and whether they should upgrade. When users report issues or ask questions, respond promptly and helpfully. Use GitHub Issues to track bug reports and feature requests. Label issues appropriately (e.g., 'bug', 'enhancement', 'question') to help organize them. When fixing bugs, reference the issue number in your commit messages and release notes so users can track the resolution. Engage with the OpenFrequency community through forums, Discord, or other communication channels. Share your plugin when it's ready for testing—early feedback can help identify issues before a full release. Consider adding a license file to specify how others can use and modify your plugin. The MIT License is a common choice for plugins as it's permissive and widely understood. Remember that publishing is an ongoing process—plan for updates, respond to user feedback, and continuously improve your plugin based on real-world usage.",
+                "dev_guide_section9_item1": "Create GitHub repository",
+                "dev_guide_section9_item2": "Upload ZIP as Release asset",
+                "dev_guide_section9_item3": "Write README with installation instructions",
+                "dev_guide_section9_item4": "Share link in community",
+                "dev_guide_section10_title": "10. Frequently Asked Questions",
+                "dev_guide_section10_content": "This section addresses common questions and issues that plugin developers encounter during the development process. These FAQs are compiled from real-world experiences of plugin developers and cover a wide range of topics from basic troubleshooting to advanced development challenges. Each question provides a detailed answer that not only solves the immediate problem but also explains the underlying concepts to help you understand why the issue occurred and how to prevent similar issues in the future. If you don't find your question answered here, consider searching the OpenFrequency community forums or GitHub issues, or posting your question for community assistance. The plugin development community is generally helpful and willing to assist newcomers. Remember that many issues have simple solutions once you understand the system architecture, so don't hesitate to ask for help when you're stuck.",
+                "dev_guide_section10_subsection1_title": "Plugin Loading Issues",
+                "dev_guide_section10_subsection1_content": "Q: My plugin fails to load with a red badge in the plugin manager. What should I do? A: First, click on your plugin in the plugin manager to see the specific error message. Common errors include: syntax errors in your Python code (check the line number in the error), missing required fields in manifest.json (ensure id, name, version, author, entry, and hooks are all present), import errors (if your plugin imports modules that aren't available), and JSON parsing errors in manifest.json (use a JSON validator to check syntax). Check the OpenFrequency logs for additional error details that might not be shown in the plugin manager UI. Ensure your plugin files are in the correct location (plugins/community/your_plugin_id/) and that manifest.json is at the root of the plugin directory. If you're running from source, ensure all required dependencies are installed. If the error message is unclear, try simplifying your plugin to isolate the issue—comment out complex code and see if a minimal version loads, then gradually add back functionality until you identify the problematic code.",
+                "dev_guide_section10_subsection2_title": "Media and Resource Issues",
+                "dev_guide_section10_subsection2_content": "Q: Media files defined in my plugin aren't playing or displaying. What's wrong? A: Check that the file paths in your manifest.json are relative to the plugin directory, not absolute paths. For example, if you have a file at 'my_plugin/media/sound.mp3', the path in manifest should be 'media/sound.mp3', not '/full/path/to/media/sound.mp3'. Verify that the files actually exist in the specified locations within your plugin folder. Check file permissions—ensure the files are readable by the OpenFrequency process. For cabin scripts, ensure you're using the correct format (cabin_scripts in manifest, following data/cabin/scripts.json structure). If using text-only cabin scripts, ensure you have a voice specified or that the TTS system is configured. Test your media files independently to ensure they're not corrupted. Check the OpenFrequency logs for any errors related to file loading or media playback. Remember that media files are loaded when the plugin is enabled, so reload the plugin after adding or modifying media files.",
+                "dev_guide_section10_subsection1_q1": "Plugin fails to load?",
+                "dev_guide_section10_subsection1_a1": "Check manifest.json syntax and Python code errors",
+                "dev_guide_section10_subsection2_q1": "Media files not playing?",
+                "dev_guide_section10_subsection2_a1": "Ensure path is correct and files are in plugin folder",
+                "dev_guide_section10_subsection3_q1": "Hooks not triggering?",
+                "dev_guide_section10_subsection3_a1": "Ensure hooks are declared in manifest.json hooks array",
+                "dev_guide_section10_subsection4_q1": "Version compatibility?",
+                "dev_guide_section10_subsection4_a1": "Use min_app_version to specify minimum version"
             },
             "zh": {
                 "system_config": "系统设置",
                 "test_audio": "🔊 测试音频",
                 "pilot_profile": "飞行员资料",
                 "callsign": "呼号",
+                "callsign_career_locked": "🔒 职业模式已激活 — 呼号已锁定至当前任务",
                 "flight_plan": "航路设定",
                 "flight_plan_origin": "起飞机场 ICAO",
                 "flight_plan_destination": "目的机场 ICAO",
@@ -271,17 +425,6 @@
                 "api_key_hint": "密钥已隐藏。保持 ****** 不变即可。",
                 "model_name": "模型名称",
                 "base_url": "基础 URL (Local/Ollama)",
-                "ai_routing_title": "AI 路由",
-                "light_model_label": "轻量模型",
-                "reasoning_model_label": "思考模型",
-                "sync_primary_connection": "与主连接同步 API Key / Base URL",
-                "light_api_key": "轻量模型 API Key",
-                "light_base_url": "轻量模型 Base URL",
-                "light_provider": "轻量模型 Provider",
-                "reasoning_api_key": "思考模型 API Key",
-                "reasoning_base_url": "思考模型 Base URL",
-                "reasoning_provider": "思考模型 Provider",
-                "light_conf_threshold": "轻量模型置信度阈值",
                 "audio_controls": "音频与控制",
                 "joystick_ptt": "摇杆 PTT 按键",
                 "unbound": "未绑定",
@@ -297,6 +440,8 @@
                 "save_settings": "保存设置",
                 "reload": "重新加载",
                 "back_dashboard": "返回仪表盘",
+                "nav_plugins": "🧩 插件",
+                "nav_settings": "⚙️ 设置",
                 "settings_btn": "⚙️ 设置",
                 "altitude": "高度 (ALT)",
                 "airspeed": "空速 (SPD)",
@@ -365,6 +510,10 @@
                 "xplane_port": "X-Plane 端口",
                 "career_btn": "🎖️ 生涯模式",
                 "clear_track_btn": "🗑️ 清除",
+                "ui_theme": "界面主题",
+                "theme_classic": "🖥️ 经典",
+                "theme_apple": "🍎 Apple 风格",
+                "theme_hint": "Apple / 液态玻璃主题，经典为默认。",
                 "cabin_status_btn": "👩‍✈️ 机组状态",
                 "cabin_chat_btn": "💬 驾驶舱对讲",
                 "radio_atc": "📡 管制",
@@ -389,13 +538,181 @@
                 "stt_model_path": "STT 模型路径",
                 "stt_language": "STT 语言",
                 "download_stt": "⬇ 下载 STT 模型",
-                "download_tts": "⬇ 下载 TTS 模型"
+                "download_tts": "⬇ 下载 TTS 模型",
+                "voice_engine": "🔊 语音引擎（TTS / STT）",
+                "tts_backend": "TTS 合成后端",
+                "tts_edge_option": "Edge-TTS（微软云，推荐）",
+                "tts_local_option": "本地 TTS（离线流式播放）",
+                "local_engine": "本地引擎",
+                "model_file_path": "模型文件路径",
+                "voices_file": "音色文件（仅 Kokoro）",
+                "local_tts_hint": "本地 TTS 逐句流式播放，延迟更低。Kokoro 支持英语音色；中文/日文推荐使用 Edge-TTS。",
+                "model_fast_label": "⚡ 快速模型",
+                "model_fast_desc": "— 读回、简单确认",
+                "model_thinking_label": "🧠 思考模型",
+                "model_thinking_desc": "— 放行、紧急情况、航路规划",
+                "model_dual_hint": "任一字段留空则两个层级使用同一模型。",
+                "auto_busy_label": "🤖 自动忙碌等级",
+                "auto_busy_desc": "— 根据附近真实飞机数量自动推算",
+                "busy_level_hint": "在自动忙碌关闭或无流量数据时使用。",
+                "cpdlc_logon_code": "登录代码",
+                "cpdlc_station": "台站 (如 EHAM)",
+                "cpdlc_connect": "连接",
+                "cpdlc_disconnect": "断开",
+                "cpdlc_offline": "离线",
+                "cpdlc_no_messages": "暂无CPDLC消息。通过Hoppie ACARS连接开始。",
+                "cpdlc_message": "自由文本电传 / CPDLC消息",
+                "cpdlc_send": "发送",
+                "cpdlc_powered_by": "由",
+                "cpdlc_register_hint": "在hoppie.nl注册登录代码。",
+                "allow_non_english_label": "🌐 允许在中国空域外使用非英语通话",
+                "allow_non_english_badge": "非真实情形",
+                "allow_non_english_hint": "关闭时，在中国/日本空域外管制员将使用英语（ICAO 标准）。开启后可在任何地方使用您设定的语言。",
+                "language": "语言",
+                "cabin_media_package": "客舱语音包",
+                "cabin_media_auto": "自动匹配（根据呼号）",
+                "cabin_media_hint": "选择当前航班的客舱语音包。留空则根据呼号自动匹配。",
+                "privacy_updates": "☁️ 隐私与更新",
+                "telemetry_toggle": "自动上报崩溃日志以帮助改进 OpenFrequency",
+                "telemetry_sim_info": "在崩溃报告中包含模拟器/AI 提供商信息",
+                "telemetry_hint": "不会发送 API 密钥、密码或个人信息。崩溃日志始终本地保存，与此设置无关。",
+                "report_feedback_btn": "📤 反馈 / 问题上报",
+                "upload_crash_log": "📤 上传最近崩溃日志",
+                "check_updates": "🔄 检查更新",
+                "fb_type_label": "类型",
+                "fb_type_bug": "🐛 Bug 报告",
+                "fb_type_suggestion": "💡 功能建议",
+                "fb_type_crash": "💥 崩溃跟进",
+                "fb_type_other": "📝 其他",
+                "fb_title_label": "标题",
+                "fb_title_placeholder": "简要描述问题",
+                "fb_details_label": "详细描述",
+                "fb_details_placeholder": "复现步骤、预期行为与实际行为等",
+                "fb_crash_id_label": "崩溃 ID（自动填写）",
+                "fb_crash_id_placeholder": "如与崩溃无关请留空",
+                "fb_contact_label": "联系方式（可选）",
+                "fb_contact_placeholder": "邮箱或GitHub账号以便跟进",
+                "fb_attach_log": "附加日志摘录",
+                "fb_attach_config": "附加配置摘要",
+                "fb_send": "发送报告",
+                "plugin_manager_title": "🧩 插件管理器",
+                "plugin_manager_subtitle": "社区插件与官方 DLC",
+                "tab_installed_plugins": "已安装插件",
+                "tab_official_dlc": "官方 DLC 与扩展",
+                "tab_install_zip": "从 ZIP 安装",
+                "tab_dev_guide": "开发者指南",
+                "reload_all_plugins": "🔄 重载所有插件",
+                "msfs_community_hint": "安装 DLC 到 MSFS 必须设置此路径，保存后生效。",
+                "install_zip_title": "从 ZIP 安装社区插件",
+                "install_zip_hint": "插件 ZIP 根目录须包含 manifest.json 和 Python 入口文件。",
+                "install_plugin_btn": "📦 安装插件",
+                "dev_guide_title": "📝 OpenFrequency 插件开发完整指南",
+                "dev_guide_section1_title": "一、准备工作与环境设置",
+                "dev_guide_section1_content": "在开始为 OpenFrequency 开发插件之前，确保您的开发环境配置正确至关重要。本节涵盖了创建、测试和部署成功插件所需的所有先决条件和推荐工具。OpenFrequency 基于 Python 构建，需要特定的依赖项才能正常运行。插件系统旨在让所有技能水平的开发者都可以使用，但拥有正确的工具和环境设置将显著简化您的开发流程并减少潜在问题。以下要求是插件开发的强制性要求，同时提供额外的建议以增强您的开发体验。请仔细阅读每个要求，并在进入下一节之前确保您的环境满足所有规范。跳过先决条件设置往往会导致稍后出现令人沮丧的调试会话，因为环境配置错误会导致问题。花时间正确设置您的开发环境——这将在您的插件开发之旅中带来丰厚的回报。",
+                "dev_guide_section1_subsection1_title": "Python 3.10 或更高版本",
+                "dev_guide_section1_subsection1_content": "OpenFrequency 需要 Python 3.10 或更高版本作为其核心运行时环境。此版本要求不是任意的；它基于 Python 3.10 中引入的特定语言功能和性能改进，OpenFrequency 在其代码库中利用了这些功能。安装 Python 时，我们建议使用 python.org 的官方 Python 安装程序而不是系统包管理器，以确保您拥有包含所有必要组件的最新稳定版本。安装后，通过在终端或命令提示符中运行 'python --version' 来验证您的 Python 版本。输出应显示版本号 3.10.x 或更高。如果您安装了多个 Python 版本，请考虑使用虚拟环境管理器，如 pyenv（在 macOS/Linux 上）或 Windows 的 Python 启动器，以确保您使用的是 OpenFrequency 开发的正确版本。强烈建议插件开发使用虚拟环境，因为它们将您的项目依赖项与系统 Python 安装隔离开来，防止不同项目之间的冲突。要创建虚拟环境，请导航到您的插件开发目录并运行 'python -m venv venv'，然后使用 'source venv/bin/activate'（在 macOS/Linux 上）或 'venv\\Scripts\\activate'（在 Windows 上）激活它。这会创建一个隔离的 Python 环境，您可以在其中安装依赖项而不会影响系统 Python 安装。记住在与插件开发相关的任何 Python 命令之前激活您的虚拟环境。此外，通过在虚拟环境中运行 'python -m pip install --upgrade pip' 来确保 pip（Python 的包安装程序）是最新的。这确保您可以访问最新的包版本和安全更新。Python 3.10 引入了几项性能改进和 OpenFrequency 利用的新功能，包括结构模式匹配、更好的错误消息和改进的类型提示。虽然您的插件代码不一定需要使用这些功能，但 OpenFrequency 核心依赖于它们，因此您的开发环境必须支持它们。",
+                "dev_guide_section1_subsection2_title": "文本编辑器或 IDE",
+                "dev_guide_section1_subsection2_content": "一个好的文本编辑器或集成开发环境（IDE）对于高效的插件开发至关重要。虽然您可以使用任何支持 Python 语法高亮的文本编辑器，但我们强烈推荐 Visual Studio Code (VS Code)，因为它具有出色的 Python 支持、丰富的扩展生态系统和轻量级占用空间。VS Code 提供了 IntelliSense 代码完成、实时语法和错误检查、集成终端、Git 集成以及大量可以增强您开发工作流程的扩展市场。对于 Python 开发，请安装 Microsoft 的官方 Python 扩展，它添加了代码检查、格式化、调试、测试和 Jupyter notebook 支持等功能。其他流行的 Python IDE 包括 PyCharm Professional，它提供数据库工具、远程开发和 Web 开发支持等高级功能，尽管它是一个更重的解决方案，学习曲线更陡峭。Sublime Text 和 Atom 是通过插件提供良好 Python 支持的轻量级替代品。无论您选择哪种编辑器，请确保它支持 Python 语法高亮，以使您的代码更具可读性且更易于调试。语法高亮通过颜色区分关键字、字符串、注释和其他代码元素，使一眼就能更容易发现语法错误并理解代码结构。如果您是 Python 开发的新手，VS Code 的 Python 扩展提供了出色的学习体验，具有 Pylance 智能代码完成、允许您逐行调试代码的集成调试功能，以及让您无需离开编辑器即可运行 Python 命令的内置终端。将您的编辑器配置为使用适合您操作系统的行尾（Unix/Linux/macOS 使用 LF，Windows 使用 CRLF）以避免跨平台兼容性问题。将您的编辑器设置为使用 4 个空格进行缩进（Python 标准）并确保它配置为删除尾随空格，这可能会导致某些 Python 文件出现问题。大多数现代编辑器可以配置为根据 PEP 8 风格指南自动格式化您的代码，这是 Python 代码的官方风格指南。遵循 PEP 8 使您的代码更具可读性，并与更广泛的 Python 社区标准保持一致。",
+                "dev_guide_section1_subsection3_title": "OpenFrequency 安装",
+                "dev_guide_section1_subsection3_content": "在开发插件之前，您必须在系统上安装并运行 OpenFrequency。如果您尚未安装 OpenFrequency，请从官方存储库或发布页面下载最新版本。OpenFrequency 可作为 Windows、macOS 和 Linux 的独立可执行文件，以及为更喜欢从源代码运行的开发者提供的 Python 包。对于插件开发，如果您熟悉 Python，我们建议从源代码运行 OpenFrequency，因为这使您可以更轻松地访问调试日志，并允许您在开发环境中测试您的插件。要从源代码安装，请克隆存储库，导航到项目目录，创建虚拟环境，安装 requirements.txt 中列出的依赖项，并运行 'python app.py' 启动应用程序。确保已安装所有必需的依赖项，包括 Flask、Socket.IO 和 requirements 文件中指定的其他库。无论您是从源代码运行还是使用独立可执行文件，OpenFrequency 的插件系统设计为无缝工作，但从源代码开发提供了额外的调试功能。在开始插件开发之前，验证 OpenFrequency 正确启动并且您可以访问默认 URL（通常是 http://localhost:5000 或根据配置）的 Web 界面。测试基本功能以确保您的安装正常工作——尝试加载仪表板，检查所有选项卡正确加载，并验证基本功能正常运行。此验证步骤至关重要，因为如果您的 OpenFrequency 安装有问题，您将无法正确测试您的插件。启动 OpenFrequency 时请注意控制台或日志中的任何错误消息，因为这些可能表明在插件开发可以进行之前需要解决的缺失依赖项或配置问题。如果在安装过程中遇到问题，请查阅官方文档或社区论坛以获取故障排除帮助。通过定期检查更新来保持 OpenFrequency 安装是最新的，因为新版本可能包含错误修复、性能改进和您可以在插件中利用的新插件 API 功能。插件 API 设计为尽可能向后兼容，但使用最新版本的 OpenFrequency 测试您的插件可确保它们对已更新到最新版本的用户正常工作。",
+                "dev_guide_section1_item1": "Python 3.10+ 环境",
+                "dev_guide_section1_item2": "文本编辑器（VS Code 推荐）",
+                "dev_guide_section1_item3": "OpenFrequency 已安装并运行",
+                "dev_guide_section2_title": "二、创建插件文件夹结构",
+                "dev_guide_section2_content": "设置正确的文件夹结构是插件开发的基础步骤。OpenFrequency 要求插件按特定的目录结构组织，以确保正确的发现、加载和资源管理。本节将指导您创建插件所需的文件夹层次结构，解释每个组件的用途和组织最佳实践。结构良好的插件不仅使开发更容易，而且确保与未来版本的 OpenFrequency 兼容，并使您的插件更易于维护和理解，供可能检查或修改您的代码的其他开发者使用。插件文件夹结构充当 OpenFrequency 系统如何加载和执行您的插件的蓝图。理解此结构至关重要，因为不正确的文件夹组织会导致插件发现失败、资源加载错误和其他可能导致难以调试的运行时问题。我们将涵盖标准目录布局、命名约定、文件组织策略以及设置插件文件夹时应避免的常见陷阱。从一开始遵循这些指南将在开发过程中为您节省大量时间并避免挫折。",
+                "dev_guide_section2_subsection1_title": "标准目录布局",
+                "dev_guide_section2_subsection1_content": "OpenFrequency 插件必须位于 OpenFrequency 安装文件夹内的 'plugins/community' 子目录中。这是一个不可协商的要求——插件发现系统仅扫描此特定目录中的社区插件。在此目录内，每个插件都有自己的子目录，以插件的唯一标识符命名。例如，如果您的插件 ID 为 'my_weather_plugin'，您的完整路径将为 'OpenFrequency/plugins/community/my_weather_plugin/'。这种分离确保插件不会相互干扰，并允许插件管理器独立加载、卸载和管理插件。在插件目录内，您将根据插件的功能创建多个文件和子目录。最重要的文件是 'manifest.json' 和您的 Python 入口点文件（通常命名为 'plugin.py'），所有插件都需要这些文件。其他文件和目录是可选的，取决于您的插件功能。例如，如果您的插件包含音频或视频等媒体文件，则应创建 'media' 子目录来组织这些资产。如果您的插件提供客舱脚本，则应创建 'cabin' 子目录，并在其中包含 'scripts.json' 文件。这种分层组织使您的插件保持整洁，并使用户能够轻松理解您的插件包含的内容。命名目录和文件时，请坚持使用小写字母、数字和下划线。避免在文件和目录名称中使用空格和特殊字符，因为这些可能会导致不同操作系统上的问题。文件夹结构不仅关乎组织——它关乎使您的插件可移植并与不同系统兼容。结构良好的插件可以轻松压缩、共享并由其他用户安装而不会出现问题。标准布局还使插件管理器能够在安装期间验证插件的结构，并在插件加载之前识别潜在问题。",
+                "dev_guide_section2_subsection2_title": "必需文件",
+                "dev_guide_section2_subsection2_content": "每个 OpenFrequency 插件必须至少包含两个文件：'manifest.json' 和一个 Python 入口点文件。manifest.json 文件是最关键的文件——它是插件的身份证和配置文档。它必须放在插件目录的根目录中，而不是任何子目录中。manifest.json 文件包含有关您插件的基本元数据，包括其唯一标识符、显示名称、版本号、作者信息、描述以及钩子和功能的配置。插件管理器首先在发现插件时读取此文件，清单中的任何错误或缺失必需字段都会阻止您的插件被加载。我们将在下一节详细介绍 manifest.json 结构，但目前，请理解此文件是不可协商的，必须正确格式化为有效的 JSON。第二个必需文件是您的 Python 入口点文件，按惯例命名为 'plugin.py'，但如果在 manifest.json 'entry' 字段中正确指定，则可以命名为任何名称。此文件包含插件的主类，该类必须继承自 OpenFrequencyPlugin 基类。此类定义插件通过响应 OpenFrequency 系统中各种事件的钩子方法的行为。与清单不同，清单在插件发现期间被读取，入口点文件仅在插件实际启用时加载，这意味着此文件中的语法错误不会阻止您的插件被发现，但会导致插件在启用时无法加载。这种分离允许插件管理器即使插件代码有错误也能显示插件信息，从而使调试更容易。两个必需文件都应采用 UTF-8 编码以支持字符串和注释中的国际字符。避免在文件名中使用字母数字字符、下划线和连字符以外的特殊字符。将这些文件与您创建的任何子目录一起放在插件目录的根目录中。",
+                "dev_guide_section2_desc": "在 OpenFrequency 安装目录下创建插件文件夹：",
+                "dev_guide_section3_title": "三、编写 manifest.json",
+                "dev_guide_section3_content": "manifest.json 文件是您插件的核心——它是告诉 OpenFrequency 有关您插件所需的一切信息的配置文档。此文件必须是放置在插件目录根目录中的有效 JSON 文档。清单服务于多个关键目的：它向系统标识您的插件，声明您的插件使用哪些钩子，指定您的插件提供的任何资源或功能，并定义版本兼容性要求。正确设置 manifest.json 至关重要，因为此文件中的任何错误都会阻止您的插件被插件管理器发现或加载。本节提供了 manifest.json 中每个字段的全面指南，解释了它们的用途，提供了示例，并概述了构建插件配置的最佳实践。我们将涵盖必需字段、可选字段以及允许您创建复杂、功能丰富的插件的高级配置选项。我们将涵盖必需字段、可选字段和允许您创建复杂、功能丰富的插件的高级配置选项。插件管理器在插件发现期间验证清单遵循的严格架构，因此了解每个字段的预期数据类型、格式和约束非常重要。注意命名约定——字段名称区分大小写，必须完全按照指定匹配。清单支持 JSON5 格式的注释，但为了最大兼容性，我们建议使用不带注释的标准 JSON。编辑 manifest.json 时，请使用 JSON 验证器或 linter 确保文件语法正确，然后再测试您的插件。",
+                "dev_guide_section3_subsection1_title": "必需字段",
+                "dev_guide_section3_subsection1_content": "manifest.json 文件包含几个必需字段，必须存在才能使您的插件被视为有效。'id' 字段是最基础的——这是您插件的唯一标识符，采用 snake_case 格式（仅小写字母、数字和下划线）。此 ID 必须在所有已安装的插件中唯一，因此请选择具有描述性但不太可能与其他插件冲突的名称。例如，'my_weather_plugin' 比 'weather' 更好，因为它更具体且不太可能冲突。'name' 字段是用户将在插件管理器界面中看到的人类可读显示名称。这可以包括空格、大写字母和特殊字符，并且应具有描述性和专业性。'version' 字段遵循语义版本控制（semver）格式，如 '1.0.0'，对于跟踪更新和兼容性至关重要。'author' 字段将您标识为插件创建者，'description' 字段提供有关您的插件功能的简要摘要。所有插件都需要这些字段，它们都是字符串。'entry' 字段指定包含插件主类的 Python 文件，相对于插件目录。按照惯例，这是 'plugin.py'，但如果您更喜欢，可以命名为其他名称，只要相应地更新此字段即可。'hooks' 字段是您的插件将使用的钩子名称数组。这告诉 OpenFrequency 您的插件想要接收通知的事件。例如，如果您的插件需要响应 ATC 消息，请在此数组中包含 'on_atc_response'。只有在此处声明的钩子才会在您的插件实例上调用，因此请确保包含您在 Python 代码中实现的所有钩子。",
+                "dev_guide_section3_subsection2_title": "可选字段和功能",
+                "dev_guide_section3_subsection2_content": "除了必需字段外，manifest.json 还支持几个启用高级插件功能的可选字段。'min_app_version' 字段允许您指定插件正常运行所需的 OpenFrequency 最低版本。如果您的插件使用早期版本中不可用的较新 API 功能，这特别有用。插件管理器将在安装期间检查此字段，如果用户的 OpenFrequency 版本太旧，则会警告用户，或者如果缺少关键功能，则完全阻止安装。'settings_schema' 字段允许您为用户可以通过 OpenFrequency 设置界面配置的插件特定设置定义 JSON-Schema。这使您的插件可以具有用户可配置的选项，而无需创建自己的 UI。模式定义了可用的设置、它们的类型、默认值和验证规则。'cabin_scripts' 字段是最强大的可选功能之一——它允许您的插件提供遵循内置客舱脚本相同格式的客舱公告脚本 data/cabin/scripts.json。此字段是一个字典，其中键是航司代码（如 'CCA'、'UAL'、'ANA'），值是包含脚本阶段（如 'welcome'、'door_close'、'safety_demo' 等）的对象。每个阶段可以是简单的字符串（用于 TTS）或包含 'text' 和可选 'video' 字段的对象。这允许插件添加与 OpenFrequency 客舱媒体系统无缝集成的航司特定客舱公告。'api_permissions' 字段声明您的插件需要访问的 API 功能，例如网络访问或文件系统操作。这用于安全验证，以确保插件不请求危险的权限。",
+                "dev_guide_section3_desc": "manifest.json 是插件的配置文件，定义插件的基本信息和功能：",
+                "dev_guide_section3_note_title": "重要提示：",
+                "dev_guide_section3_note1": "id 必须是唯一的 snake_case 格式",
+                "dev_guide_section3_note2": "cabin_scripts 严格遵循 data/cabin/scripts.json 格式",
+                "dev_guide_section3_note3": "脚本阶段可以是字符串或对象（含 text/video）",
+                "dev_guide_section3_note4": "min_app_version 可指定最低兼容版本",
+                "dev_guide_section4_title": "四、编写 plugin.py",
+                "dev_guide_section4_content": "plugin.py 文件是您插件实际逻辑所在的位置。此 Python 文件包含插件的主类，该类必须继承自 core.plugin_api 模块提供的 OpenFrequencyPlugin 基类。此基类提供了允许您的插件与 OpenFrequency 的事件系统、配置管理、日志记录和其他核心服务交互的框架。理解如何正确构建和实现插件类对于创建稳定、可维护且与 OpenFrequency 无缝集成的插件至关重要。本节涵盖插件类结构、钩子方法、API 方法、配置管理、错误处理以及编写干净、高效插件代码的最佳实践。我们将提供每个钩子方法的详细解释、调用时间、接收的参数以及应返回的内容。我们还将涵盖插件可用的各种 API 方法，用于日志记录、发出事件、订阅内部事件、触发 TTS 播放、发送通知等。插件开发中的正确错误处理至关重要——您的插件绝不应导致整个 OpenFrequency 应用程序崩溃，因此我们将涵盖异常处理策略和防御性编程技术。我们还将讨论配置管理，包括如何读取和写入跨会话持久化的插件特定设置。plugin.py 文件应组织良好，具有清晰的方法名称、全面的文档字符串和逻辑的代码结构。遵循 Python 最佳实践（PEP 8 风格指南）将使您的代码更具可读性和可维护性，无论是对您自己还是对可能检查您的插件的其他开发者。",
+                "dev_guide_section4_subsection1_title": "插件类结构",
+                "dev_guide_section4_subsection1_content": "您的插件必须定义一个名为 'Plugin' 的类，该类继承自 OpenFrequencyPlugin。这是一个严格的要求——插件管理器专门查找具有此名称的类。该类可以在任何 Python 文件中定义，但文件必须在 manifest.json 'entry' 字段中指定。OpenFrequencyPlugin 基类提供几个您的插件可以使用的受保护属性和方法。'self.config' 属性是一个包含插件配置的字典，在会话之间持久化。您可以使用 'self.config.get('key', default_value)' 读取配置值，并使用 'self.save_config()' 保存更改。'self.log()' 方法允许您编写日志消息，这些消息将显示在 OpenFrequency 的日志输出中，并带有您的插件 ID 作为前缀，从而可以轻松识别哪个插件生成了每条日志消息。'self.emit()' 方法允许您向 Web 界面发送 socket.io 事件，这对于更新 UI 元素或向用户发送通知很有用。'self.subscribe()' 方法允许您通过 EventBus 订阅内部 OpenFrequency 事件，使您的插件能够响应标准钩子之外的系统范围事件。您的插件类应实现钩子方法以响应特定事件。当发生相应事件时，插件管理器会调用这些方法。例如，实现 'on_atc_response(text, action)' 允许您的插件在 ATC 消息显示给用户之前处理它们。钩子方法可以选择返回值——例如，on_atc_response 可以返回修改后的字符串以更改 ATC 消息，或返回 None 以保持其不变。'on_load()' 钩子在启用插件时调用，'on_unload()' 在禁用时调用。使用这些钩子分别进行初始化和清理任务。",
+                "dev_guide_section4_subsection2_title": "实现钩子方法",
+                "dev_guide_section4_subsection2_content": "钩子方法是您的插件与 OpenFrequency 交互的主要方式。每个钩子对应于特定事件或生命周期阶段。当您的插件首次加载或启用时，会调用 'on_load()' 钩子。这是您应该执行初始化任务的地方，例如读取配置、订阅事件、设置计时器或初始化内部状态。当您的插件被禁用或卸载时，会调用 'on_unload()' 钩子——使用此钩子进行清理，例如取消计时器、取消订阅事件或保存状态。每次生成 ATC 响应时都会调用 'on_atc_response(text, action)' 钩子。'text' 参数包含 ATC 消息，action 指示操作类型（如 'cleared'、'contact' 等）。您可以返回修改后的字符串以更改消息，或返回 None 以保持其不变。'on_telemetry(data)' 钩子每秒大约接收 10 次实时遥测数据。'data' 参数是一个包含飞机状态信息的字典，如高度、速度、位置等。使用此钩子监控飞机状态或根据特定条件触发操作。当 COM1 频率更改时，会调用 'on_frequency_change(freq)' 钩子。'on_radio_transmit(freq, text)' 和 'on_radio_receive(freq, text)' 钩子在您在任何频率上发送或接收无线电消息时调用。'on_tts_request(text)' 钩子在文本到语音合成之前调用，允许您在语音之前修改文本。全局配置更改时会调用 'on_config_change(config)' 钩子。飞行阶段更改时会调用 'on_flight_phase_change(phase)' 钩子（如 'ground'、'takeoff'、'cruise' 等）。'on_cabin_event(event_type, data)' 钩子用于客舱相关事件。'on_emergency(level, info)' 钩子用于紧急情况。仅实现您的插件实际使用的钩子——未使用的钩子不需要定义。",
+                "dev_guide_section4_desc": "插件的主入口文件，定义插件的行为：",
+                "dev_guide_section5_title": "五、完整钩子参考",
+                "dev_guide_section5_content": "OpenFrequency 提供了一套全面的钩子，允许您的插件对应用程序生命周期中的各种事件做出响应。本节作为所有可用钩子的完整参考，包括它们的参数、调用时间、应返回的内容和用法示例。钩子是插件与 OpenFrequency 集成的主要机制——它们允许您的插件接收重要事件的通知，并可选择影响应用程序的行为。理解每个钩子的用途、时机和返回值语义对于编写有效的插件至关重要。某些钩子在特定的生命周期阶段被调用（如插件加载/卸载），某些钩子响应用户操作（如频率更改），而其他钩子被定期调用（如遥测更新）。某些钩子允许您返回修改应用程序行为的值（如修改 ATC 文本），而其他钩子纯粹用于通知（如记录遥测数据）。此参考按钩子类别组织：生命周期钩子、模拟钩子、通信钩子、遥测钩子和客舱钩子。对于每个钩子，我们提供方法签名、何时调用的描述、它接收的参数、它可以返回的内容（如果适用）和常见用例。我们还包括有关性能考虑、线程上下文和每个钩子最佳实践的重要说明。此参考应作为实现插件时的首选指南——每当您需要知道哪个钩子用于特定任务或如何正确实现您已经使用的钩子时，请查阅它。",
+                "dev_guide_section5_subsection1_title": "生命周期钩子",
+                "dev_guide_section5_subsection1_content": "生命周期钩子在插件生命周期的特定点被调用。'on_load()' 钩子在启用插件时或如果插件已启用则在 OpenFrequency 启动时被调用。这是您初始化插件状态、读取配置、订阅事件、设置计时器或执行任何其他一次性初始化任务的机会。此钩子不接收参数且不返回任何内容。'on_unload()' 钩子在禁用插件或 OpenFrequency 关闭时被调用。使用此钩子进行清理任务，例如取消计时器、取消订阅事件、保存状态或释放资源。此钩子也不接收参数且不返回任何内容。'on_app_start()' 钩子在 OpenFrequency 完全初始化之后但在连接到模拟器之前被调用。这对于需要执行依赖于 OpenFrequency 完全准备就绪但在模拟开始之前的初始化的插件很有用。'on_app_shutdown()' 钩子在 OpenFrequency 开始其关闭序列时被调用，使插件能够在应用程序终止之前执行优雅的清理。这些生命周期钩子保证按以下顺序调用：on_load、on_app_start、（正常运行）、on_app_shutdown、on_unload。这种可预测的顺序允许您可靠地构建插件的初始化和清理逻辑。",
+                "dev_guide_section5_subsection2_title": "模拟钩子",
+                "dev_guide_section5_subsection2_content": "模拟钩子与飞行模拟器的连接和状态有关。'on_sim_connected(sim_type)' 钩子在 OpenFrequency 成功连接到模拟器时被调用。sim_type 参数指示模拟器类型（如 'msfs'、'xplane'、'fsx' 等）。这对于需要执行特定于模拟器的初始化或根据所使用的模拟器调整其行为的插件很有用。'on_sim_disconnected()' 钩子在由于模拟器关闭、网络问题或用户操作而失去与模拟器的连接时被调用。插件应该优雅地处理断开连接，通过禁用依赖于模拟器的功能并可能通知用户。这些钩子对于稳健的插件行为很重要——您的插件应该处理没有连接模拟器或在操作期间失去连接的情况。考虑使用这些钩子来启用/禁用依赖于模拟器数据的功能，并向用户提供有关连接状态的反馈。",
+                "dev_guide_section5_subsection3_title": "通信钩子",
+                "dev_guide_section5_subsection3_content": "通信钩子与无线电通信和 ATC 交互有关。'on_atc_response(text, action)' 钩子是最强大的钩子之一——每次 OpenFrequency 生成 ATC 响应时都会调用它。text 参数包含 ATC 消息，action 指示操作类型（如 'cleared'、'contact'、'handoff' 等）。您可以返回修改后的字符串以在 ATC 消息显示给用户之前更改它，或返回 None 以保持其不变。这对于想要以不同方式格式化 ATC 消息、翻译它们、添加额外信息或过滤某些类型消息的插件很有用。'on_pilot_input(text)' 钩子在用户输入将发送到 AI 进行处理的文本时被调用。您可以返回修改后的文本以更改 AI 接收的内容，或返回 None 以保持其不变。这对于想要预处理用户输入、添加上下文或实现自定义输入处理的插件很有用。'on_frequency_change(freq)' 钩子在 COM1 频率更改时被调用。freq 参数是作为浮点数的新频率。这对于需要跟踪频率更改或在飞行员调谐到新频率时执行操作的插件很有用。'on_radio_transmit(freq, text)' 和 'on_radio_receive(freq, text)' 钩子在您在任何频率上发送或接收无线电消息时被调用。这些钩子对于记录通信、实现自定义静噪逻辑或添加无线电效果很有用。",
+
+                "dev_guide_section6_title": "六、插件 API 方法参考",
+                "dev_guide_section6_content": "OpenFrequencyPlugin 基类提供了一组丰富的 API 方法，您的插件可以使用这些方法与 OpenFrequency 系统交互。这些方法允许您的插件记录消息、向 Web 界面发出事件、订阅内部事件、触发 TTS 播放、发送通知、注入合成 ATC 消息、计划任务、访问共享上下文和管理配置。理解这些 API 方法对于创建与 OpenFrequency 功能深度集成的插件至关重要。本节作为所有可用 API 方法的全面参考，包括它们的参数、返回值、用法示例和最佳实践。每种方法都为特定目的而设计——为正确的任务使用正确的方法将使您的插件更高效且更易于维护。我们将涵盖日志记录方法、事件方法、TTS 方法、通知方法、ATC 注入方法、计划方法、上下文访问方法和配置管理方法。对于每种方法，我们提供方法签名、对其功能的描述、它接受的参数、它返回的内容（如果有）、常见用例、性能考虑以及有关线程和同步的重要说明。每当您需要从插件与 OpenFrequency 交互时，都应查阅此参考——正确使用这些方法将确保您的插件稳定、高性能且与系统良好集成。",
+                "dev_guide_section6_subsection1_title": "日志记录和调试",
+                "dev_guide_section6_subsection1_content": "'self.log(msg)' 方法是您从插件记录消息的主要工具。此方法接受字符串消息，并将其写入 OpenFrequency 的日志输出中，并带有您的插件 ID 作为前缀，从而可以轻松识别哪个插件生成了每条日志消息。这对于调试和故障排除非常宝贵——当用户报告问题时，他们可以提供日志输出，您将能够准确看到您的插件在做什么。日志方法是线程安全的，可以从插件内的任何上下文调用。使用它来记录重要事件、状态更改、错误和调试信息。但是，请注意不要记录过多的冗长信息，因为这会弄乱日志并使其更难找到相关信息。考虑在插件配置中添加调试标志，控制产生多少日志输出。日志消息出现在与 OpenFrequency 自身日志相同的日志输出中，通常在运行 OpenFrequency 的控制台中或如果配置则在日志文件中。记录错误或警告时，在消息前加上 'ERROR:' 或 'WARNING:' 以使它们在日志输出中突出显示。日志方法不返回值。对于更复杂的日志记录需求，您可以考虑使用 Python 内置的 logging 模块，但请注意，这将创建与 OpenFrequency 日志分开的日志输出。",
+                "dev_guide_section6_subsection2_title": "事件通信",
+                "dev_guide_section6_subsection2_content": "'self.emit(event, data)' 方法允许您的插件向 Web 界面发送 socket.io 事件。这对于更新 UI 元素、向用户发送实时通知或与 Web 界面中的自定义 JavaScript 通信很有用。event 参数是标识事件类型的字符串，data 是包含事件负载的任何可 JSON 序列化的对象。例如，您可以发出像 'my_plugin_update' 这样的自定义事件，其中数据包含插件操作的当前状态。在 Web 界面端，您需要 JavaScript 代码来监听此事件并适当地处理它。emit 方法对于需要在 UI 中显示实时信息或创建自定义仪表板小部件的插件特别有用。'self.subscribe(event, callback)' 方法允许您的插件通过 EventBus 订阅内部 OpenFrequency 事件。这使您的插件能够响应标准钩子未暴露的系统范围事件。event 参数是要订阅的事件的字符串标识符，callback 是事件发生时将被调用的函数。这对于需要监控内部 OpenFrequency 状态或响应标准钩子系统中未暴露的事件的插件很有用。订阅事件时，请务必在 on_unload 钩子中取消订阅以防止内存泄漏。subscribe 方法不返回任何内容。",
+
+                "dev_guide_section7_title": "七、测试和调试您的插件",
+                "dev_guide_section7_content": "测试是插件开发的关键阶段，可确保您的插件正常工作、不会导致错误并提供良好的用户体验。本节涵盖全面的测试策略、调试技术和验证插件功能的最佳实践。测试应该是整个开发过程中的持续过程，而不仅仅是最后要做的事情。我们将涵盖单元测试插件代码、与 OpenFrequency 的集成测试、手动测试程序、自动化测试策略和调试技术。我们还将讨论如何解释错误消息、有效使用日志记录以及故障排除常见问题。适当的测试将帮助您尽早发现错误，确保您的插件稳定可靠，并在向用户发布插件时给您信心。经过良好测试的插件更有可能被社区接受，并且不太可能产生支持请求。我们还将涵盖在不同平台和配置上进行测试，以确保您的插件适用于所有用户，无论他们的设置如何。",
+                "dev_guide_section7_subsection1_title": "手动测试工作流程",
+                "dev_guide_section7_subsection1_content": "手动测试工作流程从将插件文件夹放在正确的位置开始：OpenFrequency/plugins/community/your_plugin_id/。确保文件夹结构正确，manifest.json 和 Python 入口点文件位于根目录。打开 OpenFrequency 并导航到插件管理器。单击「重载所有插件」按钮以触发插件发现。插件管理器将扫描 plugins/community 目录，验证清单并尝试加载所有插件。检查插件列表中的插件——您应该看到它列出了名称、版本和作者信息。绿色徽章表示插件加载成功，而红色徽章表示加载期间发生错误。如果您看到红色徽章，请单击您的插件以查看错误消息——这将告诉您加载期间出了什么问题。常见错误包括 Python 代码中的语法错误、manifest.json 中缺少必需字段，或者如果插件尝试导入不可用的模块则出现导入错误。修复任何错误并再次重新加载插件。一旦插件成功加载，请测试其特定功能。例如，如果您的插件修改 ATC 响应，请触发一些 ATC 交互并验证是否按预期应用了您的修改。如果您的插件使用遥测数据，请驾驶飞机并验证您的插件是否正确响应不同的飞行条件。检查 OpenFrequency 日志以查找来自您插件的任何错误消息或警告。日志将显示带有您插件 ID 前缀的消息，从而可以轻松识别来自您插件的日志条目。",
+                "dev_guide_section7_subsection2_title": "调试技术",
+                "dev_guide_section7_subsection2_content": "有效的调试对于识别和修复插件中的问题至关重要。最基本的调试工具是 self.log() 方法，它允许您向 OpenFrequency 日志输出写入消息。大量使用日志记录来跟踪执行流程通过您的插件——记录调用钩子的时间、它们接收的参数、您的插件做出的决策以及返回的值。调试特定问题时，在相关代码周围添加日志记录以了解正在发生的事情。例如，如果钩子未按预期调用，请在钩子开头添加日志语句以验证它正在被调用。如果值不是您期望的，请记录它以查看其实际值。可以通过在代码中添加 'import pdb; pdb.set_trace()' 来使用 Python 的内置调试器 (pdb)，这将暂停执行并允许您交互式调试。但是，请注意这会暂停 OpenFrequency 的执行，因此请谨慎使用。对于语法错误，Python 的错误消息通常清楚地说明问题位置和性质。对于运行时错误，回溯将显示导致错误的调用堆栈，帮助您理解执行路径。常见问题包括 AttributeError（尝试访问不存在的属性）、TypeError（使用错误类型的对象）和 KeyError（尝试访问不存在的字典键）。当这些情况发生时，检查错误中指示的行并验证您对正在处理的对象的假设。OpenFrequency 日志可能还包含来自插件管理器的有用信息，说明您的插件无法加载的原因。",
+                "dev_guide_section7_item1": "将插件文件夹放入 plugins/community/",
+                "dev_guide_section7_item2": "打开 OpenFrequency 插件管理器",
+                "dev_guide_section7_item3": "点击「重载所有插件」",
+                "dev_guide_section7_item4": "检查插件是否加载成功（绿色徽章）",
+                "dev_guide_section7_item5": "查看日志输出确认功能正常",
+                "dev_guide_section8_title": "八、打包和分发",
+                "dev_guide_section8_content": "一旦您的插件开发完成并经过测试，下一步是将其打包以分发给其他用户。正确的打包可确保其他用户可以轻松安装您的插件而不会出现问题。本节涵盖完整的打包过程，包括创建 ZIP 存档、正确组织文件、命名约定、版本管理和分发渠道。我们提供在 Windows、macOS 和 Linux 上打包的分步说明，以及创建专业质量插件包的最佳实践。包装良好的插件易于安装、清楚地标识其内容和版本，并遵循社区约定，使其可识别且值得信赖。我们还将涵盖如何处理插件更新、如何为不同的分发方法构建您的包，以及如何确保跨不同 OpenFrequency 版本的兼容性。适当的打包是插件开发生命周期的最后一步，对于用户采用和满意度至关重要。",
+                "dev_guide_section8_subsection1_title": "创建 ZIP 存档",
+                "dev_guide_section8_subsection1_content": "OpenFrequency 插件的标准分发格式是包含插件文件和目录的 ZIP 存档。ZIP 存档必须具有特定结构：提取时，它应该创建一个以您的插件 ID 命名的单个目录，其中包含插件目录根目录中的所有插件文件。例如，如果您的插件 ID 是 'my_weather_plugin'，ZIP 应该包含一个顶级目录 'my_weather_plugin/'，其中包含 manifest.json、plugin.py 和其中的所有子目录。不要 ZIP plugins/community 目录本身——只 ZIP 您插件的特定目录。在 Windows 上，您可以通过右键单击插件文件夹并选择「发送到」→「压缩(zipped)文件夹」来创建 ZIP。在 macOS 上，右键单击并选择「压缩」。在 Linux 上，使用命令 'zip -r my_plugin.zip my_plugin/'。'-r' 标志确保递归包含子目录。通过将 ZIP 提取到临时位置并确认结构正确来验证您的 ZIP 结构。manifest.json 和入口点文件必须位于 ZIP 内插件目录的根目录，而不是任何子目录中。不正确的 ZIP 结构是安装失败的常见原因，因此在分发之前始终验证您的存档。",
+                "dev_guide_section8_subsection2_title": "文件组织和命名",
+                "dev_guide_section8_subsection2_content": "打包插件时，考虑存档中文件的组织方式。保持结构简单且合乎逻辑。所有必需文件（manifest.json、plugin.py）应位于根目录。媒体文件应位于 'media/' 子目录中。客舱脚本应位于 'cabin/' 子目录中。插件使用的任何其他 Python 模块应位于根目录或适当命名的子目录中。避免深度嵌套的目录结构，因为这会使安装复杂化并使插件更难理解。为文件和目录使用清晰、描述性的名称。避免在文件名中使用空格和特殊字符——改用下划线或连字符。在插件目录中包含 README.md 文件，为用户提供安装说明、使用信息和支持联系详细信息。README 对于需要配置或具有特定使用说明的复杂插件尤为重要。考虑添加 LICENSE 文件以指定在何种条件下可以使用和分发您的插件。使用清晰的格式命名 ZIP 文件，理想情况下使用 'plugin-id-version.zip' 格式（例如，'my_weather_plugin-1.0.0.zip'）。这使得用户可以一眼识别插件及其版本。",
+                "dev_guide_section8_desc": "打包插件以便分发：",
+                "dev_guide_section8_item1": "右键点击插件文件夹",
+                "dev_guide_section8_item2": "选择「发送到」→「压缩(zipped)文件夹」",
+                "dev_guide_section8_item3": "或使用命令行：",
+                "dev_guide_section8_note": "注意：ZIP文件必须包含 manifest.json 和 plugin.py 在根目录",
+                "dev_guide_section9_title": "九、发布和分享您的插件",
+                "dev_guide_section9_content": "发布您的插件使其可供 OpenFrequency 社区使用，并允许用户发现、安装和从您的工作中受益。本节涵盖完整的发布工作流程，包括选择分发平台、创建发布、编写文档、管理版本更新以及与社区互动。发布良好的插件易于找到、文档清晰且专业呈现。我们将主要在 GitHub 上发布作为主要平台，以及替代分发方法。我们还将讨论如何处理用户反馈、管理问题和错误报告以及随时间维护您的插件。发布不仅关乎使您的插件可用——它还关乎创建一个用户可以信任和依赖的可持续项目。遵循这些指南将帮助您的插件在社区中获得关注，并确立您作为可信插件开发者的地位。",
+                "dev_guide_section9_subsection1_title": "GitHub 发布工作流程",
+                "dev_guide_section9_subsection1_content": "GitHub 是发布 OpenFrequency 插件的推荐平台，因为它被广泛采用、具有内置的发布管理以及与 OpenFrequency 社区的集成。首先为您的插件创建一个新的 GitHub 存储库。选择一个描述性的存储库名称，理想情况下与您的插件 ID 匹配。使用 README.md 文件初始化存储库，该文件提供有关您插件的基本信息。将您的插件源代码上传到存储库——这应该包括 manifest.json、plugin.py 以及构成插件的所有其他文件。将源代码保留在存储库中允许其他人检查您的代码、贡献改进并验证插件的安全性。设置好存储库后，为您的插件创建 GitHub Release。转到存储库页面，单击「Releases」，然后「Create a new release」。使用您的版本号标记发布（例如，'v1.0.0'），编写发布说明描述此版本中的新内容，并将您的插件 ZIP 文件作为发布资产附加。然后用户可以直接从发布页面下载 ZIP 文件。GitHub 发布提供了一种干净、专业的方式来分发插件版本，并允许用户轻松查看版本之间的变化。确保在 README 和发布说明中包含安装说明，以便用户知道如何安装您的插件。",
+                "dev_guide_section9_subsection2_title": "文档和社区互动",
+                "dev_guide_section9_subsection2_content": "良好的文档对于用户采用和支持至关重要。您的 README.md 应包括：清晰描述您的插件功能、安装说明（如果可能，包含屏幕截图）、配置步骤、使用示例、已知限制或兼容性说明以及支持联系信息。考虑添加 CHANGELOG.md 文件以记录版本历史和发布之间的变化。这有助于用户了解新内容以及是否应该升级。当用户报告问题或提出问题时，请及时且有帮助地回复。使用 GitHub Issues 跟踪错误报告和功能请求。适当标记问题（例如，'bug'、'enhancement'、'question'）以帮助组织它们。修复错误时，在提交消息和发布说明中引用问题编号，以便用户跟踪解决方案。通过论坛、Discord 或其他通信渠道与 OpenFrequency 社区互动。当您的插件准备好测试时分享它——早期反馈可以帮助在完整发布之前识别问题。考虑添加许可证文件以指定他人如何使用和修改您的插件。MIT 许可证是插件的常见选择，因为它是宽松的且被广泛理解。记住发布是一个持续的过程——计划更新、响应用户反馈，并根据实际使用情况不断改进您的插件。",
+                "dev_guide_section9_item1": "在 GitHub 创建仓库",
+                "dev_guide_section9_item2": "上传 ZIP 文件作为 Release",
+                "dev_guide_section9_item3": "编写 README 说明安装方法",
+                "dev_guide_section9_item4": "在社区分享链接",
+                "dev_guide_section10_title": "十、常见问题",
+                "dev_guide_section10_content": "本节解决了插件开发者在开发过程中遇到的常见问题和问题。这些 FAQ 来自插件开发者的真实经验，涵盖了从基本故障排除到高级开发挑战的广泛主题。每个问题都提供了详细的答案，不仅解决了眼前的问题，还解释了潜在概念，以帮助您理解为什么会出现问题以及如何防止将来出现类似问题。如果您在此处没有找到您的问题，请考虑搜索 OpenFrequency 社区论坛或 GitHub 问题，或发布您的问题以获得社区帮助。插件开发社区通常乐于助人并愿意协助新手。请记住，一旦您了解了系统架构，许多问题都有简单的解决方案，因此当您遇到困难时不要犹豫寻求帮助。",
+                "dev_guide_section10_subsection1_title": "插件加载问题",
+                "dev_guide_section10_subsection1_content": "问：我的插件无法加载，插件管理器中显示红色徽章。我该怎么办？答：首先，在插件管理器中单击您的插件以查看具体的错误消息。常见错误包括：Python 代码中的语法错误（检查错误中的行号）、manifest.json 中缺少必需字段（确保 id、name、version、author、entry 和 hooks 都存在）、导入错误（如果插件导入不可用的模块）以及 manifest.json 中的 JSON 解析错误（使用 JSON 验证器检查语法）。检查 OpenFrequency 日志以获取插件管理器 UI 中可能未显示的其他错误详细信息。确保您的插件文件位于正确的位置（plugins/community/your_plugin_id/）并且 manifest.json 位于插件目录的根目录。如果您从源代码运行，请确保已安装所有必需的依赖项。如果错误消息不清楚，请尝试简化您的插件以隔离问题——注释掉复杂的代码，看看最小版本是否加载，然后逐渐添加回功能，直到识别出有问题的代码。",
+                "dev_guide_section10_subsection2_title": "媒体和资源问题",
+                "dev_guide_section10_subsection2_content": "问：插件中定义的媒体文件不播放或不显示。有什么问题？答：检查 manifest.json 中的文件路径是否相对于插件目录，而不是绝对路径。例如，如果文件位于 'my_plugin/media/sound.mp3'，清单中的路径应为 'media/sound.mp3'，而不是 '/full/path/to/media/sound.mp3'。验证文件实际上存在于插件文件夹内的指定位置。检查文件权限——确保文件可被 OpenFrequency 进程读取。对于客舱脚本，确保您使用正确的格式（清单中的 cabin_scripts，遵循 data/cabin/scripts.json 结构）。如果使用仅文本的客舱脚本，确保指定了语音或配置了 TTS 系统。独立测试您的媒体文件以确保它们未损坏。检查 OpenFrequency 日志中是否有与文件加载或媒体播放相关的任何错误。记住媒体文件在启用插件时加载，因此在添加或修改媒体文件后重新加载插件。",
+                "dev_guide_section10_subsection1_q1": "插件加载失败？",
+                "dev_guide_section10_subsection1_a1": "检查 manifest.json 语法和 Python 代码错误",
+                "dev_guide_section10_subsection2_q1": "媒体文件不播放？",
+                "dev_guide_section10_subsection2_a1": "确保路径正确，文件在插件文件夹内",
+                "dev_guide_section10_subsection3_q1": "钩子不触发？",
+                "dev_guide_section10_subsection3_a1": "确保在 manifest.json 的 hooks 数组中声明",
+                "dev_guide_section10_subsection4_q1": "版本兼容性？",
+                "dev_guide_section10_subsection4_a1": "使用 min_app_version 指定最低版本"
             },
             "ja": {
                 "system_config": "システム設定",
                 "test_audio": "🔊 音声テスト",
                 "pilot_profile": "パイロットプロフィール",
                 "callsign": "コールサイン",
+                "callsign_career_locked": "🔒 キャリアモード中 — コールサインはジョブに固定されています",
                 "flight_plan": "フライトプラン",
                 "flight_plan_origin": "出発 ICAO",
                 "flight_plan_destination": "到着 ICAO",
@@ -412,17 +729,6 @@
                 "api_key_hint": "既存のキーは非表示です。変更しない場合は******のままにしてください。",
                 "model_name": "モデル名",
                 "base_url": "ベースURL (ローカル/Ollama)",
-                "ai_routing_title": "AI ルーティング",
-                "light_model_label": "軽量モデル",
-                "reasoning_model_label": "思考モデル",
-                "sync_primary_connection": "APIキー / Base URL をメイン接続と同期",
-                "light_api_key": "軽量モデル API Key",
-                "light_base_url": "軽量モデル Base URL",
-                "light_provider": "軽量モデル Provider",
-                "reasoning_api_key": "思考モデル API Key",
-                "reasoning_base_url": "思考モデル Base URL",
-                "reasoning_provider": "思考モデル Provider",
-                "light_conf_threshold": "軽量モデル信頼度しきい値",
                 "audio_controls": "音声・操作設定",
                 "joystick_ptt": "ジョイスティック PTT",
                 "unbound": "未設定",
@@ -438,6 +744,8 @@
                 "save_settings": "設定を保存",
                 "reload": "リロード",
                 "back_dashboard": "ダッシュボードに戻る",
+                "nav_plugins": "🧩 プラグイン",
+                "nav_settings": "⚙️ 設定",
                 "settings_btn": "⚙️ 設定",
                 "altitude": "高度 (ALT)",
                 "airspeed": "対気速度 (SPD)",
@@ -507,6 +815,10 @@
                 "xplane_port": "X-Plane ポート",
                 "career_btn": "🎖️ キャリア",
                 "clear_track_btn": "🗑️ クリア",
+                "ui_theme": "UIテーマ",
+                "theme_classic": "🖥️ クラシック",
+                "theme_apple": "🍎 Apple",
+                "theme_hint": "Apple / リキッドグラステーマ。クラシックがデフォルトです。",
                 "cabin_status_btn": "👩‍✈️ クルーステータス",
                 "cabin_chat_btn": "💬 コックピットインターコム",
                 "radio_atc": "📡 ATC",
@@ -521,7 +833,176 @@
                 "btn_boarding": "🛫 搭乗",
                 "btn_deboarding": "🛬 降機",
                 "btn_stop_sound": "🔇 音停止",
-                "cabin_media_title": "客室メディア"
+                "cabin_media_title": "客室メディア",
+                "voice_engine": "🔊 音声エンジン（TTS / STT）",
+                "tts_backend": "TTS バックエンド",
+                "tts_edge_option": "Edge-TTS（Microsoft クラウド、推奨）",
+                "tts_local_option": "ローカル TTS（オフライン・ストリーミング）",
+                "local_engine": "ローカルエンジン",
+                "model_file_path": "モデルファイルパス",
+                "voices_file": "音声ファイル（Kokoro専用）",
+                "download_tts": "⬇ TTS モデルをダウンロード",
+                "download_stt": "⬇ STT モデルをダウンロード",
+                "local_tts_hint": "ローカルTTSは文章ごとにストリーミング再生します。Kokoroは英語音声のみ対応。中国語/日本語はEdge-TTSを推奨。",
+                "model_fast_label": "⚡ 高速モデル",
+                "model_fast_desc": "— リードバック・簡単な確認",
+                "model_thinking_label": "🧠 思考モデル",
+                "model_thinking_desc": "— クリアランス・緊急・ルーティング",
+                "model_dual_hint": "どちらかのフィールドを空にすると同じモデルを両方に使用します。",
+                "auto_busy_label": "🤖 自動混雑レベル",
+                "auto_busy_desc": "— 周辺の実機数から自動推定",
+                "busy_level_hint": "自動混雑オフまたはトラフィックデータなしの場合に使用。",
+                "cpdlc_logon_code": "ログオンコード",
+                "cpdlc_station": "ステーション (例: EHAM)",
+                "cpdlc_connect": "接続",
+                "cpdlc_disconnect": "切断",
+                "cpdlc_offline": "オフライン",
+                "cpdlc_no_messages": "CPDLCメッセージなし。Hoppie ACARS経由で接続してください。",
+                "cpdlc_message": "フリーテキスト TELEX / CPDLCメッセージ",
+                "cpdlc_send": "送信",
+                "cpdlc_powered_by": "提供:",
+                "cpdlc_register_hint": "hoppie.nlでログオンコードを登録してください。",
+                "allow_non_english_label": "🌐 中国空域外での非英語交信を許可",
+                "allow_non_english_badge": "非現実的",
+                "allow_non_english_hint": "オフ時、中国/日本空域外ではICAO標準の英語のみ使用。オンにするとどこでも設定言語を使用。",
+                "language": "言語",
+                "cabin_media_package": "客室メディアパッケージ",
+                "cabin_media_auto": "自動マッチング（コールサインに基づく）",
+                "cabin_media_hint": "フライトの客室メディアパッケージを選択。空欄の場合はコールサインから自動マッチング。",
+                "privacy_updates": "☁️ プライバシーと更新",
+                "telemetry_toggle": "クラッシュレポートを自動送信してOpenFrequencyの改善を支援",
+                "telemetry_sim_info": "クラッシュレポートにシミュレーター/AIプロバイダー情報を含める",
+                "telemetry_hint": "APIキー・パスワード・個人情報は送信されません。クラッシュログは常にローカル保存されます。",
+                "report_feedback_btn": "📤 レポート / フィードバック",
+                "upload_crash_log": "📤 最近のクラッシュログをアップロード",
+                "check_updates": "🔄 更新を確認",
+                "fb_type_label": "種類",
+                "fb_type_bug": "🐛 バグ報告",
+                "fb_type_suggestion": "💡 機能提案",
+                "fb_type_crash": "💥 クラッシュ追跡",
+                "fb_type_other": "📝 その他",
+                "fb_title_label": "タイトル",
+                "fb_title_placeholder": "問題の簡単な説明",
+                "fb_details_label": "詳細",
+                "fb_details_placeholder": "再現手順、期待される動作と実際の動作など",
+                "fb_crash_id_label": "クラッシュID（自動入力）",
+                "fb_crash_id_placeholder": "クラッシュに関係ない場合は空白",
+                "fb_contact_label": "連絡先（任意）",
+                "fb_contact_placeholder": "フォローアップ用のメールまたはGitHubハンドル",
+                "fb_attach_log": "ログを添付",
+                "fb_attach_config": "設定サマリーを添付",
+                "fb_send": "レポートを送信",
+                "plugin_manager_title": "🧩 プラグインマネージャー",
+                "plugin_manager_subtitle": "コミュニティプラグインと公式DLC",
+                "tab_installed_plugins": "インストール済みプラグイン",
+                "tab_official_dlc": "公式DLC・アドオン",
+                "tab_install_zip": "ZIPからインストール",
+                "tab_dev_guide": "開発者ガイド",
+                "reload_all_plugins": "🔄 全プラグインをリロード",
+                "msfs_community_hint": "DLCをMSFSにインストールするために必要です。設定に保存されます。",
+                "install_zip_title": "ZIPからコミュニティプラグインをインストール",
+                "install_zip_hint": "プラグインZIPのルートにmanifest.jsonとPythonエントリーファイルが必要です。",
+                "install_plugin_btn": "📦 プラグインをインストール",
+                "dev_guide_title": "📝 OpenFrequency プラグイン開発完全ガイド",
+                "dev_guide_section1_title": "一、前提条件と環境設定",
+                "dev_guide_section1_content": "OpenFrequencyのプラグイン開発を開始する前に、開発環境が正しく構成されていることを確認することが不可欠です。このセクションでは、成功したプラグインを作成、テスト、デプロイするために必要なすべての前提条件と推奨ツールについて説明します。OpenFrequencyはPythonで構築されており、正しく機能するために特定の依存関係が必要です。プラグインシステムはすべてのスキルレベルの開発者が利用できるように設計されていますが、適切なツールと環境設定があれば、開発プロセスが大幅に簡素化され、潜在的な問題が減少します。以下の要件はプラグイン開発に必須であり、開発エクスペリエンスを向上させるための追加の推奨事項も提供されます。次のセクションに進む前に、各要件を慎重に読み、環境がすべての仕様を満たしていることを確認してください。前提条件の設定をスキップすると、後で環境構成の誤りから問題が発生した際、イライラするようなデバッグセッションになることがよくあります。開発環境を正しく設定する時間を取ってください—これはプラグイン開発の旅において大きな報酬をもたらします。",
+                "dev_guide_section1_subsection1_title": "Python 3.10以降",
+                "dev_guide_section1_subsection1_content": "OpenFrequencyはコアランタイム環境としてPython 3.10以降を必要とします。このバージョン要件は任意ではありません。これは、OpenFrequencyがコードベース全体で活用しているPython 3.10で導入された特定の言語機能とパフォーマンス向上に基づいています。Pythonをインストールする際、python.orgの公式Pythonインストーラーを使用することを推奨します。これにより、すべての必要なコンポーネントを含む最新の安定版を確実に入手できます。インストール後、ターミナルまたはコマンドプロンプトで'python --version'を実行してPythonのバージョンを確認してください。出力には3.10.x以降のバージョン番号が表示されるはずです。複数のPythonバージョンがインストールされている場合、pyenv（macOS/Linux上）またはWindowsのPython Launcherなどの仮想環境マネージャーを使用して、OpenFrequency開発に適切なバージョンを使用していることを確認してください。プラグイン開発には仮想環境が強く推奨されます。仮想環境はプロジェクトの依存関係をシステムPythonのインストールから分離し、異なるプロジェクト間の競合を防ぎます。仮想環境を作成するには、プラグイン開発ディレクトリに移動し、'python -m venv venv'を実行してから、'source venv/bin/activate'（macOS/Linux上）または'venv\\Scripts\\activate'（Windows上）でアクティベートします。これにより、システムPythonインストールに影響を与えずに依存関係をインストールできる分離されたPython環境が作成されます。プラグイン開発に関連するPythonコマンドの前に仮想環境をアクティベートすることを忘れないでください。",
+                "dev_guide_section1_subsection2_title": "テキストエディターまたはIDE",
+                "dev_guide_section1_subsection2_content": "優れたテキストエディターまたは統合開発環境（IDE）は、生産的なプラグイン開発に不可欠です。Python構文ハイライトをサポートするテキストエディターを使用できますが、優れたPythonサポート、豊富な拡張機能エコシステム、軽量なフットプリントにより、Visual Studio Code (VS Code)を強く推奨します。VS CodeはIntelliSenseコード補完、リアルタイム構文およびエラーチェック、統合ターミナル、Git統合、開発ワークフローを強化できる拡張機能の広大なマーケットプレイスを提供します。Python開発の場合、Microsoftの公式Python拡張機能をインストールしてください。これにより、コードリンティング、フォーマット、デバッグ、テスト、Jupyter notebookサポートなどの機能が追加されます。他の人気のあるPython IDEには、データベースツール、リモート開発、Web開発サポートなどの高度な機能を提供するPyCharm Professionalがありますが、これはより重いソリューションであり、学習曲線が急です。Sublime TextとAtomはプラグインを通じて良好なPythonサポートを提供する軽量な代替案です。選択したエディターに関係なく、Python構文ハイライトをサポートしていることを確認してください。これにより、コードが読みやすく、デバッグが容易になります。",
+                "dev_guide_section1_subsection3_title": "OpenFrequencyのインストール",
+                "dev_guide_section1_subsection3_content": "プラグインを開発する前に、システムにOpenFrequencyをインストールして実行している必要があります。まだOpenFrequencyをインストールしていない場合は、公式リポジトリまたはリリースページから最新バージョンをダウンロードしてください。OpenFrequencyはWindows、macOS、Linuxのスタンドアロン実行可能ファイルとして、およびソースから実行することを好む開発者向けのPythonパッケージとして利用できます。プラグイン開発の場合、Pythonに精通している場合は、ソースからOpenFrequencyを実行することを推奨します。これにより、デバッグログへのアクセスが容易になり、開発環境でプラグインをテストできます。ソースからインストールするには、リポジトリをクローンし、プロジェクトディレクトリに移動し、仮想環境を作成し、requirements.txtにリストされている依存関係をインストールし、'python app.py'を実行してアプリケーションを起動します。",
+                "dev_guide_section1_item1": "Python 3.10+ 環境",
+                "dev_guide_section1_item2": "テキストエディター（VS Code推奨）",
+                "dev_guide_section1_item3": "OpenFrequencyがインストールされ実行中",
+                "dev_guide_section2_title": "二、プラグインフォルダー構造の作成",
+                "dev_guide_section2_content": "正しいフォルダー構造を設定することは、プラグイン開発の基礎的なステップです。OpenFrequencyは、適切な検出、ロード、およびリソース管理を確保するために、プラグインを特定のディレクトリ構造で整理することを期待しています。このセクションでは、プラグインに必要なフォルダー階層を作成する手順を説明し、各コンポーネントの目的と整理のベストプラクティスを説明します。構造が適切なプラグインは、開発を容易にするだけでなく、将来のOpenFrequencyバージョンとの互換性を確保し、コードを検査または変更する可能性のある他の開発者にとってプラグインをより保守しやすく理解しやすくします。プラグインフォルダー構造は、OpenFrequencyシステムがプラグインをロードして実行する方法の青写真として機能します。この構造を理解することが重要です。なぜなら、不適切なフォルダー構成は、プラグインの検出の失敗、リソースのロードエラー、およびデバッグが困難な他のランタイム問題につながる可能性があるからです。",
+                "dev_guide_section2_subsection1_title": "標準ディレクトリレイアウト",
+                "dev_guide_section2_subsection1_content": "OpenFrequencyプラグインは、OpenFrequencyインストールフォルダー内の「plugins/community」サブディレクトリに存在する必要があります。これは譲歩できない要件です—プラグイン検出システムは、コミュニティプラグイン用にこの特定のディレクトリのみをスキャンします。このディレクトリ内で、各プラグインはプラグインの一意の識別子で名前が付けられた独自のサブディレクトリを取得します。たとえば、プラグインIDが「my_weather_plugin」の場合、完全なパスは「OpenFrequency/plugins/community/my_weather_plugin/」になります。この分離により、プラグインが相互に干渉しないことが保証され、プラグインマネージャーがプラグインを独立してロード、アンロード、管理できます。プラグインディレクトリ内で、プラグインの機能に応じて複数のファイルとサブディレクトリを作成します。最も重要なファイルは「manifest.json」とPythonエントリーポイントファイル（通常は「plugin.py」と名付けられます）で、すべてのプラグインに必要です。",
+                "dev_guide_section2_subsection2_title": "必須ファイル",
+                "dev_guide_section2_subsection2_content": "各OpenFrequencyプラグインには、少なくとも2つのファイルが含まれている必要があります。「manifest.json」とPythonエントリーポイントファイルです。manifest.jsonファイルは最も重要なファイルです—これはプラグインの身分証明書と設定ドキュメントです。プラグインディレクトリのルートに配置する必要があります。manifest.jsonファイルには、プラグインの一意の識別子、表示名、バージョン番号、作成者情報、説明、およびフックと機能の設定など、プラグインに関する基本的なメタデータが含まれています。プラグインマネージャーは、プラグインを検出するときに最初にこのファイルを読み取り、マニフェストのエラーや必須フィールドの欠落はプラグインのロードを妨げます。",
+                "dev_guide_section2_desc": "OpenFrequencyインストールディレクトリにプラグインフォルダーを作成：",
+                "dev_guide_section3_title": "三、manifest.jsonの作成",
+                "dev_guide_section3_content": "manifest.jsonファイルはプラグインの核心です—これはOpenFrequencyにプラグインに関する必要なすべてを伝える設定ドキュメントです。このファイルは、プラグインディレクトリのルートに配置された有効なJSONドキュメントである必要があります。マニフェストは複数の重要な目的を果たします。システムにプラグインを識別させ、プラグインが使用するフックを宣言し、プラグインが提供するリソースまたは機能を指定し、バージョンの互換性要件を定義します。manifest.jsonを正しく設定することが不可欠です。このファイルのエラーは、プラグインがプラグインマネージャーによって検出またはロードされるのを防ぐためです。このセクションでは、manifest.jsonの各フィールドの包括的なガイドを提供し、その目的、例、プラグイン設定を構築するためのベストプラクティスを概説します。",
+                "dev_guide_section3_subsection1_title": "必須フィールド",
+                "dev_guide_section3_subsection1_content": "manifest.jsonファイルには、プラグインが有効と見なされるために存在する必要があるいくつかの必須フィールドが含まれています。「id」フィールドは最も基本的なものです—これはsnake_case形式（小文字、数字、アンダースコアのみ）のプラグインの一意の識別子です。このIDは、インストールされているすべてのプラグインで一意である必要があります。「name」フィールドは、ユーザーがプラグインマネージャーインターフェイスで目にする人間が読める表示名です。「version」フィールドは「1.0.0」のようなセマンティックバージョニング（semver）形式に従います。「author」フィールドはプラグイン作成者を識別し、「description」フィールドはプラグイン機能の簡単な要約を提供します。",
+                "dev_guide_section3_subsection2_title": "オプションフィールドと機能",
+                "dev_guide_section3_subsection2_content": "必須フィールドに加えて、manifest.jsonは高度なプラグイン機能を可能にするいくつかのオプションフィールドをサポートしています。「min_app_version」フィールドを使用すると、プラグインが正しく機能するために必要なOpenFrequencyの最小バージョンを指定できます。「settings_schema」フィールドを使用すると、ユーザーがOpenFrequency設定インターフェイスを通じて構成できるプラグイン固有の設定のJSON-Schemaを定義できます。「cabin_scripts」フィールドは最も強力なオプション機能の1つです—プラグインがdata/cabin/scripts.json形式に従う客室アナウンススクリプトを提供できるようにします。",
+                "dev_guide_section3_desc": "manifest.jsonはプラグインの設定ファイルで、基本情報と機能を定義します：",
+                "dev_guide_section3_note_title": "重要な注意点：",
+                "dev_guide_section3_note1": "idは一意のsnake_case形式である必要があります",
+                "dev_guide_section3_note2": "cabin_scriptsはdata/cabin/scripts.json形式に厳密に従います",
+                "dev_guide_section3_note3": "スクリプトフェーズは文字列またはオブジェクト（text/videoを含む）",
+                "dev_guide_section3_note4": "min_app_versionで最小互換バージョンを指定できます",
+                "dev_guide_section4_title": "四、plugin.pyの作成",
+                "dev_guide_section4_content": "plugin.pyファイルはプラグインの実際のロジックが存在する場所です。このPythonファイルには、core.plugin_apiモジュールから提供されるOpenFrequencyPlugin基本クラスを継承するプラグインのメインクラスが含まれています。この基本クラスは、プラグインがOpenFrequencyのイベントシステム、構成管理、ロギング、およびその他のコアサービスと対話できるようにするフレームワークを提供します。プラグインクラスを正しく構築して実装することを理解することは、安定した保守可能でOpenFrequencyとシームレスに統合されるプラグインを作成するために不可欠です。このセクションでは、プラグインクラス構造、フックメソッド、APIメソッド、構成管理、エラー処理、およびクリーンで効率的なプラグインコードを記述するためのベストプラクティスについて説明します。",
+                "dev_guide_section4_subsection1_title": "プラグインクラス構造",
+                "dev_guide_section4_subsection1_content": "プラグインは「Plugin」という名前のクラスを定義する必要があります。これは厳密な要件です—プラグインマネージャーはこの名前のクラスを具体的に探します。クラスは任意のPythonファイルで定義できますが、ファイルはmanifest.json「entry」フィールドで指定する必要があります。OpenFrequencyPlugin基本クラスは、プラグインが使用できるいくつかの保護された属性とメソッドを提供します。「self.config」属性は、セッション間で持続するプラグイン構成を含む辞書です。「self.log()」メソッドを使用すると、プラグインIDをプレフィックスとして付けてログメッセージをOpenFrequencyのログ出力に書き込むことができます。「self.emit()」メソッドを使用すると、Webインターフェイスにsocket.ioイベントを送信できます。",
+                "dev_guide_section4_subsection2_title": "フックメソッドの実装",
+                "dev_guide_section4_subsection2_content": "フックメソッドはプラグインがOpenFrequencyと対話する主な方法です。各フックは特定のイベントまたはライフサイクル段階に対応します。「on_load()」フックはプラグインが有効になっているとき、またはプラグインがすでに有効になっている場合はOpenFrequencyが起動するときに呼び出されます。これはプラグインの状態を初期化し、構成を読み取り、イベントをサブスクライブし、タイマーを設定するなどの初期化タスクを実行する場所です。「on_unload()」フックはプラグインが無効になっているとき、またはOpenFrequencyがシャットダウンしているときに呼び出されます。",
+                "dev_guide_section4_desc": "プラグインのエントリーポイントファイルで、動作を定義します：",
+                "dev_guide_section5_title": "五、完全なフックリファレンス",
+                "dev_guide_section5_content": "OpenFrequencyは、プラグインがアプリケーションライフサイクルの様々なイベントに応答できるようにする包括的なフックセットを提供します。このセクションは、利用可能なすべてのフックの完全なリファレンスとして機能し、それらのパラメータ、呼び出し時期、返すべきもの、および使用例を含みます。フックはOpenFrequencyとのプラグイン統合の主要なメカニズムです—プラグインが重要なイベントの通知を受け取り、オプションでアプリケーションの動作に影響を与えることを可能にします。各フックの目的、タイミング、戻り値のセマンティクスを理解することは、効果的なプラグインを書くために不可欠です。",
+                "dev_guide_section5_subsection1_title": "ライフサイクルフック",
+                "dev_guide_section5_subsection1_content": "ライフサイクルフックは、プラグインのライフタイムの特定のポイントで呼び出されます。「on_load()」フックはプラグインが有効になっているとき、またはプラグインがすでに有効になっている場合はOpenFrequencyが起動するときに呼び出されます。これはプラグインの状態を初期化し、構成を読み取り、イベントをサブスクライブし、タイマーを設定するなどの初期化タスクを実行する機会です。「on_unload()」フックはプラグインが無効になっているとき、またはOpenFrequencyがシャットダウンしているときに呼び出されます。これはタイマーをキャンセルし、イベントのサブスクライブを解除し、状態を保存するなどのクリーンアップタスクに使用してください。",
+                "dev_guide_section5_subsection2_title": "シミュレーションフック",
+                "dev_guide_section5_subsection2_content": "シミュレーションフックは、フライトシミュレーターへの接続と状態に関連しています。「on_sim_connected(sim_type)」フックは、OpenFrequencyがシミュレーターに正常に接続したときに呼び出されます。sim_typeパラメータは、シミュレータータイプ（「msfs」、「xplane」、「fsx」など）を示します。「on_sim_disconnected()」フックは、シミュレーターへの接続が失われたときに呼び出されます。",
+                "dev_guide_section5_subsection3_title": "通信フック",
+                "dev_guide_section5_subsection3_content": "通信フックは、無線通信とATCの相互作用に関連しています。「on_atc_response(text, action)」フックは最も強力なフックの1つです—OpenFrequencyがATC応答を生成するたびに呼び出されます。「on_pilot_input(text)」フックは、AIで処理するために送信されるテキストをユーザーが入力したときに呼び出されます。「on_frequency_change(freq)」フックは、COM1周波数が変更されたときに呼び出されます。",
+
+                "dev_guide_section6_title": "六、プラグインAPIメソッドリファレンス",
+                "dev_guide_section6_content": "OpenFrequencyPlugin基本クラスは、プラグインがOpenFrequencyシステムと対話するために使用できる豊富なAPIメソッドセットを提供します。これらのメソッドは、プラグインがメッセージをログし、Webインターフェイスにイベントを送信し、内部イベントをサブスクライブし、TTS再生をトリガーし、通知を送信し、合成ATCメッセージを注入し、タスクをスケジュールし、共有コンテキストにアクセスし、構成を管理することを可能にします。",
+                "dev_guide_section6_subsection1_title": "ロギングとデバッグ",
+                "dev_guide_section6_subsection1_content": "'self.log(msg)'メソッドは、プラグインからメッセージをログする主要なツールです。このメソッドは文字列メッセージを受け取り、プラグインIDをプレフィックスとして付けてOpenFrequencyのログ出力に書き込みます。これはデバッグとトラブルシューティングに非常に貴重です。",
+                "dev_guide_section6_subsection2_title": "イベント通信",
+                "dev_guide_section6_subsection2_content": "'self.emit(event, data)'メソッドは、プラグインがWebインターフェイスにsocket.ioイベントを送信できるようにします。これはUI要素を更新し、ユーザーにリアルタイム通知を送信する、またはWebインターフェイスのカスタムJavaScriptと通信するのに役立ちます。",
+
+                "dev_guide_section7_title": "七、プラグインのテストとデバッグ",
+                "dev_guide_section7_content": "テストは、プラグインが正しく機能し、エラーを引き起こさず、良好なユーザーエクスペリエンスを提供することを保証するプラグイン開発の重要な段階です。このセクションでは、包括的なテスト戦略、デバッグ手法、プラグイン機能を検証するためのベストプラクティスについて説明します。",
+                "dev_guide_section7_subsection1_title": "手動テストワークフロー",
+                "dev_guide_section7_subsection1_content": "手動テストワークフローは、プラグインフォルダーを正しい場所に配置することから始まります。フォルダー構造が正しいことを確認してください。OpenFrequencyを開き、プラグインマネージャーに移動します。「全プラグインをリロード」ボタンをクリックしてプラグイン検出をトリガーします。プラグインリストでプラグインを確認してください。",
+                "dev_guide_section7_subsection2_title": "デバッグ手法",
+                "dev_guide_section7_subsection2_content": "効果的なデバッグは、プラグインの問題を特定して修正するために不可欠です。最も基本的なデバッグツールはself.log()メソッドです。",
+                "dev_guide_section7_item1": "プラグインフォルダーをplugins/community/に配置",
+                "dev_guide_section7_item2": "OpenFrequencyプラグインマネージャーを開く",
+                "dev_guide_section7_item3": "「全プラグインをリロード」をクリック",
+                "dev_guide_section7_item4": "プラグインが正常に読み込まれたか確認（緑色バッジ）",
+                "dev_guide_section7_item5": "ログ出力を確認して機能を検証",
+                "dev_guide_section8_title": "八、パッケージ化と配布",
+                "dev_guide_section8_content": "プラグインが開発されテストされたら、次のステップは他のユーザーに配布するためにパッケージ化することです。適切なパッケージ化により、他のユーザーが問題なくプラグインを簡単にインストールできるようになります。このセクションでは、ZIPアーカイブの作成、ファイルの正しい整理、命名規則、バージョン管理、配布チャネルを含む完全なパッケージ化プロセスについて説明します。",
+                "dev_guide_section8_subsection1_title": "ZIPアーカイブの作成",
+                "dev_guide_section8_subsection1_content": "OpenFrequencyプラグインの標準配布形式は、プラグインのファイルとディレクトリを含むZIPアーカイブです。ZIPアーカイブは特定の構造を持っている必要があります。Windowsでは、プラグインフォルダーを右クリックして「送る」→「圧縮（zip形式）フォルダー」を選択してZIPを作成できます。",
+                "dev_guide_section8_subsection2_title": "ファイルの整理と命名",
+                "dev_guide_section8_subsection2_content": "プラグインをパッケージ化する際は、アーカイブ内のファイルの整理方法を考慮してください。構造をシンプルで論理的に保ってください。",
+                "dev_guide_section8_desc": "プラグインを配布用にパッケージ化：",
+                "dev_guide_section8_item1": "プラグインフォルダーを右クリック",
+                "dev_guide_section8_item2": "「送る」→「圧縮（zip形式）フォルダー」を選択",
+                "dev_guide_section8_item3": "またはコマンドラインを使用：",
+                "dev_guide_section8_note": "注意：ZIPファイルにはmanifest.jsonとplugin.pyがルートレベルに含まれている必要があります",
+                "dev_guide_section9_title": "九、プラグインの公開と共有",
+                "dev_guide_section9_content": "プラグインを公開すると、OpenFrequencyコミュニティで利用できるようになり、ユーザーがプラグインを発見、インストール、あなたの作業から恩恵を受けることができます。",
+                "dev_guide_section9_subsection1_title": "GitHub公開ワークフロー",
+                "dev_guide_section9_subsection1_content": "GitHubは、広く採用され、組み込みのリリース管理があり、OpenFrequencyコミュニティと統合されているため、OpenFrequencyプラグインを公開する推奨プラットフォームです。",
+                "dev_guide_section9_subsection2_title": "ドキュメントとコミュニティエンゲージメント",
+                "dev_guide_section9_subsection2_content": "良いドキュメントは、ユーザーの採用とサポートに不可欠です。",
+                "dev_guide_section9_item1": "GitHubリポジトリを作成",
+                "dev_guide_section9_item2": "ZIPファイルをReleaseとしてアップロード",
+                "dev_guide_section9_item3": "READMEにインストール方法を記述",
+                "dev_guide_section9_item4": "コミュニティでリンクを共有",
+                "dev_guide_section10_title": "十、よくある質問",
+                "dev_guide_section10_content": "このセクションでは、プラグイン開発者が開発プロセス中に遭遇する一般的な問題と質問に対処します。",
+                "dev_guide_section10_subsection1_title": "プラグイン読み込みの問題",
+                "dev_guide_section10_subsection1_content": "問：プラグインが読み込まれず、プラグインマネージャーに赤いバッジが表示されます。どうすればよいですか？答：まず、プラグインマネージャーでプラグインをクリックして具体的なエラーメッセージを確認してください。",
+                "dev_guide_section10_subsection2_title": "メディアとリソースの問題",
+                "dev_guide_section10_subsection2_content": "問：プラグインで定義されたメディアファイルが再生または表示されません。何が問題ですか？答：manifest.jsonのファイルパスがプラグインディレクトリに対して相対的であることを確認してください。",
+                "dev_guide_section10_subsection1_q1": "プラグインの読み込みに失敗？",
+                "dev_guide_section10_subsection1_a1": "manifest.jsonの構文とPythonコードのエラーを確認",
+                "dev_guide_section10_subsection2_q1": "メディアファイルが再生されない？",
+                "dev_guide_section10_subsection2_a1": "パスが正しく、ファイルがプラグインフォルダー内にあることを確認",
+                "dev_guide_section10_subsection3_q1": "フックがトリガーされない？",
+                "dev_guide_section10_subsection3_a1": "manifest.jsonのhooks配列で宣言されていることを確認",
+                "dev_guide_section10_subsection4_q1": "バージョンの互換性？",
+                "dev_guide_section10_subsection4_a1": "min_app_versionで最小バージョンを指定"
             }
         };
         window.TRANSLATIONS = TRANSLATIONS;
@@ -582,45 +1063,6 @@
             cabin_descent: "降下案内",
             cabin_arrival: "到着前準備"
         });
-        Object.assign(TRANSLATIONS.en, {
-            history_title: "Flight History",
-            history_subtitle: "Review generated reports and raw flight logs from previous sessions.",
-            history_reports: "Reports",
-            history_logs: "Logs",
-            history_no_reports: "No reports available yet.",
-            history_no_logs: "No logs available yet."
-        });
-        Object.assign(TRANSLATIONS.zh, {
-            history_title: "飞行历史",
-            history_subtitle: "查看之前飞行生成的报表和原始日志。",
-            history_reports: "报表",
-            history_logs: "日志",
-            history_no_reports: "暂时还没有可用报表。",
-            history_no_logs: "暂时还没有可用日志。"
-        });
-        Object.assign(TRANSLATIONS.ja, {
-            history_title: "フライト履歴",
-            history_subtitle: "過去の飛行で生成されたレポートと生ログを確認します。",
-            history_reports: "レポート",
-            history_logs: "ログ",
-            history_no_reports: "まだ利用可能なレポートはありません。",
-            history_no_logs: "まだ利用可能なログはありません。"
-        });
-        Object.assign(TRANSLATIONS.en, {
-            desktop_ptt_enabled: "Desktop background PTT",
-            desktop_ptt_hint: "Keep desktop push-to-talk available after the window is hidden to tray.",
-            desktop_ptt_key: "Desktop PTT Hotkey"
-        });
-        Object.assign(TRANSLATIONS.zh, {
-            desktop_ptt_enabled: "桌面后台 PTT",
-            desktop_ptt_hint: "窗口隐藏到托盘后，仍保留桌面按键通话功能。",
-            desktop_ptt_key: "桌面 PTT 热键"
-        });
-        Object.assign(TRANSLATIONS.ja, {
-            desktop_ptt_enabled: "デスクトップ背景 PTT",
-            desktop_ptt_hint: "ウィンドウをトレイに隠した後も、デスクトップのプッシュ・トゥ・トークを有効にします。",
-            desktop_ptt_key: "デスクトップ PTT ホットキー"
-        });
 
 
         function applyLanguage(lang) {
@@ -652,40 +1094,18 @@
             }
         }
 
-        async function syncUiPreferencesFromConfig() {
-            try {
-                const resp = await fetch('/get_config');
-                if (!resp.ok) return;
-                const cfg = await resp.json();
-                const configuredLang = cfg?.ui?.language;
-                const configuredDark = !!cfg?.ui?.dark_mode;
-                if (configuredLang && ['en', 'zh', 'ja'].includes(configuredLang)) {
-                    localStorage.setItem('language', configuredLang);
-                    document.getElementById('lang-selector').value = configuredLang;
-                    applyLanguage(configuredLang);
-                }
-                document.body.classList.toggle('dark-mode', configuredDark);
-                localStorage.setItem('dark_mode', configuredDark ? '1' : '0');
-            } catch (e) {
-                console.warn('UI preference sync failed', e);
-            }
-        }
-
-        // Init
-        const initialServerLang = window.SERVER_UI_PREFERENCES?.language;
-        const savedLang = (initialServerLang && ['en', 'zh', 'ja'].includes(initialServerLang))
-            ? initialServerLang
-            : (localStorage.getItem('language') || 'en');
-        document.getElementById('lang-selector').value = savedLang;
+        // Init - apply saved language to all pages
+        const savedLang = localStorage.getItem('language') || 'en';
         applyLanguage(savedLang);
-        document.addEventListener('DOMContentLoaded', () => {
-            syncUiPreferencesFromConfig();
-        });
 
-        // Event Listener
-        document.getElementById('lang-selector').addEventListener('change', (e) => {
-            applyLanguage(e.target.value);
-        });
+        // Event Listener for lang-selector if it exists on this page
+        const langSelector = document.getElementById('lang-selector');
+        if (langSelector) {
+            langSelector.value = savedLang;
+            langSelector.addEventListener('change', (e) => {
+                applyLanguage(e.target.value);
+            });
+        }
 
     </script>
 
@@ -776,9 +1196,26 @@
             localStorage.setItem('dark_mode', enabled ? '1' : '0');
         };
 
-        // Immediate dark mode from localStorage (prevents flash)
-        if ((window.SERVER_UI_PREFERENCES?.dark_mode === true) || localStorage.getItem('dark_mode') === '1') {
+        // Theme selection — persists in localStorage; applies CSS class to <html>
+        window.applyTheme = function (theme) {
+            // Remove all known theme classes then apply the selected one
+            document.documentElement.classList.remove('theme-classic', 'theme-apple');
+            document.documentElement.classList.add(`theme-${theme}`);
+            localStorage.setItem('ui_theme', theme);
+        };
+
+        // 主题类已在 <head> 内联脚本设置，此处仅做同步确认
+        (function () {
+            const t = localStorage.getItem('ui_theme') || 'classic';
+            document.documentElement.classList.remove('theme-classic', 'theme-apple');
+            document.documentElement.classList.add(`theme-${t}`);
+        })();
+
+        // Dark mode（<head> 里已标记 dark-mode-pending，此处转移到 body）
+        if (document.documentElement.classList.contains('dark-mode-pending') ||
+            localStorage.getItem('dark_mode') === '1') {
             document.body.classList.add('dark-mode');
+            document.documentElement.classList.remove('dark-mode-pending');
         }
 
         // Setup socket listeners after a short delay to ensure socket is initialized
@@ -790,10 +1227,6 @@
             }
 
             console.log("Setting up socket listeners for toasts...");
-            const toastText = (key, fallback) => {
-                const currentLang = localStorage.getItem('language') || 'en';
-                return (window.TRANSLATIONS && window.TRANSLATIONS[currentLang] && window.TRANSLATIONS[currentLang][key]) || fallback;
-            };
 
             // Flight Report Toast notification
             window.socket.on('flight_report_ready', (data) => {
@@ -818,18 +1251,6 @@
                 const wrap = document.createElement('div');
                 wrap.innerHTML = html;
                 container.appendChild(wrap.firstElementChild);
-                const toastEl = document.getElementById(toastId);
-                const reportButton = toastEl ? toastEl.querySelector('a.btn-light') : null;
-                if (reportButton) {
-                    reportButton.classList.remove('w-100');
-                    reportButton.textContent = toastText('view_report_btn', 'View Report');
-                    const historyLink = document.createElement('a');
-                    historyLink.href = '/history';
-                    historyLink.target = '_blank';
-                    historyLink.className = 'btn btn-outline-light btn-sm ms-2';
-                    historyLink.textContent = toastText('view_history_btn', 'History');
-                    reportButton.insertAdjacentElement('afterend', historyLink);
-                }
 
                 // Auto-dismiss after 15 seconds
                 setTimeout(() => {
@@ -838,44 +1259,14 @@
                 }, 15000);
             });
 
-            window.socket.on('flight_arrival_ready', (data) => {
-                const container = document.getElementById('toast-container');
-                if (!container) return;
-
-                const toastId = `toast-flight-arrival-${Date.now()}`;
-                const current = data.current_airport || 'N/A';
-                const destination = data.destination || 'N/A';
-                const html = `
-                    <div id="${toastId}" class="toast show text-white bg-success" role="alert" aria-live="assertive" aria-atomic="true">
-                      <div class="toast-header bg-success text-white">
-                        <strong class="me-auto">${toastText('flight_arrival_title', 'Arrival Detected')}</strong>
-                        <small>Just now</small>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-                      </div>
-                      <div class="toast-body">
-                        <p class="mb-2">${toastText('flight_arrival_body', 'Landed at destination. End this flight when ready.')}<br><small>${current} / ${destination}</small></p>
-                        <div class="d-flex gap-2 flex-wrap">
-                          <button class="btn btn-light btn-sm" onclick="window.endActiveFlight('${toastId}')">${toastText('end_flight_btn', 'End Flight')}</button>
-                          <a href="/history" target="_blank" class="btn btn-outline-light btn-sm">${toastText('view_history_btn', 'History')}</a>
-                        </div>
-                      </div>
-                    </div>
-                `;
-                const wrap = document.createElement('div');
-                wrap.innerHTML = html;
-                container.appendChild(wrap.firstElementChild);
-            });
-
-            // Dark Mode sync from server config
+            // 服务端保存设置后推送 config_sync，同步深色模式及其他运行时配置
             window.socket.on('config_sync', (cfg) => {
+                // 深色模式
                 const darkMode = cfg?.ui?.dark_mode || false;
                 document.body.classList.toggle('dark-mode', darkMode);
                 localStorage.setItem('dark_mode', darkMode ? '1' : '0');
-                const lang = cfg?.ui?.language;
-                if (lang && ['en', 'zh', 'ja'].includes(lang)) {
-                    document.getElementById('lang-selector').value = lang;
-                    applyLanguage(lang);
-                }
+                // 将完整摘要以自定义事件广播给各页面模块（如 dashboard 的无线电效果开关）
+                window.dispatchEvent(new CustomEvent('lg-config-sync', { detail: cfg }));
             });
         }
 
@@ -883,27 +1274,11 @@
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(setupSocketListeners, 200);
         });
-
-        window.endActiveFlight = async function (toastId) {
-            try {
-                const response = await fetch('/api/flight/end', { method: 'POST' });
-                const data = await response.json();
-                if (!response.ok || !data.success) {
-                    alert(data.message || 'Failed to end flight.');
-                    return;
-                }
-                const toastEl = document.getElementById(toastId);
-                if (toastEl) toastEl.remove();
-                if (data.latest_report) {
-                    window.open(data.latest_report, '_blank');
-                }
-            } catch (error) {
-                alert(`Failed to end flight. ${error}`);
-            }
-        };
     </script>
 
     {% block scripts %}{% endblock %}
+    <!-- Apple Liquid Glass 运行时：仅在 html.theme-apple 时激活 -->
+    <script src="{{ url_for('static', filename='js/liquid-glass.js') }}"></script>
 </body>
 
 </html>

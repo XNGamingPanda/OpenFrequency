@@ -18,7 +18,12 @@ from pathlib import Path
 
 import requests
 import sounddevice as sd
-import webview
+try:
+    import webview
+    WEBVIEW_AVAILABLE = True
+except ImportError:
+    webview = None  # type: ignore
+    WEBVIEW_AVAILABLE = False
 
 
 APP_NAME = "OpenFrequency"
@@ -219,6 +224,10 @@ def detect_desktop_language(config_data: dict) -> str:
         return "zh"
     if system_locale.startswith("ja"):
         return "ja"
+    # Default: if packaged (compiled build), prefer zh since OpenFrequency primarily targets Chinese users
+    import os as _os
+    if _os.environ.get("OPENFREQUENCY_PACKAGED") == "1":
+        return "zh"
     return "en"
 
 
@@ -609,20 +618,31 @@ def main():
     ptt_service.start()
 
     url = f"http://{ui_host}:{port}/dashboard"
-    print(f"Launcher: Opening pywebview window -> {url}")
 
-    window_ref = webview.create_window(
-        APP_NAME,
-        url=url,
-        width=1500,
-        height=960,
-        min_size=(1100, 720),
-        text_select=True,
-        js_api=DesktopApi(),
-    )
-    window_ref.events.closing += on_window_closing
-    window_ref.events.loaded += inject_context_menu
-    webview.start(debug=False)
+    if WEBVIEW_AVAILABLE:
+        print(f"Launcher: Opening pywebview window -> {url}")
+        window_ref = webview.create_window(
+            APP_NAME,
+            url=url,
+            width=1500,
+            height=960,
+            min_size=(1100, 720),
+            text_select=True,
+            js_api=DesktopApi(),
+        )
+        window_ref.events.closing += on_window_closing
+        window_ref.events.loaded += inject_context_menu
+        webview.start(debug=False)
+    else:
+        import webbrowser
+        print(f"Launcher: pywebview not available, opening browser -> {url}")
+        webbrowser.open(url)
+        # Keep process alive (tray icon drives the loop)
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == "__main__":

@@ -205,8 +205,8 @@ class TelemetryManager:
             'os_version': platform.version(),
             'python_version': platform.python_version(),
             'exception_type': exc_type.__name__ if exc_type else 'Unknown',
-            'exception_message': _sanitize_str(str(exc_value))[:512],
-            'traceback': _sanitize_str(tb_text)[:8192],
+            'exception_message': _sanitize_str(str(exc_value)),
+            'traceback': _sanitize_str(tb_text),
             'timestamp_utc': datetime.now(timezone.utc).isoformat(),
             'uptime_seconds': round(time.time() - _START_TIME, 1),
         }
@@ -240,10 +240,11 @@ class TelemetryManager:
                 return True
 
         _DEFAULT_WORKERS_URL = 'https://robertwren.qzz.io'
-        _DEFAULT_CLIENT_TOKEN = 'oF9x-Km3p-Qr7n-Lv4w'
         cfg = _get_config()
         workers_url = (cfg.get('cloud', {}).get('workers_url') or _DEFAULT_WORKERS_URL).rstrip('/')
-        token = cfg.get('cloud', {}).get('client_token') or _DEFAULT_CLIENT_TOKEN
+        token = cfg.get('cloud', {}).get('client_token') or os.environ.get('OPENFREQUENCY_CLIENT_TOKEN', '')
+        if not token:
+            return False
 
         payload = dict(data)
         if user_note is not None:

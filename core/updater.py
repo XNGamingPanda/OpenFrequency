@@ -22,6 +22,25 @@ _update_info: dict = None
 _download_path: Path = None
 _socketio = None
 
+_CHECK_INTERVAL_SECONDS = 86400  # 24 hours
+
+def _last_check_path() -> Path:
+    return Path(os.environ.get('OPENFREQUENCY_CONFIG_PATH', 'config.json')).parent / '.update_last_check'
+
+def _should_check() -> bool:
+    """Return True if 24+ hours have passed since the last successful check."""
+    p = _last_check_path()
+    try:
+        return (time.time() - p.stat().st_mtime) >= _CHECK_INTERVAL_SECONDS
+    except Exception:
+        return True
+
+def _mark_checked():
+    try:
+        _last_check_path().touch()
+    except Exception:
+        pass
+
 
 # ---------------------------------------------------------------------------
 # Config helper
@@ -38,7 +57,6 @@ def _get_config() -> dict:
 
 
 _DEFAULT_WORKERS_URL = 'https://robertwren.qzz.io'
-_DEFAULT_CLIENT_TOKEN = 'oF9x-Km3p-Qr7n-Lv4w'
 
 
 def _get_workers_url() -> str:
@@ -48,7 +66,7 @@ def _get_workers_url() -> str:
 
 def _get_token() -> str:
     cfg = _get_config()
-    return cfg.get('cloud', {}).get('client_token') or _DEFAULT_CLIENT_TOKEN
+    return cfg.get('cloud', {}).get('client_token') or os.environ.get('OPENFREQUENCY_CLIENT_TOKEN', '')
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +130,11 @@ def check_update(socketio=None, silent: bool = True) -> dict | None:
     if socketio is not None:
         set_socketio(socketio)
 
+    # Skip background (silent) checks that ran less than 24 h ago
+    if silent and not _should_check():
+        print("Updater: skipping check — checked within last 24 h")
+        return None
+
     try:
         workers_url = _get_workers_url()
         token = _get_token()
@@ -129,6 +152,8 @@ def check_update(socketio=None, silent: bool = True) -> dict | None:
 
         latest = payload.get('latest', '0.0.0')
         current = _get_current_version()
+
+        _mark_checked()
 
         if _version_tuple(latest) > _version_tuple(current):
             _update_info = payload
@@ -183,9 +208,13 @@ def download_update(asset_key: str = 'win_x64', socketio=None) -> Path | None:
 
         workers_url = _get_workers_url()
         token = _get_token()
-        url = f"{workers_url}{dl_path}"
+        # dl_path from Workers may already be a full URL (contains ://) or a path-only string
+        if dl_path.startswith('http://') or dl_path.startswith('https://'):
+            url = dl_path
+        else:
+            url = f"{workers_url}{dl_path}"
 
-        filename = Path(dl_path).name or 'of_update_installer.exe'
+        filename = Path(url.split('?')[0]).name or 'of_update_installer.exe'
         dest_dir = Path(tempfile.gettempdir()) / 'of_update'
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest = dest_dir / filename

@@ -43,7 +43,7 @@ except Exception:
 
 def sanitize_log(text: str) -> str:
     """
-    Apply PII-scrubbing patterns from telemetry and truncate to 16384 chars.
+    Apply PII-scrubbing patterns from telemetry.
 
     Windows full paths are reduced to their final filename component.
     """
@@ -55,16 +55,16 @@ def sanitize_log(text: str) -> str:
     for pattern, replacement in _SANITIZE_PATTERNS:
         text = pattern.sub(replacement, text)
 
-    return text[:16384]
+    return text
 
 
 # ---------------------------------------------------------------------------
 # Data collectors
 # ---------------------------------------------------------------------------
 
-def collect_log_excerpt(lines: int = 150) -> str:
+def collect_log_excerpt(lines: int = None) -> str:
     """
-    Read the last `lines` lines from the most-recent .log file and sanitise.
+    Read all lines from the most-recent .log file and sanitise.
 
     Returns sanitised text, or an empty string on any error.
     """
@@ -80,23 +80,22 @@ def collect_log_excerpt(lines: int = 150) -> str:
             return ''
 
         latest = log_files[0]
-        raw_lines = latest.read_text(encoding='utf-8', errors='replace').splitlines()
-        excerpt = '\n'.join(raw_lines[-lines:])
-        return sanitize_log(excerpt)
+        raw_text = latest.read_text(encoding='utf-8', errors='replace')
+        return sanitize_log(raw_text)
     except Exception:
         return ''
 
 
 def collect_config_summary() -> str:
     """
-    Return a sanitised JSON string of the config truncated to 2048 chars.
+    Return a sanitised JSON string of the config.
 
     Returns an empty string on any error.
     """
     try:
         cfg = _get_config()
         sanitized = _sanitize_config(cfg)
-        return json.dumps(sanitized, ensure_ascii=False)[:2048]
+        return json.dumps(sanitized, ensure_ascii=False)
     except Exception:
         return ''
 
@@ -168,10 +167,11 @@ def submit_feedback(
     (True, "#TICKET_ID") on success, (False, "error message") on failure.
     """
     _DEFAULT_WORKERS_URL = 'https://robertwren.qzz.io'
-    _DEFAULT_CLIENT_TOKEN = 'oF9x-Km3p-Qr7n-Lv4w'
     cfg = _get_config()
     workers_url = (cfg.get('cloud', {}).get('workers_url') or _DEFAULT_WORKERS_URL).rstrip('/')
-    token = cfg.get('cloud', {}).get('client_token') or _DEFAULT_CLIENT_TOKEN
+    token = cfg.get('cloud', {}).get('client_token') or os.environ.get('OPENFREQUENCY_CLIENT_TOKEN', '')
+    if not token:
+        return False, 'Cloud client token is not configured.'
 
     payload: dict = {
         'type': type_,

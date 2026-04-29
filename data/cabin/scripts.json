@@ -65,5 +65,124 @@
             "text": "Thank you for flying with ANA today. Please remain seated until the aircraft has come to a complete stop.",
             "video": "cabin_media/ANA-Disembarking-Video.mp4"
         }
+    },
+    "CES": {
+        "voice": "zh-CN-XiaoxiaoNeural",
+        "welcome": {
+            "text": "女士们先生们，欢迎乘坐中国东方航空公司航班。请您系好安全带，收起小桌板。",
+            "audio": "cabin_media/CES-After-Boarding.mp3"
+        },
+        "door_close": {
+            "text": "乘务组，舱门滑梯预位，交叉检查。",
+            "audio": "cabin_media/CES-Close-Door.mp3"
+        },
+        "safety_demo": {
+            "text": "现在播放安全演示，请注意观看。",
+            "video": "cabin_media/CES-Safety-Video-Chinese.mp4"
+        },
+        "takeoff_prep": {
+            "text": "乘务员，准备起飞。",
+            "audio": "cabin_media/CES-Ready-Takeoff.mp3"
+        },
+        "climb_service": {
+            "text": "我们将为您提供餐饮服务，感谢您选乘东航航班。",
+            "audio": "cabin_media/CES-Cruise-Notify.mp3"
+        },
+        "descent": {
+            "text": "飞机即将下降，请回到座位坐好，系好安全带。",
+            "audio": "cabin_media/CES-Descent-Notify.mp3"
+        },
+        "turbulence": {
+            "text": "女士们先生们，由于预计有颠簸，请立即回到座位并系好安全带。"
+        },
+        "landing_prep": {
+            "text": "乘务员，做好着陆准备。",
+            "audio": "cabin_media/CES-Before-Landing.mp3"
+        },
+        "arrival_prep": {
+            "text": "乘务员，准备客舱到达。",
+            "audio": "cabin_media/CES-After-Landing.mp3"
+        },
+        "deboarding": {
+            "text": "感谢您选乘东航航班，请等待飞机完全停稳后再起身。",
+            "audio": "cabin_media/CES-Getoff-Music1.mp3"
+        }
+    },
+    "CPA": {
+        "voice": "zh-HK-HiuMaanNeural",
+        "welcome": {
+            "text": "女士們先生們，歡迎乘搭國泰航空航班。請您繫好安全帶，收起小桌板，並確保手提行李妥善放置於頭頂行李艙或座椅底下。Ladies and gentlemen, welcome aboard Cathay Pacific. Please fasten your seatbelt, stow your tray table, and ensure your carry-on baggage is stored in the overhead bin or under the seat in front of you."
+        },
+        "door_close": {
+            "text": "乘務員，艙門預位，交叉檢查。Cabin crew, arm doors and cross check.",
+            "audio": "cabin_media/CPA-Boarding-Music.mp3"
+        },
+        "safety_demo": {
+            "text": "現在播放安全示範短片，請您留意觀看，即使您是經常乘機的旅客。We will now show you a safety video. Please watch carefully, even if you are a frequent flyer.",
+            "video": "cabin_media/CPA-Safety-Video.mp4"
+        },
+        "takeoff_prep": {
+            "text": "乘務員，請就座，準備起飛。Cabin crew, please be seated for takeoff."
+        },
+        "climb_service": {
+            "text": "女士們先生們，我們將為您開始機上服務，感謝您選乘國泰航空。Ladies and gentlemen, we will shortly begin our inflight service. Thank you for choosing Cathay Pacific."
+        },
+        "descent": {
+            "text": "女士們先生們，本機即將開始下降。請回到座位，繫好安全帶，收起小桌板及調直椅背。Ladies and gentlemen, we have begun our descent. Please return to your seat, fasten your seatbelt, stow your tray table, and return your seat to the upright position."
+        },
+        "turbulence": {
+            "text": "女士們先生們，本機正在經歷氣流，請立即回到座位並繫好安全帶。Ladies and gentlemen, we are experiencing turbulence. Please return to your seat and fasten your seatbelt immediately."
+        },
+        "landing_prep": {
+            "text": "乘務員，請做好著陸準備。Cabin crew, prepare for landing."
+        },
+        "arrival_prep": {
+            "text": "乘務員，請準備客艙到達。Cabin crew, prepare the cabin for arrival."
+        },
+        "deboarding": {
+            "text": "女士們先生們，感謝您今日選乘國泰航空。請等候飛機完全停定後方可起身，並注意頭頂行李艙內的物品。希望下次旅途中再為您服務，再見。Ladies and gentlemen, thank you for flying with Cathay Pacific today. Please remain seated until the aircraft has come to a complete stop and watch for items in the overhead bins. We hope to welcome you on board again soon. Goodbye."
+        }
+    },
+    "CES2": {
+        "voice": "en-US-JennyNeural",
+        "welcome": {
+            "text": "Ladies and gentlemen, welcome aboard China Eastern Airlines. Please fasten your seatbelts and ensure all carry-on items are stowed.",
+            "audio": "cabin_media/CES-After-Boarding.mp3"
+        },
+        "door_close": {
+            "text": "Cabin crew, arm doors and cross check.",
+            "audio": "cabin_media/CES-Close-Door.mp3"
+        },
+        "safety_demo": {
+            "text": "We will now begin the safety demonstration. Please watch the screens carefully.",
+            "video": "cabin_media/CES-Safety-Video-English.mp4"
+        },
+        "takeoff_prep": {
+            "text": "Cabin crew, prepare for departure.",
+            "audio": "cabin_media/CES-Ready-Takeoff.mp3"
+        },
+        "climb_service": {
+            "text": "We will begin our inflight service shortly. Thank you for flying with China Eastern.",
+            "audio": "cabin_media/CES-Cruise-Notify.mp3"
+        },
+        "descent": {
+            "text": "We have started our descent. Please return to your seats and fasten your seatbelt.",
+            "audio": "cabin_media/CES-Descent-Notify.mp3"
+        },
+        "turbulence": {
+            "text": "Ladies and gentlemen, due to expected turbulence, please return to your seats and fasten your seatbelts immediately."
+        },
+        "landing_prep": {
+            "text": "Cabin crew, prepare for landing.",
+            "audio": "cabin_media/CES-Before-Landing.mp3"
+        },
+        "arrival_prep": {
+            "text": "Cabin crew, prepare the cabin for arrival.",
+            "audio": "cabin_media/CES-After-Landing.mp3"
+        },
+        "deboarding": {
+            "text": "Thank you for flying with China Eastern today. Please remain seated until the aircraft has come to a complete stop.",
+            "audio": "cabin_media/CES-Getoff-Music2.mp3"
+        }
     }
 }

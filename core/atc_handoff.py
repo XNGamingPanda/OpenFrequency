@@ -31,14 +31,15 @@ class ATCHandoffManager:
     """
     
     # 每个阶段对应的管制频率范围 (MHz)
+    # 注意：这些范围必须不重叠，以避免频率分配错误
     FREQ_RANGES = {
         ATCPhase.ATIS: (126.0, 128.0),
-        ATCPhase.CLEARANCE: (121.0, 122.0),
+        ATCPhase.CLEARANCE: (121.0, 121.5),
         ATCPhase.GROUND_DEP: (121.5, 122.0),
         ATCPhase.TOWER_DEP: (118.0, 120.0),
-        ATCPhase.DEPARTURE: (119.0, 125.0),
+        ATCPhase.DEPARTURE: (124.0, 125.0),  # 修正：缩小范围避免与Ground重叠
         ATCPhase.CENTER: (128.0, 136.0),
-        ATCPhase.APPROACH: (124.0, 127.0),
+        ATCPhase.APPROACH: (125.0, 126.0),  # 修正：调整范围
         ATCPhase.TOWER_ARR: (118.0, 120.0),
         ATCPhase.GROUND_ARR: (121.5, 122.0),
     }

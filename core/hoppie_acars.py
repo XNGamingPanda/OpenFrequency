@@ -9,7 +9,7 @@ import urllib.request
 from typing import Optional
 
 HOPPIE_URL = 'https://www.hoppie.nl/acars/system/connect.html'
-POLL_INTERVAL = 30  # seconds
+MIN_POLL_INTERVAL = 65  # Hoppie enforces ≥60 s; use 65 for safety
 
 
 class HoppieClient:
@@ -17,9 +17,14 @@ class HoppieClient:
         self.logon_code: str = ''
         self.callsign: str = ''
         self.connected: bool = False
+        self.poll_interval: int = MIN_POLL_INTERVAL
         self._poll_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._socketio = None
+
+    def set_poll_interval(self, seconds: int):
+        """Update poll interval (enforces minimum)."""
+        self.poll_interval = max(MIN_POLL_INTERVAL, int(seconds))
 
     def _post(self, params: dict) -> str:
         params['logon'] = self.logon_code
@@ -78,7 +83,11 @@ class HoppieClient:
 
     def _poll_loop(self):
         while not self._stop_event.is_set() and self.connected:
-            time.sleep(POLL_INTERVAL)
+            # Sleep in 1-second ticks so stop_event is respected promptly
+            for _ in range(self.poll_interval):
+                if self._stop_event.is_set():
+                    return
+                time.sleep(1)
             if self._stop_event.is_set():
                 break
             msgs = self.poll()

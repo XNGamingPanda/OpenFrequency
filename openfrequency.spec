@@ -21,10 +21,6 @@ def collect_tree(relative_path, excludes=()):
         rel_parts = {part.lower() for part in rel.parts}
         if rel_parts & exclude_parts:
             continue
-        normalized = "/".join(part.lower() for part in rel.parts)
-        if relative_path == "ffmpeg":
-            if normalized != "ffmpeg/bin/ffmpeg.exe":
-                continue
         if "test_wavs" in rel_parts:
             continue
         if path.name.lower() in {"config.json", "llm_error.txt", "tmp_dashboard.js", "debug_tts.mp3"}:
@@ -48,11 +44,11 @@ except Exception:
 datas += _sc_datas
 
 datas += collect_tree("templates")
-datas += collect_tree("static", excludes={"cabin_media"})
+datas += collect_tree("static")
 # data/ includes quick_reply_templates.json, chatter_templates.json, etc.
 # Exclude build-only artefacts and runtime-generated caches.
 datas += collect_tree("data",    excludes={"reports", "storage", "ground_cache", "__pycache__"})
-datas += collect_tree("models",  excludes={"sherpa-onnx-whisper-small", "whisper-small", "sherpa-onnx-whisper-tiny.en"})
+# models directory excluded — models are large and downloadable at runtime
 datas += collect_tree("ffmpeg")
 datas += collect_tree("plugins", excludes={"__pycache__"})
 # installer/ is build-tooling only — NOT bundled into the exe.
@@ -123,9 +119,6 @@ _hidden = [
     "pystray",
     "pystray._win32",
 
-    # ── UI ───────────────────────────────────────────────────────────────────
-    "webview",
-
     # ── New core modules (loaded via EventBus; may not be auto-detected) ─────
     "core.quick_reply",       # quick-reply template engine
     "core.cpdlc_manager",     # CPDLC data-link session manager
@@ -153,7 +146,7 @@ _hidden = [
 ]
 
 a = Analysis(
-    ["launcher.py"],
+    ["desktop_launcher.py"],
     pathex=[str(ROOT)],
     binaries=_sc_binaries,          # SimConnect.dll and any other native libs
     datas=datas,
@@ -162,39 +155,12 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # ── Dev / test tooling ───────────────────────────────────────────────
-        "pytest", "unittest", "doctest",
-        "IPython", "notebook", "jupyter",
-        "tkinter", "_tkinter",
-
-        # ── Deep learning / ML (not used at runtime) ────────────────────────
-        # These can sneak in via transitive imports if installed in the env.
-        # Explicitly excluding them keeps the output lean.
-        "torch", "torchvision", "torchaudio",
-        "paddle", "paddleocr", "paddlex", "paddlepaddle",
-        "tensorflow", "keras",
-        "sklearn", "scikit_learn",
-        "transformers", "accelerate", "tokenizers", "datasets",
-        "diffusers", "timm",
-        "scipy",
-        "xgboost", "lightgbm",
-        "spacy", "nltk", "gensim",
-
-        # ── Optional / heavy visualisation ──────────────────────────────────
-        # Imported inside try/except in black_box.py — safe to exclude.
-        "matplotlib", "pandas",
-
-        # ── Unused UI toolkits ───────────────────────────────────────────────
-        "wx", "PyQt5", "PyQt6", "PySide2", "PySide6",
-        "pyautogui",           # only used in optional flight-report screenshot
-
-        # ── Build-only artefacts ─────────────────────────────────────────────
+        "pytest",
+        "tkinter",
+        "IPython",
+        "notebook",
+        # installer/ is never imported — keep the exclude list explicit
         "installer",
-
-        # ── Rarely-needed stdlib heavy modules ───────────────────────────────
-        "test", "xmlrpc", "lib2to3",
-        "ensurepip",
-        # NOTE: do NOT exclude distutils — PyInstaller uses it internally
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

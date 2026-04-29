@@ -1,45 +1,34 @@
-# ── Web framework ──────────────────────────────────────────────────────────────
+# Core
 Flask==3.0.0
 Flask-SocketIO==5.3.6
 python-socketio==5.11.0
 gevent>=24.2.1
 
-# ── Simulator connectors ───────────────────────────────────────────────────────
-SimConnect          # MSFS SimConnect (bundles SimConnect.dll)
-psutil>=5.9.0       # Process detection (X-Plane/MSFS running check)
+# Simulator Connectors
+SimConnect
+# xpc  # Uncomment for X-Plane support (pip install XPlaneConnect)
+psutil>=5.9.0
 
-# ── LLM backends ───────────────────────────────────────────────────────────────
+# LLM & Speech
+edge-tts>=6.1.9
 google-genai
 openai
+sherpa-onnx
+soundfile
 
-# ── Speech: TTS ────────────────────────────────────────────────────────────────
-edge-tts>=6.1.9     # Cloud TTS (default)
-# kokoro-onnx       # Local TTS option A — install separately if needed
-# piper-tts         # Local TTS option B — install separately if needed
-
-# ── Speech: STT ────────────────────────────────────────────────────────────────
-sherpa-onnx         # Whisper-based local STT
-soundfile           # Audio file I/O for local STT pipeline
-
-# ── Head tracking (optional — comment out if not needed) ───────────────────────
+# Head Tracking (Optional)
 opencv-python>=4.8.0
+# Note: the current head tracker uses the legacy MediaPipe Solutions Face Mesh API.
+# Newer Python 3.13-compatible MediaPipe builds may expose only the Tasks API.
 mediapipe>=0.10.0
 
-# ── System / UI ────────────────────────────────────────────────────────────────
-Pillow>=10.0.0      # Image processing (pystray icon, etc.)
-pystray>=0.19.5     # System tray icon
-pynput>=1.7.7       # Global keyboard listener (PTT)
-pygame>=2.5.0       # Ambience / cabin audio playback
-
-# ── Routing & data ─────────────────────────────────────────────────────────────
-networkx>=3.2.1     # Taxi route graph
-requests>=2.31.0    # HTTP (METAR, Hoppie ACARS, cloud services)
-apscheduler>=3.10.0 # Background job scheduling
-markdown            # Render markdown in UI
-
-# ── Optional: flight recording charts (black_box) ─────────────────────────────
-# These are only used for optional PDF/PNG flight reports. Safe to omit for
-# a lean build — the black_box module imports them inside try/except blocks.
-# matplotlib>=3.8.0
-# pandas>=2.0.0
-# pyautogui>=0.9.54   # Screenshot for reports
+# Utilities
+requests>=2.31.0
+networkx>=3.2.1
+pyautogui>=0.9.54
+apscheduler>=3.10.0
+matplotlib>=3.8.0
+pandas>=2.0.0
+Pillow>=10.0.0
+pygame>=2.5.0
+pystray>=0.19.5

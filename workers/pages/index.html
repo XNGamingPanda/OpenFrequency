@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -511,7 +511,7 @@ html, body {
     <h1 data-i18n="hero_h1">OpenFrequency</h1>
     <p class="hero-sub" data-i18n="hero_sub">The AI ATC for Everyone — free, open-source, and powered by LLMs. No subscription. No compromise.</p>
     <div class="badge-row">
-      <span class="badge bv"><span class="badge-dot"></span> v3.9-alpha</span>
+      <span class="badge bv"><span class="badge-dot"></span> v3.9-beta</span>
       <span class="badge bm">MIT</span>
       <span class="badge bs">MSFS · X-Plane 12</span>
       <span class="badge bf" data-i18n="badge_free">Free Forever</span>
@@ -534,7 +534,7 @@ html, body {
         <span class="btn-dl-icon">⬇</span>
         <div class="btn-dl-text">
           <span class="btn-dl-label" data-i18n="dl_btn_label">Download</span>
-          <span class="btn-dl-file">OpenFrequency-v3.9-alpha-Setup.msi</span>
+          <span class="btn-dl-file">OpenFrequency-v3.9-beta-Setup.msi</span>
         </div>
       </a>
 
@@ -551,7 +551,7 @@ html, body {
       <div class="ver-row">
         <span class="ver-label" data-i18n="dl_version">Version</span>
         <span style="display:flex;align-items:center;gap:10px">
-          <span class="ver-value">v3.9-alpha</span>
+          <span class="ver-value">v3.9-beta</span>
           <span class="ver-date">2026-04-29</span>
         </span>
       </div>
@@ -625,7 +625,7 @@ html, body {
 
   <!-- ── WHAT'S NEW ─────────────────────────────────────────────── -->
   <div class="section anim-4">
-    <div class="section-label" data-i18n="sec_whats_new">What's New in v3.9-alpha</div>
+    <div class="section-label" data-i18n="sec_whats_new">What's New in v3.9-beta</div>
     <div class="changelog-list">
       <div class="cl-item"><span class="cl-kind new" data-i18n="cl_new">NEW</span><span class="cl-text"><strong data-i18n="cl1t">CPDLC Datalink</strong> — <span data-i18n="cl1b">Controller-Pilot data link with pre-departure clearance, oceanic, and en-route messaging support</span></span></div>
       <div class="cl-item"><span class="cl-kind new" data-i18n="cl_new">NEW</span><span class="cl-text"><strong data-i18n="cl2t">Metric RVSM</strong> — <span data-i18n="cl2b">Auto-switch to metric altitude levels when operating in Chinese airspace</span></span></div>
@@ -744,7 +744,7 @@ html, body {
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const WORKERS_URL  = "https://openfrequency-api.REPLACE_ACCOUNT.workers.dev";
-const GH_DL_LATEST = "https://github.com/XNGamingPanda/OpenFrequency/releases/latest/download/OpenFrequency-v3.9-alpha-Setup.msi";
+const GH_DL_LATEST = "https://github.com/XNGamingPanda/OpenFrequency/releases/latest/download/OpenFrequency-v3.9-beta-Setup.msi";
 const GH_RELEASES  = "https://github.com/XNGamingPanda/OpenFrequency/releases";
 
 // ─── i18n ────────────────────────────────────────────────────────────────────
@@ -773,7 +773,7 @@ const T = {
     f_map_t:"Radar Vectoring",         f_map_b:"Issue HDG / ALT / SPD vectors from the dashboard. Live flight map with altitude coloring, traffic markers, and route prediction.",
     f_plugin_t:"Plugin System",        f_plugin_b:"Community plugin support with lifecycle hooks. Built-in DLC catalog browser — one-click FlyByWire A32NX download to MSFS.",
     f_update_t:"Auto-Update",          f_update_b:"Daily update checks via Cloudflare Workers with SHA-256 verification. China-accelerated downloads. Crash telemetry (opt-in).",
-    sec_whats_new:"What's New in v3.9-alpha",
+    sec_whats_new:"What's New in v3.9-beta",
     cl_new:"NEW", cl_imp:"IMPROVED", cl_fix:"FIXED",
     cl1t:"CPDLC Datalink",             cl1b:"Controller-Pilot data link with pre-departure clearance, oceanic, and en-route messaging support",
     cl2t:"Metric RVSM",               cl2b:"Auto-switch to metric altitude levels when operating in Chinese airspace",
@@ -825,7 +825,7 @@ const T = {
     f_map_t:"雷达引导",                f_map_b:"从仪表盘直接下达 HDG / ALT / SPD 引导指令，实时飞行地图含高度着色、流量标记和航路预测。",
     f_plugin_t:"插件系统",             f_plugin_b:"社区插件支持，提供生命周期钩子，内置 DLC 目录浏览器，一键安装 FlyByWire A32NX 到 MSFS。",
     f_update_t:"自动更新",             f_update_b:"通过 Cloudflare Workers 每日检查更新，SHA-256 验证，国内加速下载，崩溃遥测（需同意）。",
-    sec_whats_new:"v3.9-alpha 更新内容",
+    sec_whats_new:"v3.9-beta 更新内容",
     cl_new:"新功能", cl_imp:"优化", cl_fix:"修复",
     cl1t:"CPDLC 数据链",               cl1b:"支持起飞前放行、洋区及航路管制员-飞行员数据链消息",
     cl2t:"米制 RVSM",                  cl2b:"在中国 RVSM 空域自动切换为公制飞行高度层",
@@ -877,7 +877,7 @@ const T = {
     f_map_t:"レーダーベクタリング",     f_map_b:"ダッシュボードから HDG / ALT / SPD ベクターを指示。高度カラーリング・トラフィック表示付きライブマップ。",
     f_plugin_t:"プラグインシステム",    f_plugin_b:"ライフサイクルフック付きコミュニティプラグイン。DLC カタログブラウザー、A32NX ワンクリックインストール。",
     f_update_t:"自動アップデート",      f_update_b:"Cloudflare Workers による毎日のアップデートチェック、SHA-256 検証、クラッシュ遥測（オプトイン）。",
-    sec_whats_new:"v3.9-alpha の新機能",
+    sec_whats_new:"v3.9-beta の新機能",
     cl_new:"新機能", cl_imp:"改善", cl_fix:"修正",
     cl1t:"CPDLC データリンク",         cl1b:"出発前クリアランス、外洋・航路データリンクメッセージに対応",
     cl2t:"メトリック RVSM",            cl2b:"中国空域でのメートル単位の高度層への自動切替",

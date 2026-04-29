@@ -73,6 +73,7 @@ sherpa-onnx-whisper*/
 tmp_*.js
 tmp_*.py
 test_wavs/
+nuitka-crash-report.xml
 
 # IDE / OS
 .vscode/
@@ -85,3 +86,4 @@ Thumbs.db
 .claude
 # Build virtual environment
 .venv_build/
+node_modules

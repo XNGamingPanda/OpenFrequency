@@ -103,9 +103,17 @@ class QuickReplyEngine:
 
         Only matches simple acknowledgement / handoff templates to avoid
         over-riding substantive clearance decisions that need the LLM.
+
+        When pilot_text contains CJK characters, triggers_zh is preferred and
+        the response is rendered in Chinese (template_zh).
         """
         text_lower = pilot_text.lower()
         role_key = cls._extract_role_key(role)
+
+        # Detect Chinese input → use Chinese triggers and response language
+        is_chinese = bool(re.search(r'[一-鿿㐀-䶿]', pilot_text))
+        if is_chinese:
+            lang = 'zh'
 
         # Only auto-apply acknowledgement-category templates
         AUTO_CATEGORIES = {'acknowledgement'}
@@ -116,8 +124,11 @@ class QuickReplyEngine:
             # Role check
             if not any(role_key in r for r in tmpl.get('roles', [])):
                 continue
-            # Trigger keyword check
-            triggers = tmpl.get('triggers', [])
+            # Trigger keyword check — prefer zh triggers for Chinese input
+            if is_chinese:
+                triggers = tmpl.get('triggers_zh', []) + tmpl.get('triggers', [])
+            else:
+                triggers = tmpl.get('triggers', [])
             if triggers and not any(kw in text_lower for kw in triggers):
                 continue
             # Match found

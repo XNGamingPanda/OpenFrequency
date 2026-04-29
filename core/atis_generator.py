@@ -3,7 +3,6 @@ ATIS Generator - Generates ATIS broadcast from METAR data.
 Issue 7: Create ATIS broadcast, cache until METAR changes.
 """
 import hashlib
-import random
 from datetime import datetime, timezone
 from .context import event_bus
 
@@ -17,10 +16,77 @@ class ATISGenerator:
                 'November', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Sierra', 
                 'Tango', 'Uniform', 'Victor', 'Whiskey', 'X-ray', 'Yankee', 'Zulu']
     CHINA_AIRPORT_NAMES = {
+        # ── 华北 ──────────────────────────────────────────────────────
+        'ZBAA': '北京首都国际机场',
+        'ZBAD': '北京大兴国际机场',
+        'ZBTJ': '天津滨海国际机场',
+        'ZBSJ': '石家庄正定国际机场',
+        'ZBYN': '太原武宿国际机场',
+        'ZBHH': '呼和浩特白塔国际机场',
+
+        # ── 东北 ──────────────────────────────────────────────────────
+        'ZYTX': '沈阳桃仙国际机场',
+        'ZYTL': '大连周水子国际机场',
+        'ZYHB': '哈尔滨太平国际机场',
+        'ZYCC': '长春龙嘉国际机场',
+        'ZYYY': '沈阳于洪机场',           # 备降场，保留以防误匹配
+
+        # ── 华东 ──────────────────────────────────────────────────────
+        'ZSPD': '上海浦东国际机场',
+        'ZSSS': '上海虹桥国际机场',
         'ZSHC': '杭州萧山国际机场',
-    }
-    ENGLISH_AIRPORT_NAMES = {
-        'ZSHC': 'Hangzhou Xiaoshan International Airport',
+        'ZSNJ': '南京禄口国际机场',
+        'ZSNB': '宁波栎社国际机场',
+        'ZSWZ': '温州龙湾国际机场',
+        'ZSQD': '青岛胶东国际机场',
+        'ZSJN': '济南遥墙国际机场',
+        'ZSAM': '厦门高崎国际机场',
+        'ZSQZ': '泉州晋江国际机场',
+        'ZSCN': '南昌昌北国际机场',
+        'ZSOF': '合肥新桥国际机场',
+        'ZSHF': '合肥骆岗机场',
+
+        # ── 中南 ──────────────────────────────────────────────────────
+        'ZGGG': '广州白云国际机场',
+        'ZGSZ': '深圳宝安国际机场',
+        'ZGHA': '长沙黄花国际机场',
+        'ZHHH': '武汉天河国际机场',
+        'ZHCC': '郑州新郑国际机场',
+        'ZGNN': '南宁吴圩国际机场',
+        'ZGKL': '桂林两江国际机场',
+        'ZGSD': '揭阳潮汕国际机场',
+        'ZGZH': '珠海金湾机场',
+        'ZGFS': '佛山沙堤机场',
+
+        # ── 海南 ──────────────────────────────────────────────────────
+        'ZJHK': '海口美兰国际机场',
+        'ZJSY': '三亚凤凰国际机场',
+
+        # ── 西南 ──────────────────────────────────────────────────────
+        'ZUUU': '成都天府国际机场',
+        'ZUUL': '成都双流国际机场',
+        'ZUCK': '重庆江北国际机场',
+        'ZPPP': '昆明长水国际机场',
+        'ZUGY': '贵阳龙洞堡国际机场',
+        'ZULS': '拉萨贡嘎机场',
+        'ZUWX': '重庆万州五桥机场',
+
+        # ── 西北 ──────────────────────────────────────────────────────
+        'ZLXY': '西安咸阳国际机场',
+        'ZWWW': '乌鲁木齐地窝堡国际机场',
+        'ZLIC': '兰州中川国际机场',
+        'ZLYC': '银川河东国际机场',
+        'ZLXN': '西宁曹家堡机场',
+
+        # ── 港澳台 ────────────────────────────────────────────────────
+        'VHHH': '香港国际机场',
+        'VMMC': '澳门国际机场',
+        'RCTP': '台湾桃园国际机场',
+        'RCSS': '台北松山机场',
+        'RCKH': '高雄国际机场',
+        'RCMQ': '台中清泉岗机场',
+        'RCFN': '台东丰年机场',
+        'RCKA': '金门尚义机场',
     }
     
     def __init__(self, config, socketio, airport_frequency_service=None):
@@ -37,15 +103,9 @@ class ATISGenerator:
         event_bus.on('atis_stop', self._on_atis_stop)
         print("ATISGenerator: Initialized.")
 
-    def _initial_letter_idx(self, icao):
-        icao_norm = (icao or '').strip().upper() or 'ZZZZ'
-        day_key = datetime.now(timezone.utc).strftime('%Y%m%d')
-        seed = int(hashlib.md5(f"{icao_norm}:{day_key}".encode('utf-8')).hexdigest(), 16)
-        rng = random.Random(seed)
-        return rng.randrange(len(self.PHONETIC))
-
     def _is_china_airport(self, icao):
-        return (icao or "").strip().upper().startswith('Z')
+        code = (icao or "").strip().upper()
+        return code.startswith('Z') or code.startswith('VH') or code.startswith('VM') or code.startswith('RC')
 
     def _emit_atis_log(self, icao, atis_text):
         formatted = atis_text.replace('\n', '<br>')
@@ -56,12 +116,9 @@ class ATISGenerator:
             from_csv = self.airport_frequency_service.get_airport_name(icao)
             if from_csv:
                 return from_csv
-        mapped = self.ENGLISH_AIRPORT_NAMES.get((icao or '').upper())
-        if mapped:
-            return mapped
         if weather_data and weather_data.get('name'):
             return weather_data['name'].split(',')[0].replace('/', ' ').strip()
-        return icao
+        return (icao or 'Unknown').upper()
 
     def _chinese_airport_name(self, icao, weather_data=None):
         name = self.CHINA_AIRPORT_NAMES.get((icao or '').upper())
@@ -70,25 +127,66 @@ class ATISGenerator:
         # Fall back to English name rather than reading the raw ICAO code
         return self._english_airport_name(icao, weather_data)
 
-    def _digits_enunciated_zh(self, text, use_liang=False):
-        digit_map = {'0': '洞', '1': '幺', '2': '两' if use_liang else '二', '3': '三', '4': '四', '5': '五', '6': '六', '7': '拐', '8': '八', '9': '九'}
+    def _digits_enunciated_zh(self, text, use_liang=True):
+        digit_map = {'0': '洞', '1': '幺', '2': '两', '3': '三', '4': '四', '5': '五', '6': '六', '7': '拐', '8': '八', '9': '九'}
         return ''.join(digit_map.get(ch, ch) for ch in str(text))
 
     def _digits_display(self, text):
+        """Display digits as-is for Chinese text (not phonetic)."""
         return str(text)
+
+    def _format_runway_chinese(self, runway):
+        """Return runway designation for display — keep Arabic digits, add Chinese suffix."""
+        if not runway:
+            return runway
+        runway_upper = runway.upper().strip()
+        suffix = ''
+        if runway_upper.endswith('R'):
+            suffix = '右'
+            runway_upper = runway_upper[:-1]
+        elif runway_upper.endswith('L'):
+            suffix = '左'
+            runway_upper = runway_upper[:-1]
+        elif runway_upper.endswith('C'):
+            suffix = '中'
+            runway_upper = runway_upper[:-1]
+        return runway_upper + suffix  # e.g. "34右" — TTS engine converts digits to phonetics
 
     def _format_visibility(self, weather_data):
         visib = (weather_data or {}).get('visib', '')
+
+        def _zh_vis(meters: int) -> str:
+            """Format visibility in Chinese for TTS (integer km or meters)."""
+            if meters >= 9990:
+                return "10千米以上"
+            if meters >= 1000:
+                km = meters / 1000
+                # Express as integer km when whole, else one decimal
+                if km == int(km):
+                    return f"{int(km)}千米"
+                return f"{km:.1f}千米".rstrip('0').rstrip('.')  + "千米" if False else f"{km:.1f}千米"
+            return f"{meters}米"
+
+        def _sm_to_m(sm_val):
+            return int(float(sm_val) * 1609)
+
         if isinstance(visib, (int, float)):
-            meters = int(float(visib) * 1000)
-            return f"{meters} meters", f"{self._digits_display(meters)}米"
+            meters = _sm_to_m(visib)
+            return f"Greater than 10 KM" if meters >= 9990 else f"{meters} meters", _zh_vis(meters)
         visib_text = str(visib).strip()
-        if visib_text.endswith('+') and visib_text[:-1].isdigit():
-            meters = int(visib_text[:-1]) * 1000
-            return f"{meters} meters", f"{self._digits_display(meters)}米"
+        if visib_text.endswith('+'):
+            # "6+" means >6 statute miles — convert SM→m
+            try:
+                meters = _sm_to_m(float(visib_text[:-1]))
+            except ValueError:
+                meters = 9999
+            en = "Greater than 10 KM" if meters >= 9990 else f"Greater than {visib_text[:-1]} SM"
+            return en, _zh_vis(meters)
         if visib_text.isdigit():
-            return f"{visib_text} meters", f"{self._digits_display(visib_text)}米"
-        return visib_text or "Unknown", visib_text or "不详"
+            # Raw integer from API — treat as SM
+            meters = _sm_to_m(int(visib_text))
+            return f"{meters} meters", _zh_vis(meters)
+        return "Visibility unknown", "能见度不详"
 
     def _format_clouds(self, weather_data):
         clouds_data = (weather_data or {}).get('clouds', [])
@@ -120,6 +218,144 @@ class ATISGenerator:
             return "Wind calm.", "静风。"
         return f"Wind {wdir:03d} at {wspd}.", f"地面风{wdir:03d}/{wspd:02d}。"
 
+    def _format_wind_zh(self, weather_data, metar_raw=None):
+        """中文ATIS风向风速格式：风向XXX度 风速X米秒（无"每"字）+ 风向变化（如有）。"""
+        import re
+        wdir = int((weather_data or {}).get('wdir', 0) or 0)
+        wspd_kt = int((weather_data or {}).get('wspd', 0) or 0)
+        wgst_kt = int((weather_data or {}).get('wgst', 0) or 0)
+
+        if wspd_kt <= 0:
+            return "静风"
+
+        # 节→米/秒（四舍五入至整数）
+        wspd_ms = round(wspd_kt * 0.5144)
+        wgst_ms = round(wgst_kt * 0.5144) if wgst_kt > 0 else 0
+
+        # 风向显示用阿拉伯数字，TTS引擎负责转换为无线电读法
+        if metar_raw and re.search(r'\bVRB\d', metar_raw):
+            wdir_str = "不定"
+        elif wdir == 0:
+            wdir_str = "360"
+        else:
+            wdir_str = f"{wdir:03d}"
+
+        result = f"风向{wdir_str}度 风速{wspd_ms}米秒"
+
+        if wgst_ms > 0:
+            result += f" 阵风{wgst_ms}米秒"
+
+        if metar_raw:
+            var_match = re.search(r'\b(\d{3})V(\d{3})\b', metar_raw)
+            if var_match:
+                result += f"\n风向变化{var_match.group(1)}度到{var_match.group(2)}度"
+
+        return result
+
+    def _format_clouds_zh(self, weather_data):
+        """中文ATIS云层格式（显示用数字，TTS转换朗读）。"""
+        clouds_data = (weather_data or {}).get('clouds', [])
+        if not clouds_data:
+            return "晴空"
+
+        cover_map = {'FEW': '少云', 'SCT': '疏云', 'BKN': '多云', 'OVC': '阴'}
+        parts = []
+        for cloud in clouds_data[:3]:
+            cover = (cloud.get('cover') or '').upper()
+            base_ft = int(cloud.get('base') or 0)
+            cover_zh = cover_map.get(cover, '云')
+            base_m = int(round(base_ft * 0.3048 / 100.0)) * 100
+            if base_m > 0:
+                parts.append(f"{cover_zh} 云底高度{base_m}米")
+            else:
+                parts.append(cover_zh)
+        return ' '.join(parts)
+
+    def _format_visibility_zh(self, weather_data):
+        """中文ATIS能见度（显示用数字，TTS转换朗读）。"""
+        visib = (weather_data or {}).get('visib', '')
+        def _meters(raw) -> int:
+            if isinstance(raw, (int, float)):
+                return int(float(raw) * 1609)
+            s = str(raw).strip()
+            if s.endswith('+'):
+                try:
+                    return int(float(s[:-1]) * 1609)
+                except ValueError:
+                    return 9999
+            if s.isdigit():
+                return int(float(s) * 1609)
+            return 9999
+        m = _meters(visib)
+        if m >= 9990:
+            return "能见度10千米或以上"
+        if m >= 1000:
+            km = m / 1000
+            if km == int(km):
+                return f"能见度{int(km)}千米"
+            # 非整数：取整到最近百米
+            m_rounded = int(round(m / 100)) * 100
+            km_part = m_rounded // 1000
+            bai_part = (m_rounded % 1000) // 100
+            if bai_part:
+                return f"能见度{km_part}千{bai_part}百米"
+            return f"能见度{km_part}千米"
+        return f"能见度{m}米"
+
+    def _format_temp_dew_zh(self, weather_data):
+        """中文ATIS气温露点（显示用数字，负温加"零下"前缀）。"""
+        temp_c = (weather_data or {}).get('temp', None)
+        dewp_c = (weather_data or {}).get('dewp', None)
+        if temp_c is None:
+            return "气温不详"
+        def _fmt(v):
+            i = int(v)
+            return f"零下{abs(i)}" if i < 0 else str(i)
+        result = f"气温{_fmt(temp_c)}"
+        if dewp_c is not None:
+            result += f" 露点{_fmt(dewp_c)}"
+        return result
+
+    def _format_qnh_zh(self, weather_data):
+        """中文ATIS修正海压（显示用数字）。"""
+        altim = (weather_data or {}).get('altim', None)
+        if altim is None:
+            return "修正海压不详"
+        return f"修正海压 {int(float(altim))}"
+
+    def _format_time_zh(self, hhmm_str):
+        """中文ATIS协调时（显示用数字）。"""
+        return f"协调时 {hhmm_str}"
+
+    # 过渡高度 / 过渡高度层（单位：米）— 按ICAO前缀分区
+    # 大多数中国机场：TA 3000 m / TL 3600 m（海拔低于1500m的机场）
+    # 高原机场（昆明/成都/拉萨等）：TA 4500–6000 m，这里保守取3000 m通用值
+    _TRANSITION_TABLE = {
+        # 标准平原机场 TA=3000m TL=3600m
+        'DEFAULT':  (3000, 3600),
+        # 高原/高高原机场 TA更高（暂用通用值，实际应查NOTAMs）
+        'ZPPP': (4500, 5100),   # 昆明
+        'ZUUU': (4200, 4800),   # 成都天府
+        'ZUUL': (4200, 4800),   # 成都双流
+        'ZULS': (6000, 6600),   # 拉萨
+        'ZUGY': (4200, 4800),   # 贵阳
+    }
+
+    def _transition_altitudes_zh(self, icao):
+        ta, tl = self._TRANSITION_TABLE.get((icao or '').upper(), self._TRANSITION_TABLE['DEFAULT'])
+
+        def _fmt_m(m):
+            """格式化米数（阿拉伯数字+中文单位，例：3000→3千米，3600→3千6米）。"""
+            if m % 1000 == 0:
+                return f"{m // 1000}千米"
+            q, r = divmod(m, 1000)
+            bai = r // 100
+            if r % 100 == 0:
+                return f"{q}千{bai}米"
+            return f"{q}千{bai}百米"
+
+        return f"过渡高度 {_fmt_m(ta)}\n过渡高度层 {_fmt_m(tl)}"
+
     def _format_temp_dew(self, weather_data):
         temp_c = (weather_data or {}).get('temp', None)
         dewp_c = (weather_data or {}).get('dewp', None)
@@ -143,11 +379,14 @@ class ATISGenerator:
         runways = self.airport_frequency_service.get_preferred_runways(icao, wind_dir=wind_dir, limit=2)
         if not runways:
             return "", ""
-        runway_text = ' / '.join(runways)
+        runway_text_en = ' and '.join(runways)   # English: "34R and 34L" — no slash
         primary = runways[0]
+        # Chinese display: "34右 / 34左" — TTS replaces "/" with "和" before synthesis
+        runways_zh = ' / '.join([self._format_runway_chinese(r) for r in runways])
+        primary_zh = self._format_runway_chinese(primary)
         if len(runways) == 1:
-            return f"ILS runway {primary} approach in use.", f"使用跑道{primary}。"
-        return f"ILS runway {primary} approach in use. Parallel runway {runway_text}.", f"使用跑道{runway_text}。"
+            return f"ILS runway {primary} approach in use.", f"使用跑道{primary_zh}。"
+        return f"ILS runway {primary} approach in use. Parallel runways {runway_text_en}.", f"使用跑道{runways_zh}。"
 
     def _format_report_time(self, weather_data, metar_raw):
         report_time = None
@@ -183,12 +422,9 @@ class ATISGenerator:
         """Convert METAR to spoken ATIS format."""
         # Get or increment information letter
         if icao not in self.cached_atis:
-            self.cached_atis[icao] = {
-                'hash': '',
-                'text': '',
-                'letter_idx': self._initial_letter_idx(icao)
-            }
-
+            # Start at a time-based letter so it's not always Alpha on every app launch
+            initial_idx = datetime.now(timezone.utc).hour % 26
+            self.cached_atis[icao] = {'hash': '', 'text': '', 'letter_idx': initial_idx}
 
         info_letter = self.PHONETIC[self.cached_atis[icao]['letter_idx'] % 26]
         
@@ -221,17 +457,49 @@ Advise on initial contact you have Information {info_letter}.
         if not self._is_china_airport(icao):
             return english_atis
 
-        chinese_atis = f"""
-{airport_name_zh}自动终端情报通播 {info_letter}。
-{self._digits_display(report_time_en.split()[0])} Zulu。
-{wind_zh}
-能见度{visibility_zh}。
-{clouds_zh}。
-{temp_zh}
-{qnh_zh}
-{runway_zh}
-首次联系管制时，请通报已收到通播{info_letter}。
-""".strip()
+        # ── 中文ATIS（民航标准格式）──────────────────────────────────────
+        # 时间（协调时 逐字无线电）
+        hhmm_raw = report_time_en.split()[0] if report_time_en != "Unknown" else ""
+        time_zh   = self._format_time_zh(hhmm_raw) if hhmm_raw else "协调时不详"
+
+        # 跑道（逐字无线电）
+        _, runway_zh_new = self._format_runway(icao, weather_data)
+        # 仅保留跑道号部分，去掉"使用"前缀与句号
+        runway_line = f"跑道{runway_zh_new.replace('使用跑道', '').rstrip('。')}" if runway_zh_new else ""
+
+        # 风（米秒，逐字无线电）
+        wind_zh_new = self._format_wind_zh(weather_data, metar_raw)
+
+        # 能见度
+        vis_zh_new = self._format_visibility_zh(weather_data)
+
+        # 云
+        clouds_zh_new = self._format_clouds_zh(weather_data)
+
+        # 气温露点
+        temp_zh_new = self._format_temp_dew_zh(weather_data)
+
+        # 修正海压
+        qnh_zh_new  = self._format_qnh_zh(weather_data)
+
+        # 过渡高度/过渡高度层
+        trans_zh = self._transition_altitudes_zh(icao)
+
+        lines = [
+            f"{airport_name_zh}通播{info_letter}",
+            time_zh,
+        ]
+        if runway_line:
+            lines.append(runway_line)
+        lines += [
+            wind_zh_new,
+            vis_zh_new,
+            clouds_zh_new,
+            temp_zh_new,
+            qnh_zh_new,
+            trans_zh,
+        ]
+        chinese_atis = '\n'.join(lines)
 
         return f"{english_atis}\n\n{chinese_atis}"
     
@@ -251,17 +519,19 @@ Advise on initial contact you have Information {info_letter}.
         # METAR changed - regenerate ATIS
         print(f"ATISGenerator: Generating new ATIS for {icao}...")
         
-        # Increment letter
-        if icao in self.cached_atis:
+        # Initialize or increment letter
+        if icao not in self.cached_atis:
+            # First time - use time-based initial letter
+            initial_idx = datetime.now(timezone.utc).hour % 26
+            self.cached_atis[icao] = {'hash': '', 'text': '', 'letter_idx': initial_idx}
+        else:
+            # Increment letter for METAR change
             self.cached_atis[icao]['letter_idx'] = (self.cached_atis[icao]['letter_idx'] + 1) % 26
         
         atis_text = self._parse_metar_to_atis(icao, metar_raw, weather_data)
         
-        self.cached_atis[icao] = {
-            'hash': metar_hash,
-            'text': atis_text,
-            'letter_idx': self.cached_atis.get(icao, {}).get('letter_idx', 0)
-        }
+        self.cached_atis[icao]['hash'] = metar_hash
+        self.cached_atis[icao]['text'] = atis_text
         
         print(f"ATISGenerator: New ATIS for {icao}: Information {self.PHONETIC[self.cached_atis[icao]['letter_idx']]}")
         if icao in self.pending_playback:
@@ -286,6 +556,8 @@ Advise on initial contact you have Information {info_letter}.
             print(f"ATISGenerator: Playing cached ATIS for {icao}")
             self._emit_atis_log(icao, atis_text)
             event_bus.emit('atis_tts_request', atis_text, icao)
+            # Always refresh METAR in background — new data will update on next loop cycle
+            event_bus.emit('metar_fetch_request', icao)
         else:
             # No cached ATIS - request METAR first
             print(f"ATISGenerator: No cached ATIS for {icao}. Fetching METAR...")

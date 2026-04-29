@@ -214,13 +214,65 @@ class AddonInstaller:
     def _resolve_install_root(self, item: dict) -> Optional[str]:
         """
         Find the install root directory from config based on item['config_key'].
-        E.g. config_key='msfs_community' → config['simulator']['msfs_community']
+        Falls back to auto-detection if not configured.
         """
         config_key = item.get('config_key', '')
         sim_cfg = self.config.get('simulator', {})
         path = sim_cfg.get(config_key, '')
         if path and os.path.isdir(path):
             return path
+
+        # Auto-detect MSFS Community folder when config is missing
+        if config_key == 'msfs_community':
+            detected = self._auto_detect_msfs_community()
+            if detected:
+                print(f"AddonInstaller: Auto-detected MSFS Community folder: {detected}")
+                return detected
+
+        return None
+
+    @staticmethod
+    def _auto_detect_msfs_community() -> Optional[str]:
+        """Try common MSFS Community folder locations on Windows."""
+        import platform
+        if platform.system() != 'Windows':
+            return None
+
+        candidates = []
+        # MS Store / Xbox App version
+        local_app = os.environ.get('LOCALAPPDATA', '')
+        packages_root = os.path.join(local_app, 'Packages')
+        if os.path.isdir(packages_root):
+            for entry in os.listdir(packages_root):
+                if 'MicrosoftFlightSimulator' in entry or 'Asobo' in entry:
+                    cand = os.path.join(packages_root, entry, 'LocalCache', 'Packages', 'Community')
+                    candidates.append(cand)
+                    # MSFS 2024
+                    cand2 = os.path.join(packages_root, entry, 'LocalCache', 'Packages', 'Community')
+                    candidates.append(cand2)
+
+        # Steam version
+        steam_root = os.path.join(os.environ.get('APPDATA', ''), '..', 'Local',
+                                   'Packages', 'Steam')
+        steam_msfs = os.path.join(os.environ.get('APPDATA', ''),
+                                   'Microsoft Flight Simulator', 'Community')
+        candidates.append(steam_msfs)
+
+        # Common custom install paths
+        for drive in ['C:\\', 'D:\\', 'E:\\']:
+            for sub in [
+                'Microsoft Flight Simulator\\Community',
+                'MSFS\\Community',
+                'Program Files\\WindowsApps\\Microsoft.FlightSimulator_8wekyb3d8bbwe\\Community',
+            ]:
+                candidates.append(os.path.join(drive, sub))
+
+        for cand in candidates:
+            try:
+                if os.path.isdir(cand):
+                    return cand
+            except Exception:
+                continue
         return None
 
 

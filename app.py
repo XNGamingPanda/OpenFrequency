@@ -1,11 +1,10 @@
-import json
+﻿import json
 import os
 import markdown
 import secrets
 import threading
 import time
-from io import BytesIO
-from flask import Flask, render_template, request, jsonify, redirect, make_response
+from flask import Flask, render_template, request, jsonify, redirect, make_response, Response, stream_with_context
 from flask_socketio import SocketIO, join_room, leave_room, emit
 from apscheduler.schedulers.background import BackgroundScheduler
 from threading import Lock
@@ -26,25 +25,20 @@ from core.airport_frequency_service import AirportFrequencyService
 from core.ground_data_service import GroundDataService
 from core.atc_monitor import ATCMonitor
 from core.aircraft_catalog import AircraftCatalog
-from core.self_check import (
-    self_check,
-    download_ffmpeg,
-    download_whisper_model,
-    download_whisper_model_with_progress,
-    whisper_model_status,
-)
+from core.self_check import self_check, download_ffmpeg, download_whisper_model, download_stt_model, download_tts_model
 from core.career import CareerProfile  # Career Mode
 from core.crew_manager import CrewManager  # Crew Manager (FO + Purser)
 from core.plugin_manager import PluginManager
 from core.addon_installer import get_installer, load_dlc_catalog, current_progress
 from core import telemetry as _telemetry_mod
+from core import stats as _stats_mod
 from core import updater as _updater_mod
 from core import feedback as _feedback_mod
-from core.version import APP_NAME, APP_VERSION, GITHUB_OWNER, GITHUB_REPO
-from core.update_checker import build_update_payload
+from flask import Flask, render_template, request, jsonify, redirect, make_response
+from flask_socketio import SocketIO, join_room, leave_room, emit
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'opensky_secret_key'
+app.config['SECRET_KEY'] = os.environ.get('OPENFREQUENCY_SECRET_KEY') or secrets.token_hex(32)
 
 def _select_socketio_async_mode():
     preferred = os.environ.get('OPENFREQUENCY_SOCKETIO_ASYNC_MODE', 'threading').strip().lower()
@@ -62,14 +56,6 @@ def _select_socketio_async_mode():
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_select_socketio_async_mode())
 # auth_manager will be initialized after config is loaded
 traffic_manager = None
-model_download_lock = Lock()
-model_download_state = {
-    "status": "idle",
-    "progress": 0,
-    "message": "",
-    "started_at": None,
-    "finished_at": None,
-}
 
 # --- Environment Setup ---
 # Check for local ffmpeg
@@ -99,40 +85,6 @@ def _runtime_dir():
     return os.path.dirname(os.path.abspath(__file__))
 
 
-def _snapshot_model_download_state():
-    with model_download_lock:
-        return dict(model_download_state)
-
-
-def _set_model_download_state(**updates):
-    with model_download_lock:
-        model_download_state.update(updates)
-
-
-def _run_model_download():
-    def progress(percent, message):
-        _set_model_download_state(
-            status="downloading",
-            progress=int(percent),
-            message=message,
-        )
-
-    _set_model_download_state(
-        status="downloading",
-        progress=0,
-        message="Starting model download...",
-        started_at=time.time(),
-        finished_at=None,
-    )
-    success, message = download_whisper_model_with_progress(progress)
-    _set_model_download_state(
-        status="completed" if success else "error",
-        progress=100 if success else _snapshot_model_download_state().get("progress", 0),
-        message=message,
-        finished_at=time.time(),
-    )
-
-
 # Load config. Packaged builds keep config outside the exe so user secrets and
 # local settings are never bundled into the executable.
 CONFIG_PATH = os.environ.get("OPENFREQUENCY_CONFIG_PATH") or os.path.join(_runtime_dir(), 'config.json')
@@ -141,7 +93,7 @@ config = {}
 def load_config():
     global config
     if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, 'r', encoding='utf-8-sig') as f:
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             config = json.load(f)
     else:
         print("Warning: config.json not found, using defaults.")
@@ -221,6 +173,12 @@ def _normalize_flight_plan(raw_flight_plan):
 
 
 def _active_career_job():
+    # Free flight must never adopt the career callsign, even if a career job
+    # is persisted in the profile. Gate strictly on session_mode.
+    # Dict reads are atomic in CPython, so no lock is needed (and avoids
+    # re-entering the non-reentrant context_lock when callers already hold it).
+    if shared_context.get('session_mode') != 'career':
+        return None
     profile_obj = globals().get('career_profile')
     if profile_obj:
         try:
@@ -229,17 +187,14 @@ def _active_career_job():
                 return job
         except Exception:
             pass
-    with context_lock:
-        job = shared_context.get('active_job')
-        if job and job.get('callsign'):
-            return dict(job)
+    job = shared_context.get('active_job')
+    if job and job.get('callsign'):
+        return dict(job)
     return None
 
 
 def _career_callsign_locked():
-    with context_lock:
-        mode = shared_context.get('session_mode')
-    return mode == 'career' and bool(_active_career_job())
+    return shared_context.get('session_mode') == 'career' and bool(_active_career_job())
 
 
 def _current_runtime_callsign_from_config():
@@ -299,7 +254,7 @@ def check_access():
     status = auth_manager.check_access(client_ip, token)
     
     if token:
-         print(f"Debug: Auth Check IP={client_ip} Token={token[:5]}... Status={status}", flush=True)
+         print(f"Debug: Auth Check IP={client_ip} TokenPresent=True Status={status}", flush=True)
     else:
          print(f"Debug: Auth Check IP={client_ip} No Token. Status={status}", flush=True)
     
@@ -314,14 +269,6 @@ def check_access():
         
     if status == 'WAIT':
         return redirect('/waiting_room')
-
-
-@app.context_processor
-def inject_ui_preferences():
-    return {
-        "ui_preferences": config.get("ui", {}) or {},
-        "app_version": APP_VERSION,
-    }
 
 @app.route('/waiting_room')
 def waiting_room():
@@ -363,85 +310,34 @@ def index():
 
 @app.route('/dashboard')
 def dashboard():
-    """Direct dashboard access (for Free Flight mode)."""
+    """Direct dashboard access (for Free Flight or Career mode)."""
     client_ip = request.remote_addr
     token = request.cookies.get('auth_token')
     perm = auth_manager.get_permission_level(client_ip, token)
     can_interact = perm in ['ADMIN', 'FULL']
-    
-    # Set flight mode
+
     mode = request.args.get('mode', 'free')
-    # Emit mode to frontend
+
+    # Sync session_mode into shared_context so backend always agrees with URL param.
+    # Career job acceptance already sets session_mode='career', but this also
+    # handles the case where the server restarted and session_mode was lost.
+    with context_lock:
+        shared_context['session_mode'] = mode
+        if mode == 'career':
+            career_job = _active_career_job()
+            if career_job and career_job.get('callsign'):
+                shared_context['aircraft']['callsign'] = career_job['callsign']
+                shared_context['callsign_override'] = career_job['callsign']
+        else:
+            # Free flight: remove any career callsign override, restore profile callsign
+            shared_context.pop('callsign_override', None)
+            free_cs = config.get('user_profile', {}).get('callsign', 'N/A')
+            shared_context['aircraft']['callsign'] = free_cs
+
+    career_evaluator.set_mode(mode == 'career')
     socketio.emit('flight_mode', {'mode': mode})
-    
+
     return render_template('dashboard.html', can_interact=can_interact, permission=perm, flight_mode=mode)
-
-
-@app.route('/api/models/status')
-def model_status_api():
-    info = whisper_model_status()
-    info.update({
-        "download": _snapshot_model_download_state(),
-    })
-    return jsonify(info)
-
-
-@app.route('/api/desktop_ptt_status')
-def desktop_ptt_status_api():
-    status_path = os.path.join(_runtime_dir(), 'desktop_ptt_status.json')
-    if not os.path.exists(status_path):
-        return jsonify({
-            "enabled": False,
-            "recording": False,
-            "matched_device": "",
-            "last_upload_at": None,
-            "last_error": "",
-            "available": False,
-        })
-    try:
-        with open(status_path, 'r', encoding='utf-8') as f:
-            payload = json.load(f)
-    except Exception as e:
-        return jsonify({
-            "enabled": False,
-            "recording": False,
-            "matched_device": "",
-            "last_upload_at": None,
-            "last_error": str(e),
-            "available": False,
-        })
-    payload["available"] = True
-    return jsonify(payload)
-
-
-@app.route('/api/models/download', methods=['POST'])
-def model_download_api():
-    info = whisper_model_status()
-    if info.get("installed"):
-        _set_model_download_state(
-            status="completed",
-            progress=100,
-            message="Model already installed.",
-            finished_at=time.time(),
-        )
-        return jsonify({"success": True, "started": False, "message": "Model already installed."})
-
-    state = _snapshot_model_download_state()
-    if state.get("status") == "downloading":
-        return jsonify({"success": True, "started": False, "message": "Model download already in progress."})
-
-    worker = threading.Thread(target=_run_model_download, daemon=True, name="ModelDownloadThread")
-    worker.start()
-    return jsonify({"success": True, "started": True, "message": "Model download started."})
-
-
-@app.route('/api/update_status')
-def update_status_api():
-    return jsonify(build_update_payload(
-        owner=GITHUB_OWNER,
-        repo=GITHUB_REPO,
-        current_version=APP_VERSION,
-    ))
 
 @app.route('/get_my_permission')
 def get_my_permission():
@@ -460,54 +356,6 @@ def get_session_mode():
     return jsonify({"mode": mode})
 
 
-def _report_dir():
-    path = os.path.join(_runtime_dir(), 'data', 'reports')
-    os.makedirs(os.path.join(path, 'img'), exist_ok=True)
-    return path
-
-
-def _log_dir():
-    path = os.environ.get("OPENFREQUENCY_LOG_DIR", "logs")
-    os.makedirs(path, exist_ok=True)
-    return path
-
-
-def _list_reports():
-    import glob
-    import datetime
-    reports = []
-    for path in sorted(glob.glob(os.path.join(_report_dir(), 'report_*.html')), key=os.path.getmtime, reverse=True):
-        name = os.path.basename(path)
-        modified_at = int(os.path.getmtime(path))
-        reports.append({
-            'filename': name,
-            'url': f"/reports/{name}",
-            'modified_at': modified_at,
-            'modified_label': datetime.datetime.fromtimestamp(modified_at).strftime('%Y-%m-%d %H:%M:%S'),
-        })
-    return reports
-
-
-def _list_logs():
-    import glob
-    import datetime
-    files = []
-    patterns = ('flight_log_*.txt', 'track_*.csv', 'cabin_*.csv', 'openfrequency_*.log')
-    for pattern in patterns:
-        for path in glob.glob(os.path.join(_log_dir(), pattern)):
-            name = os.path.basename(path)
-            modified_at = int(os.path.getmtime(path))
-            files.append({
-                'filename': name,
-                'url': f"/logs/{name}",
-                'modified_at': modified_at,
-                'modified_label': datetime.datetime.fromtimestamp(modified_at).strftime('%Y-%m-%d %H:%M:%S'),
-                'size': os.path.getsize(path),
-            })
-    files.sort(key=lambda item: item['modified_at'], reverse=True)
-    return files
-
-
 @app.route('/api/nearby_frequencies')
 def get_nearby_frequencies():
     with context_lock:
@@ -519,21 +367,6 @@ def get_nearby_frequencies():
         "active_channel_key": atc_state.get('current_channel_key', ''),
         "current_controller": atc_state.get('current_controller', 'N/A')
     })
-
-
-@app.route('/api/reports/list')
-def report_list_api():
-    return jsonify({'reports': _list_reports()})
-
-
-@app.route('/api/logs/list')
-def logs_list_api():
-    return jsonify({'logs': _list_logs()})
-
-
-@app.route('/history')
-def history_page():
-    return render_template('flight_history.html', reports=_list_reports(), logs=_list_logs())
 
 
 @app.route('/api/airport_data/refresh', methods=['POST'])
@@ -580,6 +413,81 @@ def get_ground_layout_api(airport_ident):
         "runways": layout.get("runways", []),
         "aprons": layout.get("aprons", []),
     })
+
+@app.route('/api/flight_plan')
+def get_flight_plan():
+    """Return current flight plan with airport coordinates for map display."""
+    with context_lock:
+        fp = dict(shared_context.get('flight_plan', {}))
+    if not fp or (fp.get('origin', 'N/A') == 'N/A' and fp.get('destination', 'N/A') == 'N/A'):
+        return jsonify({"status": "empty"})
+    for icao_key, coord_key in [('origin', 'origin_coords'), ('destination', 'dest_coords')]:
+        if coord_key not in fp:
+            icao = fp.get(icao_key, '')
+            if icao and icao != 'N/A':
+                pos = airport_frequency_service.get_airport_position(icao) if airport_frequency_service else None
+                if pos:
+                    fp[coord_key] = [pos['lat'], pos['lon']]
+    return jsonify({"status": "ok", "flight_plan": fp})
+
+@app.route('/api/resolve_route_waypoints', methods=['POST'])
+def resolve_route_waypoints():
+    """Resolve a route string to ordered [lat, lon] coordinates via nav SQLite."""
+    data = request.get_json(force=True) or {}
+    route_str = (data.get('route') or '').strip()
+    origin = (data.get('origin') or '').strip().upper()
+    destination = (data.get('destination') or '').strip().upper()
+    if not route_str or route_str == 'N/A':
+        return jsonify({'status': 'no_route', 'waypoints': []})
+
+    sqlite_path = config.get('navdata', {}).get('sqlite_path', '')
+    if not sqlite_path or 'path/to/db' in sqlite_path:
+        return jsonify({'status': 'no_db', 'waypoints': []})
+
+    try:
+        import sqlite3
+        conn = sqlite3.connect(sqlite_path, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        tokens = [t for t in route_str.split() if t and t != 'N/A']
+        results = []
+        for tok in tokens:
+            ident = tok.upper()
+            # Skip SID/STAR/airway fragments that are clearly not fix names (length > 7)
+            if len(ident) > 7:
+                continue
+            # Try waypoint/fix table first, then VOR, then NDB, then airport
+            row = None
+            for table, id_col, lat_col, lon_col in [
+                ('waypoint', 'ident', 'laty', 'lonx'),
+                ('vor',      'ident', 'laty', 'lonx'),
+                ('ndb',      'ident', 'laty', 'lonx'),
+                ('airport',  'ident', 'laty', 'lonx'),
+            ]:
+                try:
+                    cur.execute(f'SELECT laty, lonx FROM {table} WHERE ident=? LIMIT 1', (ident,))
+                    row = cur.fetchone()
+                    if row:
+                        break
+                except Exception:
+                    continue
+            if row:
+                results.append({'ident': ident, 'lat': row[0], 'lon': row[1]})
+
+        conn.close()
+        return jsonify({'status': 'ok', 'waypoints': results})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e), 'waypoints': []})
+
+
+@app.route('/api/taxi_route', methods=['POST'])
+def request_taxi_route():
+    """Manually trigger taxi route recalculation for current airport."""
+    if not logic_manager:
+        return jsonify({"status": "error", "message": "Logic manager not ready"}), 503
+    logic_manager._refresh_ground_context()
+    return jsonify({"status": "ok"})
 
 @app.route('/api/xplane/traffic_targets')
 def get_xplane_traffic_targets():
@@ -919,7 +827,7 @@ def career_nickname():
 
 @app.route('/career/callsign', methods=['POST'])
 def career_callsign():
-    if _active_career_job():
+    if _career_callsign_locked():
         job = _active_career_job()
         return jsonify({
             "success": False,
@@ -1093,7 +1001,12 @@ def api_install_plugin():
         f.save(tmp.name)
         ok, msg = _plugin_manager.install_from_zip(tmp.name)
         os.unlink(tmp.name)
-    return jsonify({'ok': ok, 'message': msg})
+    response = {'ok': ok, 'message': msg}
+    # Include warning if present
+    if _plugin_manager._last_install_warning:
+        response['warning'] = _plugin_manager._last_install_warning
+        _plugin_manager._last_install_warning = None  # Clear after use
+    return jsonify(response)
 
 # ── DLC catalog & installer ───────────────────────────────────────────────────
 
@@ -1160,11 +1073,67 @@ def get_config_route():
     if 'connection' in config_safe and 'api_key' in config_safe['connection']:
         if config_safe['connection']['api_key'] and len(config_safe['connection']['api_key']) > 5:
              config_safe['connection']['api_key'] = "******"
-    if 'ai_routing' in config_safe:
-        for key in ('light_api_key', 'reasoning_api_key'):
-            if config_safe['ai_routing'].get(key) and len(config_safe['ai_routing'][key]) > 5:
-                config_safe['ai_routing'][key] = "******"
+    # 告知前端呼号是否被职业模式锁定
+    config_safe['_callsign_locked'] = _career_callsign_locked()
     return jsonify(config_safe)
+
+@app.route('/get_cabin_media_packages')
+def get_cabin_media_packages():
+    """Return all available cabin media packages (including plugin-provided)."""
+    from core.cabin_media_manager import cabin_media_manager
+
+    # Load from cabin media manager (manifest.json)
+    all_media = cabin_media_manager.all_media()
+    packages = {}
+    for entry in all_media:
+        callsigns = entry.get('callsigns') or []
+        if not callsigns:
+            # Empty callsigns means generic/universal media
+            callsigns = ['Generic']
+        for callsign in callsigns:
+            if callsign not in packages:
+                packages[callsign] = {
+                    'id': callsign,
+                    'name': entry.get('name', callsign),
+                    'name_zh': entry.get('name_zh', ''),
+                    'voice': entry.get('voice', ''),
+                    'source': entry.get('_source', 'builtin')
+                }
+
+    # Also load from scripts.json for cabin voice packages
+    scripts_path = os.path.join('data', 'cabin', 'scripts.json')
+    if os.path.exists(scripts_path):
+        try:
+            with open(scripts_path, 'r', encoding='utf-8') as f:
+                scripts_data = json.load(f)
+            for airline_code, config in scripts_data.items():
+                if airline_code not in packages:
+                    # Map airline codes to display names
+                    airline_names = {
+                        'Generic': {'name': 'Generic',            'name_zh': '通用'},
+                        'CCA':     {'name': 'Air China',          'name_zh': '中国国际航空'},
+                        'CES':     {'name': 'China Eastern',      'name_zh': '中国东方航空'},
+                        'CES2':    {'name': 'China Eastern (EN)', 'name_zh': '中国东方航空（英语）'},
+                        'CSN':     {'name': 'China Southern',     'name_zh': '中国南方航空'},
+                        'CPA':     {'name': 'Cathay Pacific',     'name_zh': '国泰航空'},
+                        'ANA':     {'name': 'All Nippon Airways', 'name_zh': '全日空'},
+                        'JAL':     {'name': 'Japan Airlines',     'name_zh': '日本航空'},
+                        'UAL':     {'name': 'United Airlines',    'name_zh': '美联航'},
+                        'DAL':     {'name': 'Delta Air Lines',    'name_zh': '达美航空'},
+                        'AAL':     {'name': 'American Airlines',  'name_zh': '美国航空'},
+                    }
+                    names = airline_names.get(airline_code, {'name': airline_code, 'name_zh': airline_code})
+                    packages[airline_code] = {
+                        'id': airline_code,
+                        'name': names['name'],
+                        'name_zh': names['name_zh'],
+                        'voice': config.get('voice', ''),
+                        'source': 'scripts'
+                    }
+        except Exception as e:
+            print(f"Failed to load scripts.json: {e}")
+
+    return jsonify({'packages': list(packages.values())})
 
 def update_recursive(d, u):
     for k, v in u.items():
@@ -1197,10 +1166,6 @@ def save_settings():
         if new_config['connection']['api_key'] == "******":
             print("Security: Ignoring masked API key update.")
             del new_config['connection']['api_key']
-    if 'ai_routing' in new_config:
-        for key in ('light_api_key', 'reasoning_api_key'):
-            if key in new_config['ai_routing'] and new_config['ai_routing'][key] == "******":
-                del new_config['ai_routing'][key]
     
     # Recursively update the config
     config = update_recursive(config, new_config)
@@ -1219,6 +1184,23 @@ def save_settings():
 
     print("Settings saved.")
     event_bus.emit('config_updated', config)
+
+    # 推送精简的配置摘要给所有前端，使其无需刷新即可同步状态
+    socketio.emit('config_sync', {
+        'ui':    config.get('ui', {}),
+        'audio': {'radio_effect': bool(config.get('audio', {}).get('radio_effect', False))},
+        'cabin': {'media_package': config.get('cabin', {}).get('media_package', '')},
+    })
+
+    # Apply Hoppie settings immediately if a logon code is configured
+    hoppie_cfg = config.get('hoppie', {}) or {}
+    hoppie_logon = (hoppie_cfg.get('logon_code') or '').strip()
+    hoppie_interval = max(65, int(hoppie_cfg.get('poll_interval') or 65))
+    if hoppie_logon:
+        from core.hoppie_acars import hoppie_client
+        hoppie_client.set_poll_interval(hoppie_interval)
+        print(f"Hoppie: poll interval set to {hoppie_interval}s (logon code saved, connect via dashboard)")
+
     return jsonify({"status": "success"})
 
 @app.route('/import_simbrief', methods=['POST'])
@@ -1354,22 +1336,6 @@ def handle_voice_data(blob):
     # In a real scenario, stt.transcribe would be called here.
     print("Received voice data from client.")
     stt_module.transcribe(blob)
-
-@app.route('/api/voice_data', methods=['POST'])
-def voice_data_api():
-    payload = request.get_data()
-    if not payload:
-        return jsonify({'success': False, 'message': 'No audio payload received.'}), 400
-    print("Received voice data from desktop launcher.")
-    stt_module.transcribe(payload)
-    return jsonify({'success': True})
-
-@app.route('/api/ptt_state', methods=['POST'])
-def ptt_state_api():
-    data = request.get_json(silent=True) or {}
-    active = bool(data.get('active'))
-    event_bus.emit('ptt_active' if active else 'ptt_released')
-    return jsonify({'success': True, 'active': active})
 
 @socketio.on('text_input')
 def handle_text_input(text):
@@ -1528,7 +1494,7 @@ def handle_admin_decision(data):
         persistent = (action == 'trust')
         print(f"Auth: Creating token for {client_ip}...", flush=True)
         token = auth_manager.create_token(client_ip, client_ua, persistent=persistent)
-        print(f"Auth: Token created: {token[:10]}...", flush=True)
+        print("Auth: Token created.", flush=True)
         
         # Send to client
         socketio.emit('access_granted', {'token': token}, room=target_sid)
@@ -1558,72 +1524,118 @@ def rescue_page():
 
 @app.route('/api/rescue/fix', methods=['POST'])
 def rescue_fix():
-    """Handle one-click fix requests."""
+    """Handle one-click fix requests (legacy, non-streaming)."""
     data = request.get_json()
     error_id = data.get('error_id', '')
-    
+
     if error_id == 'ffmpeg':
         success, msg = download_ffmpeg()
         return jsonify({'success': success, 'message': msg})
-    elif error_id == 'whisper':
-        success, msg = download_whisper_model()
+    elif error_id in ('whisper', 'stt'):
+        success, msg = download_stt_model()
         return jsonify({'success': success, 'message': msg})
-    
+    elif error_id == 'tts':
+        success, msg = download_tts_model()
+        return jsonify({'success': success, 'message': msg})
+
     return jsonify({'success': False, 'message': 'Unknown error type'})
+
+
+@app.route('/api/model/download/<model_type>')
+def model_download_sse(model_type):
+    """
+    Server-Sent Events endpoint for model downloads with real-time progress.
+    model_type: 'stt' | 'tts'
+    """
+    import queue as _queue
+    import json as _json
+
+    q: _queue.Queue = _queue.Queue()
+
+    def _progress(pct: int, msg: str):
+        q.put({'progress': pct, 'message': msg})
+
+    def _run():
+        try:
+            if model_type == 'stt':
+                ok, final_msg = download_stt_model(_progress)
+            elif model_type == 'tts':
+                ok, final_msg = download_tts_model(_progress)
+            else:
+                ok, final_msg = False, '未知模型类型'
+            q.put({'progress': 100 if ok else -1,
+                   'message': final_msg,
+                   'done': True,
+                   'success': ok})
+        except Exception as exc:
+            q.put({'progress': -1,
+                   'message': str(exc),
+                   'done': True,
+                   'success': False})
+
+    threading.Thread(target=_run, daemon=True).start()
+
+    def _generate():
+        while True:
+            item = q.get()
+            yield f"data: {_json.dumps(item, ensure_ascii=False)}\n\n"
+            if item.get('done'):
+                break
+
+    return Response(
+        stream_with_context(_generate()),
+        content_type='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+    )
 
 
 # --- Flight Report Routes ---
 @app.route('/report/latest')
 def report_latest():
     """Serve the latest flight report."""
-    reports = [os.path.join(_report_dir(), item['filename']) for item in _list_reports()]
+    import glob
+    reports = glob.glob('data/reports/report_*.html')
     if reports:
         latest = max(reports, key=os.path.getctime)
         with open(latest, 'r', encoding='utf-8') as f:
             return f.read()
     return "No flight report available yet.", 404
 
-
-@app.route('/api/flight/end', methods=['POST'])
-def end_current_flight():
-    if 'black_box' not in globals():
-        return jsonify({'success': False, 'message': 'Flight recorder unavailable.'}), 503
-    success, message = black_box.complete_current_flight()
-    status = 200 if success else 400
-    return jsonify({
-        'success': success,
-        'message': message,
-        'latest_report': black_box.last_report_url,
-    }), status
-
 @app.route('/report/img/<filename>')
 @app.route('/reports/<path:filename>')
 def serve_report(filename):
     """Serve generated flight reports."""
     from flask import send_from_directory
-    return send_from_directory(_report_dir(), filename)
+    # Ensure we look in the correct absolute path
+    report_dir = os.path.join(os.getcwd(), 'data', 'reports')
+    return send_from_directory(report_dir, filename)
 
 def report_image(filename):
     """Serve report images."""
     from flask import send_from_directory
-    return send_from_directory(os.path.join(_report_dir(), 'img'), filename)
-
-
-@app.route('/logs/<path:filename>')
-def serve_log(filename):
-    from flask import send_from_directory
-    return send_from_directory(_log_dir(), filename)
+    return send_from_directory('data/reports/img', filename)
 
 
 if __name__ == '__main__':
     packaged_mode = _bool_env("OPENFREQUENCY_PACKAGED", False)
     debug_mode = _bool_env("OPENFREQUENCY_DEBUG", not packaged_mode)
-    host = os.environ.get("OPENFREQUENCY_HOST", "127.0.0.1" if packaged_mode else "0.0.0.0")
+    host = os.environ.get("OPENFREQUENCY_HOST", "0.0.0.0")
     port = int(os.environ.get("OPENFREQUENCY_PORT", "5000"))
 
-    print(f"--- Initializing {APP_NAME} v{APP_VERSION} ---")
+    # Read version from version.txt for unified version management
+    version = "v3.9-beta"
+    try:
+        with open("version.txt", "r", encoding="utf-8") as f:
+            version = f.read().strip()
+    except Exception:
+        pass
+
+    print(f"--- Initializing OpenFrequency {version} ---")
     print(f"Debug: WERKZEUG_RUN_MAIN = {os.environ.get('WERKZEUG_RUN_MAIN')}")
     
+    # Send daily usage heartbeat (fire-and-forget, privacy-preserving)
+    _stats_mod.ping_async()
+
     # 0. Environment Self-Check (only in worker process)
     if packaged_mode or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         ok, errors = self_check()
@@ -1631,7 +1643,7 @@ if __name__ == '__main__':
             print("⚠️ Environment check failed! Starting in rescue mode...")
             for e in errors:
                 print(f"  - {e['title']}: {e['message']}")
-            print(f"Open http://{host}:{port}/rescue for repair options.")
+            print("Open http://0.0.0.0:5000/rescue for repair options.")
     
     # 1. Initialize all core modules
     print("Initializing modules...")
@@ -1640,6 +1652,7 @@ if __name__ == '__main__':
     from core.black_box import BlackBox
     from core.flight_analyzer import FlightAnalyzer
     # from core.flight_report import FlightReport  # Deprecated in favor of BlackBox v2
+    from core.head_tracker import HeadTracker
     from core.emergency_director import EmergencyDirector
     
     logic_manager = LogicManager(config, socketio, airport_frequency_service=airport_frequency_service, ground_service=ground_data_service)
@@ -1670,7 +1683,7 @@ if __name__ == '__main__':
     event_bus.on('telemetry_update', _fwd_telemetry_to_plugins)
     nav_manager = NavManager(config, shared_context, context_lock, event_bus, ground_service=ground_data_service, airport_frequency_service=airport_frequency_service)
     stt_module = STTLocal(config, event_bus)
-    llm_client = LLMClient(config, shared_context, context_lock, event_bus)
+    llm_client = LLMClient(config, shared_context, context_lock, event_bus, airport_frequency_service=airport_frequency_service)
     logic_manager._llm_client = llm_client  # Tier 2 fast-LLM access
     tts_engine = TTSEngine(config, socketio)
     atis_generator = ATISGenerator(config, socketio, airport_frequency_service=airport_frequency_service)
@@ -1679,6 +1692,7 @@ if __name__ == '__main__':
     black_box = BlackBox(config)
     flight_analyzer = FlightAnalyzer(config, socketio)
     # flight_report = FlightReport(config, socketio, black_box) # Disabled
+    head_tracker = HeadTracker(config, socketio)
     emergency_director = EmergencyDirector(config, socketio)
     
     # --- Crew Manager (Replaces CabinCrew and old Purser) ---
@@ -1698,9 +1712,23 @@ if __name__ == '__main__':
         mode = data.get('mode', 'free')
         enabled = (mode == 'career')
         career_evaluator.set_mode(enabled)
-        # Store in shared context for session state
+        # Update mode first, then resolve the right callsign for that mode and
+        # write it back atomically. Without this, switching from career to
+        # free flight would leave the career callsign stuck in shared_context.
         with context_lock:
             shared_context['session_mode'] = mode
+        if enabled:
+            job = _active_career_job()
+            with context_lock:
+                if job and job.get('callsign'):
+                    shared_context['callsign_override'] = job['callsign']
+                    shared_context['aircraft']['callsign'] = job['callsign']
+        else:
+            free_cs = config.get('user_profile', {}).get('callsign', 'N/A')
+            with context_lock:
+                shared_context.pop('callsign_override', None)
+                shared_context.pop('active_job', None)
+                shared_context['aircraft']['callsign'] = free_cs
         # Notify all clients
         socketio.emit('game_mode_changed', {'mode': mode})
 
@@ -1833,9 +1861,12 @@ if __name__ == '__main__':
     @socketio.on('hoppie_logon')
     def handle_hoppie_logon(data):
         from core.hoppie_acars import hoppie_client
-        logon = data.get('logon', '')
+        # Allow dashboard to omit logon code — fall back to saved config
+        logon = (data.get('logon') or '').strip() or (config.get('hoppie', {}) or {}).get('logon_code', '')
         callsign = data.get('callsign', 'OFTEST')
-        station = data.get('station', '')
+        # Apply saved poll interval before starting
+        saved_interval = max(65, int((config.get('hoppie', {}) or {}).get('poll_interval') or 65))
+        hoppie_client.set_poll_interval(saved_interval)
         result = hoppie_client.logon(logon, callsign)
         emit('hoppie_status', {'connected': result, 'message': 'Connected to Hoppie ACARS' if result else 'Logon failed — check your code at hoppie.nl'})
         if result:
@@ -1923,8 +1954,6 @@ if __name__ == '__main__':
             result['ok'] = ok
 
     event_bus.on('simulator_failure_event', handle_simulator_failure_event)
-    event_bus.on('flight_report_ready', lambda data: socketio.emit('flight_report_ready', data))
-    event_bus.on('flight_arrival_ready', lambda data: socketio.emit('flight_arrival_ready', data))
 
     # Feature 2.4: Debug Kit Runtime Updates
     @socketio.on('update_debug_config')
@@ -1985,6 +2014,7 @@ if __name__ == '__main__':
         sim_bridge.start()
         nav_manager.start()
         traffic_manager.start()
+        head_tracker.start()
         emergency_director.start()
 
         # Initialize and start the scheduler
@@ -1997,5 +2027,12 @@ if __name__ == '__main__':
         print("System: Parent process started. Waiting for reloader to spawn worker...")
 
     # 3. Start the Web Server
-    print(f"Starting Web Server on http://{host}:{port}")
+    print(f"Starting Web Server on http://localhost:{port}")
+    if host == "0.0.0.0":
+        import socket as _sock
+        try:
+            lan_ip = _sock.gethostbyname(_sock.gethostname())
+        except Exception:
+            lan_ip = "<your-lan-ip>"
+        print(f"LAN access: http://{lan_ip}:{port}")
     socketio.run(app, host=host, port=port, debug=debug_mode, allow_unsafe_werkzeug=True, use_reloader=debug_mode)

@@ -7,24 +7,20 @@ from .immersion.workload_sim import WorkloadSimulator
 from .taxi_router import TaxiRouter
 from .instruction_extractor import InstructionExtractor
 from .quick_reply import QuickReplyEngine
-from .atc_intent_router import ATCIntentRouter
-from .atc_template_responder import ATCTemplateResponder
+from .china_airspace import is_in_china_airspace, nearest_metric_rvsm_level, metres_to_feet, feet_to_metres
 
 class LogicManager:
     """
     The central coordinator. Does not own other modules.
     It subscribes to events on the EventBus and emits data to the UI via SocketIO.
     """
-    def __init__(self, config, socketio, airport_frequency_service=None, ground_service=None, llm_client=None):
+    def __init__(self, config, socketio, airport_frequency_service=None, ground_service=None):
         self.config = config
         self.socketio = socketio
         self.airport_frequency_service = airport_frequency_service
         self.ground_service = ground_service
-        self.llm_client = llm_client
         self.taxi_router = TaxiRouter(ground_service) if ground_service else None
         self.workload_sim = WorkloadSimulator(config)
-        self.intent_router = ATCIntentRouter(config, llm_client)
-        self.template_responder = ATCTemplateResponder(airport_frequency_service)
         self.scheduler = None
         self.last_freq = 0.0
         self.message_history = [] # Buffer for chat log
@@ -52,7 +48,20 @@ class LogicManager:
             'approach': False    # 下降中移交进场
         }
         self.last_vs = 0  # 上一次垂直速度，用于判断爬升/下降
+        self._was_in_china = None  # Track China airspace entry/exit for metric RVSM notification
         self._was_on_ground = True  # Track ground→air transition for flight plan display
+
+        # === FIR 跨区检测 ===
+        self._current_fir: str | None = None   # 当前所在 FIR 代码
+        self._fir_check_counter: int = 0       # 每 N 次遥测才检测一次（节省 CPU）
+        self._FIR_CHECK_INTERVAL: int = 10     # 约每 10 秒检查一次（取决于遥测频率）
+        try:
+            from .fir_data import fir_detector as _fir_detector
+            self._fir_detector = _fir_detector
+            print("LogicManager: FIR detector loaded.")
+        except Exception as e:
+            self._fir_detector = None
+            print(f"LogicManager: FIR detector unavailable: {e}")
 
         # Radar vector mode: when True, ATC heading/altitude/speed cards are
         # automatically applied to the simulator's autopilot.
@@ -72,11 +81,6 @@ class LogicManager:
         self.scheduler = scheduler
         print("LogicManager: Scheduler set.")
 
-    def set_llm_client(self, llm_client):
-        self.llm_client = llm_client
-        self.intent_router = ATCIntentRouter(self.config, llm_client)
-        self.template_responder = ATCTemplateResponder(self.airport_frequency_service)
-
     def start(self):
         """
         Subscribes to events on the event bus.
@@ -93,7 +97,6 @@ class LogicManager:
         event_bus.on('llm_response_generated', self.on_llm_response)
         event_bus.on('sim_connection_status', self.on_sim_status)
         event_bus.on('flight_plan_loaded', self.on_flight_plan_loaded)
-        event_bus.on('flight_started', self.on_flight_started)
         event_bus.on('metar_fetch_request', self._handle_metar_fetch_request)
         event_bus.on('external_chat_log', self._handle_external_chat_log)
         event_bus.on('config_updated', self._handle_config_updated)
@@ -274,20 +277,8 @@ class LogicManager:
     def _handle_external_chat_log(self, sender, text):
         self._broadcast_chat(sender, text)
 
-    def on_flight_started(self, data):
-        origin = (data or {}).get('origin') or shared_context.get('flight_plan', {}).get('origin') or 'N/A'
-        destination = (data or {}).get('destination') or shared_context.get('flight_plan', {}).get('destination') or 'N/A'
-        try:
-            import datetime
-            ts = datetime.datetime.now().strftime("%H:%M:%S")
-            with open(self.log_file, "a", encoding="utf-8") as f:
-                f.write(f"[{ts}] SYSTEM: Flight Started | Route: {origin} -> {destination}\n")
-        except Exception as e:
-            print(f"LogicManager: Failed to write flight start route to log: {e}")
-
     def _handle_config_updated(self, new_config):
         self.config = new_config
-        self.intent_router.update_config(new_config)
         if self.ground_service:
             self.ground_service.update_config(new_config)
         # Re-read auto_busy setting when config changes
@@ -309,9 +300,21 @@ class LogicManager:
 
     def on_flight_plan_loaded(self, flight_plan):
         self._refresh_nearby_airports(force=True)
-        # Push to dashboard immediately so it shows even before takeoff
         if flight_plan.get('destination', 'N/A') != 'N/A' or flight_plan.get('origin', 'N/A') != 'N/A':
-            self.socketio.emit('flight_plan_update', flight_plan)
+            fp = dict(flight_plan)
+            # Attach airport coordinates so the map can draw a route prediction line
+            if self.airport_frequency_service:
+                orig = fp.get('origin', '')
+                dest = fp.get('destination', '')
+                if orig and orig != 'N/A':
+                    pos = self.airport_frequency_service.get_airport_position(orig)
+                    if pos:
+                        fp['origin_coords'] = [pos['lat'], pos['lon']]
+                if dest and dest != 'N/A':
+                    pos = self.airport_frequency_service.get_airport_position(dest)
+                    if pos:
+                        fp['dest_coords'] = [pos['lat'], pos['lon']]
+            self.socketio.emit('flight_plan_update', fp)
 
     def _refresh_nearby_airports(self, force=False):
         if not self.airport_frequency_service:
@@ -423,13 +426,23 @@ class LogicManager:
             shared_context['navigation']['ground_layout_summary'] = summary
             shared_context['navigation']['current_taxi_path'] = route.get('taxiways', []) if route else []
 
-        # Push suggested taxi route to the dashboard for visual highlighting
-        if route and route.get('taxiways'):
-            self.socketio.emit('suggested_taxi_route', {
-                'airport_ident': airport_ident,
-                'taxiways': route.get('taxiways', []),
-                'target_runway': route.get('target_runway') or route.get('end_node', ''),
-            })
+        # Push suggested taxi route to the dashboard for visual highlighting.
+        # Include path coordinates so the map draws an exact polyline instead of
+        # highlighting every edge that shares a name with the route taxiways.
+        if route and route.get('path'):
+            node_coords = []
+            node_map = {str(n.get('id')): n for n in layout.get('taxi_nodes', [])}
+            for node_id in route.get('path', []):
+                node = node_map.get(str(node_id))
+                if node and node.get('lat') is not None and node.get('lon') is not None:
+                    node_coords.append([node['lat'], node['lon']])
+            if node_coords:
+                self.socketio.emit('suggested_taxi_route', {
+                    'airport_ident': airport_ident,
+                    'taxiways': route.get('taxiways', []),
+                    'path_coords': node_coords,
+                    'target_runway': route.get('target_runway') or route.get('end_node', ''),
+                })
         return summary
 
     def _format_channel_key(self, airport_ident, frequency_mhz, role):
@@ -549,6 +562,42 @@ class LogicManager:
                 self._broadcast_chat("SYSTEM", "--- Switchboard: New Controller ---")
                 event_bus.emit('proactive_atc_request', "pilot_tuned_new_frequency", shared_context)
 
+    def _check_fir_crossing(self, lat: float, lon: float):
+        """
+        Detect when the aircraft crosses an FIR boundary at cruise altitude.
+        Fires a proactive ATC handoff suggestion when the FIR changes.
+        Only called while in CENTER phase above 10,000ft.
+        """
+        new_fir = self._fir_detector.get_current_fir(lat, lon)
+
+        # First detection after takeoff — silently initialise, no handoff needed
+        if self._current_fir is None:
+            self._current_fir = new_fir
+            if new_fir:
+                print(f"LogicManager: FIR initialised → {new_fir}")
+            return
+
+        if new_fir and new_fir != self._current_fir:
+            old_fir = self._current_fir
+            self._current_fir = new_fir
+            fir_info = self._fir_detector.get_fir_info(new_fir)
+            fir_name = fir_info.get('name', new_fir) if fir_info else new_fir
+            fir_freq = fir_info.get('center_freq') if fir_info else None
+            print(f"LogicManager: ✈️ FIR crossing {old_fir} → {new_fir} ({fir_name})")
+
+            # Update shared context so the LLM knows the new FIR
+            with context_lock:
+                shared_context['atc_state']['current_fir'] = new_fir
+                shared_context['atc_state']['current_fir_name'] = fir_name
+                if fir_freq:
+                    shared_context['atc_state']['suggested_fir_freq'] = fir_freq
+
+            event_bus.emit(
+                'proactive_atc_request',
+                'pilot_crossed_fir_boundary_suggest_center_handoff',
+                shared_context,
+            )
+
     def _determine_controller(self, freq, altitude=None):
         """Frequency map with emergency, ATIS, and altitude awareness."""
         f = float(freq)
@@ -577,10 +626,58 @@ class LogicManager:
             return "Approach"
         return "Center"
 
+    # Static short names for major airports (ICAO → display name for ATC callsign)
+    _AIRPORT_SHORT_NAMES = {
+        'ZBAA': 'Capital',    'ZBAD': 'Daxing',     'ZBTJ': 'Binhai',
+        'ZBSJ': 'Zhengding',  'ZBYN': 'Wusu',       'ZBHH': 'Baita',
+        'ZYTX': 'Taoxian',    'ZYTL': 'Zhoushuizi', 'ZYHB': 'Taiping',
+        'ZYCC': 'Longjia',
+        'ZSPD': 'Pudong',     'ZSSS': 'Hongqiao',   'ZSHC': 'Xiaoshan',
+        'ZSNJ': 'Lukou',      'ZSAM': 'Gaoqi',      'ZSQD': 'Jiaodong',
+        'ZSJN': 'Yaoqiang',
+        'ZGGG': 'Baiyun',     'ZGSZ': "Bao'an",     'ZGHA': 'Huanghua',
+        'ZHHH': 'Tianhe',     'ZHCC': 'Xinzheng',   'ZGNN': 'Wuxu',
+        'ZGKL': 'Liangjiang',
+        'ZUUU': 'Tianfu',     'ZUUL': 'Shuangliu',  'ZUCK': 'Jiangbei',
+        'ZPPP': 'Changshui',  'ZUGY': 'Longdongbao','ZULS': 'Gonggar',
+        'ZLXY': "Xianyang",   'ZWWW': 'Diwopu',     'ZLIC': 'Zhongchuan',
+        'ZJHK': 'Meilan',     'ZJSY': 'Fenghuang',
+        'VHHH': 'Hong Kong',  'VMMC': 'Macau',
+        'RCTP': 'Taoyuan',    'RCSS': 'Songshan',   'RCKH': 'Kaohsiung',
+        # US / international
+        'KJFK': 'Kennedy',    'KLAX': 'Los Angeles','KORD': "O'Hare",
+        'EGLL': 'Heathrow',   'LFPG': 'De Gaulle',  'EDDF': 'Frankfurt',
+        'RJTT': 'Haneda',     'RJAA': 'Narita',     'RKSI': 'Incheon',
+        'WSSS': 'Changi',     'OMDB': 'Dubai',
+    }
+
+    def _airport_short_name(self, icao):
+        """Return short identifying name for an airport (e.g. ZSPD → Pudong)."""
+        name = self._AIRPORT_SHORT_NAMES.get(icao.upper())
+        if name:
+            return name
+        if self.airport_frequency_service:
+            full = self.airport_frequency_service.get_airport_name(icao)
+            if full:
+                # "Shanghai Pudong International Airport" → strip noise words → last meaningful word
+                words = [w for w in full.replace('-', ' ').split()
+                         if w.lower() not in {'international', 'airport', 'intl', 'regional', 'municipal'}]
+                if len(words) >= 2:
+                    return words[-1]
+                if words:
+                    return words[0]
+        return None
+
     def _get_current_sender_name(self):
-        """Returns current controller name for chat log."""
+        """Returns current controller name, replacing ICAO prefix with airport short name."""
         with context_lock:
-             return shared_context['atc_state'].get('current_controller', 'ATC')
+            controller = shared_context['atc_state'].get('current_controller', 'ATC')
+        parts = controller.split(' ', 1)
+        if len(parts) == 2 and len(parts[0]) == 4 and parts[0].isalpha():
+            short = self._airport_short_name(parts[0])
+            if short:
+                return f"{short} {parts[1]}"
+        return controller
 
     def on_telemetry_update(self, data):
         # data is the entire shared_context from SimBridge
@@ -606,6 +703,26 @@ class LogicManager:
         spd = ac_data.get('speed')
         
         if lat is not None and lon is not None:
+            # ── China metric RVSM auto-switch ─────────────────────────────────
+            in_china = is_in_china_airspace(lat, lon)
+            if in_china != self._was_in_china:
+                self._was_in_china = in_china
+                if in_china:
+                    alt_ft = ac_data.get('altitude', 0) or 0
+                    hdg = ac_data.get('heading', 0) or 0
+                    alt_m = feet_to_metres(alt_ft)
+                    rvsm_m = nearest_metric_rvsm_level(alt_m, hdg)
+                    rvsm_ft = metres_to_feet(rvsm_m)
+                    self.socketio.emit('china_rvsm_active', {
+                        'active': True,
+                        'nearest_level_m': rvsm_m,
+                        'nearest_level_ft': rvsm_ft,
+                    })
+                    print("LogicManager: Entered China metric RVSM airspace")
+                else:
+                    self.socketio.emit('china_rvsm_active', {'active': False})
+                    print("LogicManager: Exited China metric RVSM airspace")
+
             self._refresh_nearby_airports()
             with context_lock:
                 current_controller = shared_context['atc_state'].get('current_controller', '')
@@ -663,10 +780,17 @@ class LogicManager:
             on_ground = ac_data.get('on_ground', True)
             current_controller = shared_context['atc_state'].get('current_controller', '')
 
-            # Detect ground→air transition: push flight plan to dashboard when airborne
+            # Detect ground→air transition: push flight plan with coords to dashboard
             if self._was_on_ground and not on_ground:
-                fp = shared_context.get('flight_plan', {})
+                fp = dict(shared_context.get('flight_plan', {}))
                 if fp.get('destination', 'N/A') != 'N/A' or fp.get('origin', 'N/A') != 'N/A':
+                    if self.airport_frequency_service:
+                        for icao_key, coord_key in [('origin', 'origin_coords'), ('destination', 'dest_coords')]:
+                            icao = fp.get(icao_key, '')
+                            if icao and icao != 'N/A':
+                                pos = self.airport_frequency_service.get_airport_position(icao)
+                                if pos:
+                                    fp[coord_key] = [pos['lat'], pos['lon']]
                     self.socketio.emit('flight_plan_update', fp)
             self._was_on_ground = on_ground
             
@@ -691,21 +815,30 @@ class LogicManager:
                               "pilot_descending_suggest_approach_handoff", 
                               shared_context)
             
-            # 巡航移交中心 (高度 > FL180, 未触发过)
+            # 巡航移交中心 (高度 > FL180, 未触发过) — 从 Departure 或 Approach 均可触发
             if (not on_ground and alt > 18000 and abs(vs) < 500 and
                 not self.handoff_triggered['cruise'] and
-                'Departure' in current_controller):
+                ('Departure' in current_controller or 'Approach' in current_controller)):
                 print(f"LogicManager: ✈️ 主动移交触发 - 巡航高度，建议移交中心")
                 self.handoff_triggered['cruise'] = True
                 event_bus.emit('proactive_atc_request', 
                               "pilot_at_cruise_altitude_suggest_center_handoff", 
                               shared_context)
             
+            # FIR 跨区检测（仅在巡航高度 + Center 阶段执行，每10次遥测一次）
+            if (not on_ground and alt > 10000 and 'Center' in current_controller
+                    and self._fir_detector and lat is not None and lon is not None):
+                self._fir_check_counter += 1
+                if self._fir_check_counter >= self._FIR_CHECK_INTERVAL:
+                    self._fir_check_counter = 0
+                    self._check_fir_crossing(lat, lon)
+
             # 落地后重置移交状态
             if on_ground and ac_data.get('airspeed', 0) < 30:
                 if any(self.handoff_triggered.values()):
                     print("LogicManager: 落地，重置主动移交状态")
                     self.handoff_triggered = {'departure': False, 'cruise': False, 'approach': False}
+                self._current_fir = None  # 落地后重置 FIR，下次起飞重新检测
             
             self.last_vs = vs
 

@@ -1,219 +1,331 @@
 <!DOCTYPE html>
 <html lang="zh">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenFrequency - 环境检测</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenFrequency — 环境检测</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #0d1117 0%, #161b27 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #e6edf3;
+    }
 
-        .container {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 20px;
-            padding: 40px;
-            max-width: 600px;
-            width: 100%;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
+    .container {
+      background: rgba(22, 27, 39, 0.9);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 640px;
+      width: 100%;
+      backdrop-filter: blur(16px);
+    }
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
+    .header { text-align: center; margin-bottom: 32px; }
+    .logo   { font-size: 52px; margin-bottom: 12px; }
+    h1      { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+    .sub    { font-size: 13px; color: #8b949e; }
 
-        .logo {
-            font-size: 48px;
-            margin-bottom: 10px;
-        }
+    /* ── Error card ─────────────────────────────────────────── */
+    .card {
+      background: rgba(248,81,73,0.07);
+      border: 1px solid rgba(248,81,73,0.22);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 16px;
+      transition: border-color 0.3s;
+    }
+    .card.success {
+      background: rgba(46,160,67,0.08);
+      border-color: rgba(46,160,67,0.30);
+    }
+    .card.info {
+      background: rgba(56,139,253,0.07);
+      border-color: rgba(56,139,253,0.22);
+    }
 
-        h1 {
-            color: #fff;
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
+    .card-title {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 15px; font-weight: 600;
+      margin-bottom: 8px;
+      color: #f85149;
+    }
+    .card.success .card-title { color: #3fb950; }
+    .card.info    .card-title { color: #79c0ff; }
 
-        .subtitle {
-            color: #888;
-            font-size: 14px;
-        }
+    .card-msg {
+      font-size: 13px; line-height: 1.7; color: #8b949e;
+      margin-bottom: 12px;
+    }
 
-        .error-list {
-            margin: 20px 0;
-        }
+    /* file list */
+    .file-list {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin: 8px 0 12px;
+    }
+    .file-chip {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 12px; color: #8b949e; font-family: monospace;
+    }
 
-        .error-item {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 15px;
-        }
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
-        .error-item h3 {
-            color: #ef4444;
-            font-size: 18px;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+    .btn {
+      padding: 10px 18px;
+      border-radius: 8px; border: none; cursor: pointer;
+      font-size: 13px; font-weight: 500;
+      transition: all 0.18s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary  { background: #1f6feb; color: #fff; }
+    .btn-primary:not(:disabled):hover  { background: #388bfd; }
+    .btn-secondary { background: rgba(255,255,255,0.07); color: #e6edf3;
+                     border: 1px solid rgba(255,255,255,0.12); }
+    .btn-secondary:not(:disabled):hover { background: rgba(255,255,255,0.12); }
 
-        .error-item p {
-            color: #ccc;
-            font-size: 14px;
-            line-height: 1.6;
-        }
+    /* ── Progress bar ────────────────────────────────────────── */
+    .progress-wrap {
+      display: none; margin-top: 14px;
+    }
+    .progress-wrap.active { display: block; }
+    .progress-label {
+      font-size: 12px; color: #8b949e; margin-bottom: 6px;
+      min-height: 18px;
+    }
+    .progress-track {
+      height: 6px; border-radius: 3px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, #1f6feb, #388bfd);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .progress-fill.error {
+      background: #f85149;
+    }
 
-        .fix-btn {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            margin-top: 12px;
-            transition: all 0.2s;
-        }
+    /* ── Manual instructions ─────────────────────────────────── */
+    .manual-box {
+      display: none; margin-top: 14px;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 12.5px; line-height: 1.8; color: #8b949e;
+      white-space: pre-wrap;
+    }
+    .manual-box.active { display: block; }
+    .manual-box code {
+      background: rgba(255,255,255,0.08);
+      border-radius: 4px; padding: 1px 6px;
+      font-family: monospace; color: #e6edf3;
+    }
 
-        .fix-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-        }
+    /* ── Bottom actions ──────────────────────────────────────── */
+    .footer { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+    .btn-refresh {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #2ea043, #238636);
+      color: #fff; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 500; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-refresh:hover { opacity: 0.88; }
 
-        .fix-btn:disabled {
-            background: #666;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .status {
-            margin-top: 10px;
-            font-size: 13px;
-            color: #888;
-        }
-
-        .status.success {
-            color: #22c55e;
-        }
-
-        .status.error {
-            color: #ef4444;
-        }
-
-        .refresh-btn {
-            display: block;
-            width: 100%;
-            background: linear-gradient(135deg, #22c55e, #16a34a);
-            color: white;
-            border: none;
-            padding: 16px;
-            border-radius: 12px;
-            font-size: 16px;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #fff;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-    </style>
+    /* spinner */
+    .spin {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid currentColor; border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
-
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">🛫</div>
-            <h1>OpenFrequency 环境检测</h1>
-            <p class="subtitle">检测到以下问题需要解决</p>
-        </div>
+<div class="container">
+  <div class="header">
+    <div class="logo">🛫</div>
+    <h1>OpenFrequency 环境检测</h1>
+    <p class="sub">检测到以下问题，请修复后方可正常使用</p>
+  </div>
 
-        <div class="error-list" id="error-list">
-            {% for error in errors %}
-            <div class="error-item" id="error-{{ error.id }}">
-                <h3>⚠️ {{ error.title }}</h3>
-                <p>{{ error.message }}</p>
-                {% if error.fixable %}
-                <button class="fix-btn" onclick="fixError('{{ error.id }}')">
-                    一键修复
-                </button>
-                <div class="status" id="status-{{ error.id }}"></div>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
+  <div id="error-list">
+    {% for error in errors %}
+    <div class="card" id="card-{{ error.id }}">
+      <div class="card-title">
+        <span id="icon-{{ error.id }}">⚠️</span>
+        {{ error.title }}
+      </div>
+      <p class="card-msg">{{ error.message }}</p>
 
-        <button class="refresh-btn" onclick="location.reload()">
-            🔄 重新检测
+      {% if error.files %}
+      <div class="file-list">
+        {% for f in error.files %}
+        <span class="file-chip">{{ f }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if error.fixable %}
+      <div class="btn-row">
+        {% if error.id in ('stt', 'tts') %}
+        <button class="btn btn-primary" id="btn-{{ error.id }}"
+                onclick="downloadModel('{{ error.id }}')">
+          ⬇ 自动下载
         </button>
+        {% elif error.id == 'ffmpeg' %}
+        <button class="btn btn-primary" id="btn-{{ error.id }}"
+                onclick="fixLegacy('{{ error.id }}')">
+          ⬇ 自动下载
+        </button>
+        {% endif %}
+        {% if error.manual %}
+        <button class="btn btn-secondary"
+                onclick="toggleManual('{{ error.id }}')">
+          📋 手动下载说明
+        </button>
+        {% endif %}
+      </div>
+
+      <!-- Progress bar -->
+      <div class="progress-wrap" id="prog-wrap-{{ error.id }}">
+        <div class="progress-label" id="prog-label-{{ error.id }}">准备中…</div>
+        <div class="progress-track">
+          <div class="progress-fill" id="prog-fill-{{ error.id }}"></div>
+        </div>
+      </div>
+
+      <!-- Manual instructions fallback -->
+      {% if error.manual %}
+      <div class="manual-box" id="manual-{{ error.id }}">{{ error.manual }}</div>
+      {% endif %}
+      {% endif %}
     </div>
+    {% endfor %}
+  </div>
 
-    <script>
-        async function fixError(errorId) {
-            const btn = document.querySelector(`#error-${errorId} .fix-btn`);
-            const status = document.getElementById(`status-${errorId}`);
+  <div class="footer">
+    <button class="btn-refresh" onclick="location.reload()">🔄 重新检测环境</button>
+  </div>
+</div>
 
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span>正在修复...';
-            status.textContent = '';
-            status.className = 'status';
+<script>
+/* ── SSE-based model download with progress bar ─────────────────────── */
+function downloadModel(modelType) {
+  const btn   = document.getElementById(`btn-${modelType}`);
+  const wrap  = document.getElementById(`prog-wrap-${modelType}`);
+  const label = document.getElementById(`prog-label-${modelType}`);
+  const fill  = document.getElementById(`prog-fill-${modelType}`);
+  const card  = document.getElementById(`card-${modelType}`);
+  const icon  = document.getElementById(`icon-${modelType}`);
+  const manual = document.getElementById(`manual-${modelType}`);
 
-            try {
-                const response = await fetch('/api/rescue/fix', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ error_id: errorId })
-                });
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> 下载中…';
+  wrap.classList.add('active');
+  label.textContent = '正在连接…';
+  fill.style.width = '0%';
+  fill.classList.remove('error');
+  if (manual) manual.classList.remove('active');
 
-                const result = await response.json();
+  const es = new EventSource(`/api/model/download/${modelType}`);
 
-                if (result.success) {
-                    status.textContent = '✅ ' + result.message;
-                    status.className = 'status success';
-                    btn.textContent = '已修复';
-                } else {
-                    status.textContent = '❌ ' + result.message;
-                    status.className = 'status error';
-                    btn.textContent = '重试';
-                    btn.disabled = false;
-                }
-            } catch (e) {
-                status.textContent = '❌ 网络错误: ' + e.message;
-                status.className = 'status error';
-                btn.textContent = '重试';
-                btn.disabled = false;
-            }
-        }
-    </script>
+  es.onmessage = function(e) {
+    const d = JSON.parse(e.data);
+    const pct = d.progress;
+
+    if (pct >= 0) {
+      fill.style.width = Math.max(2, pct) + '%';
+    }
+    if (d.message) label.textContent = d.message;
+
+    if (d.done) {
+      es.close();
+      if (d.success) {
+        fill.style.width = '100%';
+        card.classList.add('success');
+        icon.textContent = '✅';
+        btn.textContent = '已完成';
+        label.textContent = d.message;
+        setTimeout(() => location.reload(), 2000);
+      } else {
+        fill.classList.add('error');
+        fill.style.width = '100%';
+        icon.textContent = '❌';
+        btn.disabled = false;
+        btn.innerHTML = '🔄 重试';
+        label.textContent = '下载失败 — 请使用手动下载';
+        if (manual) manual.classList.add('active');
+      }
+    }
+  };
+
+  es.onerror = function() {
+    es.close();
+    fill.classList.add('error');
+    fill.style.width = '100%';
+    label.textContent = '连接中断，请检查网络后重试';
+    btn.disabled = false;
+    btn.innerHTML = '🔄 重试';
+    icon.textContent = '❌';
+    if (manual) manual.classList.add('active');
+  };
+}
+
+/* ── Legacy (FFmpeg) — simple POST ──────────────────────────────────── */
+async function fixLegacy(errorId) {
+  const btn   = document.getElementById(`btn-${errorId}`);
+  const card  = document.getElementById(`card-${errorId}`);
+  const icon  = document.getElementById(`icon-${errorId}`);
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> 正在下载…';
+
+  try {
+    const res  = await fetch('/api/rescue/fix', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({error_id: errorId}),
+    });
+    const data = await res.json();
+    if (data.success) {
+      card.classList.add('success');
+      icon.textContent = '✅';
+      btn.textContent = '已完成';
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      icon.textContent = '❌';
+      btn.disabled = false;
+      btn.textContent = '重试';
+      card.querySelector('.card-msg').textContent = data.message;
+    }
+  } catch (err) {
+    icon.textContent = '❌';
+    btn.disabled = false;
+    btn.textContent = '重试';
+  }
+}
+
+/* ── Toggle manual instructions ─────────────────────────────────────── */
+function toggleManual(id) {
+  const el = document.getElementById(`manual-${id}`);
+  if (el) el.classList.toggle('active');
+}
+</script>
 </body>
-
 </html>

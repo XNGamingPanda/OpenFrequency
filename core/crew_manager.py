@@ -134,7 +134,10 @@ class CrewManager:
         self.socketio = socketio
         self.enabled = config.get('cabin_crew', {}).get('enabled', True)
         self.cabin_scripts = self._load_cabin_scripts()
-        self.airline_code = config.get('cabin', {}).get('airline') or config.get('user_profile', {}).get('airline_icao', 'Generic')
+        # Priority: media_package > airline > airline_icao > Generic
+        self.airline_code = (config.get('cabin', {}).get('media_package') or
+                            config.get('cabin', {}).get('airline') or
+                            config.get('user_profile', {}).get('airline_icao', 'Generic'))
         self.last_proactive_at = 0.0
         self.proactive_min_interval = float(config.get('crew', {}).get('proactive_min_interval_sec', 90))
         self.proactive_flags = {
@@ -154,8 +157,18 @@ class CrewManager:
         event_bus.on('cabin_crew_request', self.on_crew_request)
         event_bus.on('emergency_alert', self.on_emergency)
         event_bus.on('telemetry_update', self.on_telemetry_update)
-        
+        event_bus.on('config_updated', self._on_config_updated)
+
         print(f"CrewManager: Initialized with FO={self.first_officer.name}, Purser={self.purser.name}")
+
+    def _on_config_updated(self, new_config):
+        """用户保存设置后，实时更新客舱语音包选择。"""
+        new_code = (new_config.get('cabin', {}).get('media_package') or
+                    new_config.get('cabin', {}).get('airline') or
+                    new_config.get('user_profile', {}).get('airline_icao', 'Generic'))
+        if new_code != self.airline_code:
+            print(f"CrewManager: cabin package updated {self.airline_code!r} → {new_code!r}")
+            self.airline_code = new_code
 
     def _load_cabin_scripts(self):
         path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'cabin', 'scripts.json')
