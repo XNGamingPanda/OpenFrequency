@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenFrequency — Download</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --border:    #30363d;
+      --accent:    #3b82f6;
+      --accent-h:  #2563eb;
+      --gold:      #f59e0b;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --green:     #3fb950;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .hero {
+      text-align: center;
+      max-width: 680px;
+      width: 100%;
+    }
+
+    .logo {
+      font-size: 4rem;
+      margin-bottom: 0.5rem;
+      line-height: 1;
+    }
+
+    h1 {
+      font-size: 2.4rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--gold);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 20px;
+      padding: 0.25rem 0.85rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 2.5rem;
+    }
+
+    .download-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+
+    .download-card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .download-card p {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 0.75rem 1.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.1s;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .btn-download:hover {
+      background: var(--accent-h);
+      transform: translateY(-1px);
+    }
+
+    .btn-download:active { transform: translateY(0); }
+
+    .btn-download.loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .version-info {
+      margin-top: 1rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .version-info a { color: var(--accent); text-decoration: none; }
+    .version-info a:hover { text-decoration: underline; }
+
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin: 2rem 0;
+    }
+
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .feature-icon { font-size: 1.2rem; line-height: 1.4; flex-shrink: 0; }
+    .feature-text { color: var(--muted); }
+    .feature-text strong { color: var(--text); display: block; }
+
+    .links {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+      font-size: 0.9rem;
+    }
+
+    .links a {
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .links a:hover { color: var(--text); }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    @media (max-width: 520px) {
+      .features { grid-template-columns: 1fr; }
+      h1 { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+
+  <div class="logo">📡</div>
+  <h1>OpenFrequency</h1>
+  <p class="tagline">The AI ATC for Everyone</p>
+  <span class="badge">v3.9-alpha</span>
+
+  <div class="download-card">
+    <h2>
+      <span>🪟</span>
+      Windows Installer
+    </h2>
+    <p>
+      One-click MSI installer for Windows 10/11. Installs to Program Files, creates Start Menu
+      and Desktop shortcuts, and stores config &amp; models in <code>%APPDATA%\OpenFrequency</code>.
+    </p>
+    <a id="btn-msi" class="btn-download" href="#" onclick="startDownload(event)">
+      ⬇ Download OpenFrequency-v3.9-alpha-Setup.msi
+    </a>
+    <p class="version-info">
+      <span class="status-dot"></span>
+      Served via Cloudflare Workers &mdash;
+      <span id="version-label">resolving latest version…</span>
+      &nbsp;·&nbsp;
+      <a id="gh-releases" href="https://github.com/XNGamingPanda/OpenFrequency/releases" target="_blank" rel="noopener">
+        View all releases on GitHub
+      </a>
+    </p>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <span class="feature-icon">🧠</span>
+      <div class="feature-text"><strong>LLM-Powered ATC</strong>Gemini / OpenAI, context-aware</div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">📡</span>
+      <div class="feature-text"><strong>CPDLC</strong>Datalink clearances &amp; messages</div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🛣️</span>
+      <div class="feature-text"><strong>Taxi Routing</strong>Graph-based weighted path planning</div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🇨🇳</span>
+      <div class="feature-text"><strong>Metric RVSM</strong>Auto-switch for Chinese airspace</div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🔌</span>
+      <div class="feature-text"><strong>Plugin System</strong>DLC &amp; FlyByWire A32NX installer</div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🔄</span>
+      <div class="feature-text"><strong>Auto-Update</strong>Daily check, China-accelerated</div>
+    </div>
+  </div>
+
+  <div class="links">
+    <a href="https://github.com/XNGamingPanda/OpenFrequency" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/XNGamingPanda/OpenFrequency/blob/main/RELEASE_NOTES.md" target="_blank" rel="noopener">Release Notes</a>
+    <a href="https://github.com/XNGamingPanda/OpenFrequency/blob/main/README_zh-CN.md" target="_blank" rel="noopener">中文文档</a>
+    <a href="https://github.com/XNGamingPanda/OpenFrequency/issues" target="_blank" rel="noopener">Report Issue</a>
+  </div>
+
+</div>
+
+<script>
+  // Replace this with your deployed Workers URL
+  const WORKERS_URL = "https://openfrequency-api.REPLACE_ACCOUNT.workers.dev";
+
+  async function resolveLatestVersion() {
+    try {
+      const res = await fetch(`${WORKERS_URL}/health`);
+      if (!res.ok) throw new Error("workers offline");
+
+      // Use the public download redirect to infer version from Location header
+      const versionRes = await fetch(`${WORKERS_URL}/api/version`, {
+        headers: { "X-OF-Token": "public" }  // will fail auth but that's ok for version display
+      }).catch(() => null);
+
+      // Fall back: just show GitHub releases link without version number
+    } catch {
+      // Workers unreachable — fall back silently
+    }
+  }
+
+  function startDownload(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btn-msi");
+    btn.classList.add("loading");
+    btn.textContent = "⏳ Redirecting to download…";
+    // Redirect to Workers public download endpoint
+    window.location.href = `${WORKERS_URL}/pub/dl/latest`;
+    setTimeout(() => {
+      btn.classList.remove("loading");
+      btn.innerHTML = "⬇ Download OpenFrequency-v3.9-alpha-Setup.msi";
+    }, 4000);
+  }
+
+  // Attempt to show live version from Workers /api/version (best-effort, no auth)
+  (async () => {
+    try {
+      const res = await fetch(`${WORKERS_URL}/health`);
+      if (res.ok) {
+        document.getElementById("version-label").textContent = "Workers online · latest resolved at download time";
+      } else {
+        document.getElementById("version-label").textContent = "download served directly from GitHub";
+      }
+    } catch {
+      document.getElementById("version-label").textContent = "download served directly from GitHub";
+      document.getElementById("btn-msi").href =
+        "https://github.com/XNGamingPanda/OpenFrequency/releases/latest";
+      document.getElementById("btn-msi").removeAttribute("onclick");
+    }
+  })();
+</script>
+
+</body>
+</html>

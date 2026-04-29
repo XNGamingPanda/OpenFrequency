@@ -5,15 +5,18 @@ import sys
 import soundfile as sf
 import tempfile
 import time
-from pathlib import Path
+
+from core.stt_post_processor import correct_aviation_text, build_whisper_hotwords
 
 class STTLocal:
     def __init__(self, config, bus):
         self.config = config
         self.bus = bus
-        self.model_path = config.get('audio', {}).get('stt_model_path', './models/sherpa-onnx-whisper-small')
+        _default_models = os.path.join(os.environ.get('APPDATA') or os.path.expanduser('~'), 'OpenFrequency', 'models', 'sherpa-onnx-whisper-small')
+        self.model_path = config.get('audio', {}).get('stt_model_path', _default_models)
         self.current_language = config.get('audio', {}).get('stt_language', 'auto')
         self.recognizer = None
+        self._hotwords: str = build_whisper_hotwords(config)
         
         print(f"STTLocal: Initializing Sherpa-ONNX Whisper...")
         print(f"STTLocal: Model Path: {self.model_path}")
@@ -27,13 +30,19 @@ class STTLocal:
         """Reload recognizer if language setting changed."""
         new_lang = new_config.get('audio', {}).get('stt_language', 'auto')
         new_model = new_config.get('audio', {}).get('stt_model_path', self.model_path)
-        
+        new_hw = build_whisper_hotwords(new_config)
+
         if new_lang != self.current_language or new_model != self.model_path:
             print(f"STTLocal: Language changed from '{self.current_language}' to '{new_lang}'. Reloading...")
             self.current_language = new_lang
             self.model_path = new_model
             self.config = new_config
+            self._hotwords = new_hw
             self._init_recognizer()
+        elif new_hw != self._hotwords:
+            # Callsign/airline changed — update hotwords without reloading model
+            self._hotwords = new_hw
+            print(f"STTLocal: Hotwords updated (callsign/airline changed).")
     
     def _init_recognizer(self):
         """Initialize or reinitialize the Sherpa recognizer."""
@@ -82,8 +91,7 @@ class STTLocal:
         
         # Save received blob to a temporary file
         try:
-            suffix = ".wav" if isinstance(audio_data, (bytes, bytearray)) and audio_data[:4] == b"RIFF" else ".webm"
-            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
                 tmp.write(audio_data)
                 tmp_path = tmp.name
             
@@ -100,8 +108,12 @@ class STTLocal:
             )
             
             if os.path.exists(wav_path):
-                s = self.recognizer.create_stream()
-                
+                # Pass aviation hotwords to bias Whisper decoding
+                try:
+                    s = self.recognizer.create_stream(hotwords=self._hotwords)
+                except TypeError:
+                    s = self.recognizer.create_stream()
+
                 # Use soundfile to read the WAV
                 audio, sample_rate = sf.read(wav_path, dtype='float32')
                 
@@ -110,9 +122,12 @@ class STTLocal:
                 self.recognizer.decode_stream(s)
                 text = s.result.text.strip()
                 
-                print(f"STTLocal: Transcription result: '{text}'")
+                print(f"STTLocal: Raw transcription: '{text}'")
                 if text:
-                    self.bus.emit('user_speech_recognized', text)
+                    corrected = correct_aviation_text(text)
+                    if corrected != text:
+                        print(f"STTLocal: Corrected → '{corrected}'")
+                    self.bus.emit('user_speech_recognized', corrected)
                 else:
                     print("STTLocal: No speech detected.")
                 
@@ -125,8 +140,7 @@ class STTLocal:
             
             try:
                 os.remove(tmp_path)
-            except:
-                pass
+            except: pass
                 
         except Exception as e:
             print(f"STTLocal Error: {e}")

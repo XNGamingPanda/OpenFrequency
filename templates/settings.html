@@ -1,63 +1,112 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8 col-md-10">
-        <div class="card shadow-sm">
-            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0" data-i18n="system_config">System Configuration</h5>
-                <div>
-                    <button class="btn btn-sm btn-outline-light" onclick="testAudio()" data-i18n="test_audio">🔊 Test
-                        Audio</button>
-                </div>
-            </div>
-            <div class="card-body">
-                <form id="settings-form">
-                    <!-- Pilot Profile & SimBrief -->
-                    <h6 class="border-bottom pb-1 mb-2" data-i18n="pilot_profile">Pilot Profile</h6>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="callsign">Callsign</label>
-                        <input type="text" class="form-control form-control-sm" id="conf-callsign"
-                            placeholder="e.g. CCA1024">
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="simbrief_username">SimBrief Username</label>
-                        <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" id="conf-simbrief-user" placeholder="J.Doe">
-                            <button class="btn btn-outline-primary" type="button" onclick="importSimBrief()"
-                                data-i18n="import">Import</button>
-                        </div>
-                        <div id="simbrief-status" class="form-text x-small text-muted" data-i18n="simbrief_hint">Enter
-                            username to fetch latest OFP.</div>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="flight_plan">Flight Plan</label>
-                        <div class="row g-2">
-                            <div class="col-sm-4">
-                                <label class="form-label small mb-1 mt-1" for="conf-fp-origin" data-i18n="flight_plan_origin">Origin ICAO</label>
-                                <input type="text" class="form-control form-control-sm" id="conf-fp-origin">
-                            </div>
-                            <div class="col-sm-4">
-                                <label class="form-label small mb-1 mt-1" for="conf-fp-destination" data-i18n="flight_plan_destination">Destination ICAO</label>
-                                <input type="text" class="form-control form-control-sm" id="conf-fp-destination">
-                            </div>
-                            <div class="col-sm-4">
-                                <label class="form-label small mb-1 mt-1" for="conf-fp-alternate" data-i18n="flight_plan_alternate">Alternate ICAO</label>
-                                <input type="text" class="form-control form-control-sm" id="conf-fp-alternate">
-                            </div>
-                            <div class="col-sm-4">
-                                <label class="form-label small mb-1 mt-1" for="conf-fp-cruise" data-i18n="flight_plan_cruise">Cruise Alt FT</label>
-                                <input type="number" class="form-control form-control-sm" id="conf-fp-cruise">
-                            </div>
-                            <div class="col-sm-8">
-                                <label class="form-label small mb-1 mt-1" for="conf-fp-route" data-i18n="flight_plan_route">Route / SID / Airway</label>
-                                <input type="text" class="form-control form-control-sm" id="conf-fp-route">
-                            </div>
-                        </div>
-                        <div class="form-text x-small text-muted" data-i18n="flight_plan_hint">Import from SimBrief or edit manually, then click Save Settings.</div>
-                    </div>
+<div class="container-fluid px-3 py-3" style="max-width:1100px;">
 
-                    <!-- Connection Settings -->
+  <div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+      <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0" data-i18n="system_config">System Configuration</h5>
+          <div>
+            <button class="btn btn-sm btn-outline-light" onclick="testAudio()" data-i18n="test_audio">🔊 Test
+              Audio</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <form id="settings-form">
+
+            <!-- Language Selector -->
+            <div class="mb-3">
+              <label class="form-label small mb-0" data-i18n="language">Language / 语言</label>
+              <select id="lang-selector" class="form-select form-select-sm">
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+                <option value="ja">日本語</option>
+              </select>
+            </div>
+
+            <!-- Pilot Profile & SimBrief -->
+            <h6 class="border-bottom pb-1 mb-2" data-i18n="pilot_profile">Pilot Profile</h6>
+            <div class="mb-2">
+              <label class="form-label small mb-0" data-i18n="callsign">Callsign</label>
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control form-control-sm" id="conf-callsign"
+                  placeholder="e.g. CCA1024">
+                <span class="input-group-text d-none text-warning border-warning" id="callsign-lock-icon"
+                      title="Career mode: callsign locked">🔒</span>
+              </div>
+              <div class="form-text text-warning d-none" id="callsign-lock-hint"
+                   data-i18n="callsign_career_locked">Career mode active — callsign locked to job</div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small mb-0" data-i18n="simbrief_username">SimBrief Username</label>
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control" id="conf-simbrief-user" placeholder="J.Doe">
+                <button class="btn btn-outline-primary" type="button" onclick="importSimBrief()"
+                  data-i18n="import">Import</button>
+              </div>
+              <div id="simbrief-status" class="form-text x-small text-muted" data-i18n="simbrief_hint">Enter
+                username to fetch latest OFP.</div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small mb-0" data-i18n="flight_plan">Flight Plan</label>
+              <div class="row g-2">
+                <div class="col-sm-4">
+                  <label class="form-label small mb-1 mt-1" for="conf-fp-origin" data-i18n="flight_plan_origin">Origin ICAO</label>
+                  <input type="text" class="form-control form-control-sm" id="conf-fp-origin">
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label small mb-1 mt-1" for="conf-fp-destination" data-i18n="flight_plan_destination">Destination ICAO</label>
+                  <input type="text" class="form-control form-control-sm" id="conf-fp-destination">
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label small mb-1 mt-1" for="conf-fp-alternate" data-i18n="flight_plan_alternate">Alternate ICAO</label>
+                  <input type="text" class="form-control form-control-sm" id="conf-fp-alternate">
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label small mb-1 mt-1" for="conf-fp-cruise" data-i18n="flight_plan_cruise">Cruise Alt FT</label>
+                  <input type="number" class="form-control form-control-sm" id="conf-fp-cruise">
+                </div>
+                <div class="col-sm-8">
+                  <label class="form-label small mb-1 mt-1" for="conf-fp-route" data-i18n="flight_plan_route">Route / SID / Airway</label>
+                  <input type="text" class="form-control form-control-sm" id="conf-fp-route">
+                </div>
+              </div>
+              <div class="form-text x-small text-muted" data-i18n="flight_plan_hint">Import from SimBrief or edit manually, then click Save Settings.</div>
+            </div>
+
+            <!-- Hoppie ACARS -->
+            <div class="mb-3 mt-3">
+              <h6 class="border-bottom pb-1 mb-2" data-i18n="hoppie_section">Hoppie ACARS</h6>
+              <div class="mb-2">
+                <label class="form-label small mb-0" data-i18n="hoppie_logon_label">Logon Code</label>
+                <input type="password" class="form-control form-control-sm" id="conf-hoppie-logon"
+                  placeholder="hoppie.nl logon code" autocomplete="off">
+                <div class="form-text x-small text-muted" data-i18n="hoppie_logon_hint">
+                  在 hoppie.nl 注册获取。留空则禁用 Hoppie。
+                </div>
+              </div>
+              <div class="mb-2">
+                <label class="form-label small mb-0" data-i18n="hoppie_poll_label">轮询间隔（秒，最少 65）</label>
+                <input type="number" class="form-control form-control-sm" id="conf-hoppie-poll-interval"
+                  min="65" max="600" step="5" value="65">
+                <div class="form-text x-small text-muted" data-i18n="hoppie_poll_hint">
+                  Hoppie 规定最少 60 秒一次请求，建议保持 65 秒以上。
+                </div>
+              </div>
+            </div>
+
+            <!-- Cabin Media Package Selection -->
+            <div class="mb-3 mt-3">
+              <label class="form-label small mb-0" data-i18n="cabin_media_package">客舱语音包</label>
+              <select class="form-select form-select-sm" id="conf-cabin-media-package">
+                <option value="" data-i18n="cabin_media_auto">自动匹配（根据呼号）</option>
+              </select>
+              <div class="form-text x-small text-muted" data-i18n="cabin_media_hint">选择当前航班的客舱语音包。留空则根据呼号自动匹配。</div>
+            </div>
+
+            <!-- Connection Settings -->
                     <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="ai_connection">AI Connection</h6>
                     <div class="mb-2">
                         <label class="form-label small mb-0" data-i18n="provider">Provider</label>
@@ -76,77 +125,27 @@
 
                     <!-- Dual Model -->
                     <div class="mb-1">
-                        <label class="form-label small mb-0">⚡ Fast Model
-                            <span class="text-muted" style="font-size:0.75em;">— readbacks, simple acks</span>
+                        <label class="form-label small mb-0" data-i18n="model_fast_label">⚡ 快速模型
+                            <span class="text-muted" style="font-size:0.75em;" data-i18n="model_fast_desc">— 读回、简单确认</span>
                         </label>
                         <input type="text" class="form-control form-control-sm" id="conf-model-fast"
                             placeholder="e.g. gemini-2.0-flash">
                     </div>
                     <div class="mb-2">
-                        <label class="form-label small mb-0">🧠 Thinking Model
-                            <span class="text-muted" style="font-size:0.75em;">— clearances, emergencies, routing</span>
+                        <label class="form-label small mb-0" data-i18n="model_thinking_label">🧠 思考模型
+                            <span class="text-muted" style="font-size:0.75em;" data-i18n="model_thinking_desc">— 放行、紧急情况、航路规划</span>
                         </label>
                         <input type="text" class="form-control form-control-sm" id="conf-model-thinking"
                             placeholder="e.g. gemini-2.0-flash-thinking-exp-01-21">
-                        <div class="form-text x-small text-muted">Leave either field empty to use the same model for both tiers.</div>
+                        <div class="form-text x-small text-muted" data-i18n="model_dual_hint">任一字段留空则两个层级使用同一模型。</div>
                     </div>
                     <!-- Legacy single model (hidden but kept for backward compat) -->
                     <input type="hidden" id="conf-model">
-
 
                     <div class="mb-2" id="base-url-group">
                         <label class="form-label small mb-0" data-i18n="base_url">Base URL (Local/Ollama)</label>
                         <input type="text" class="form-control form-control-sm" id="conf-base-url"
                             placeholder="http://localhost:11434/v1">
-                    </div>
-                    <div class="card mt-3">
-                        <div class="card-body py-3">
-                            <h6 class="mb-3" data-i18n="ai_routing_title">AI Routing</h6>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label small mb-0" data-i18n="light_model_label">Light Model</label>
-                                    <input type="text" class="form-control form-control-sm" id="conf-light-model">
-                                    <div class="form-check form-switch mt-2">
-                                        <input class="form-check-input" type="checkbox" id="conf-light-sync" checked>
-                                        <label class="form-check-label small" for="conf-light-sync" data-i18n="sync_primary_connection">Sync API Key / Base URL with primary connection</label>
-                                    </div>
-                                    <div id="light-override-group" class="mt-2 d-none">
-                                        <label class="form-label small mb-1" data-i18n="light_api_key">Light model API Key</label>
-                                        <input type="password" class="form-control form-control-sm mb-2" id="conf-light-api-key">
-                                        <label class="form-label small mb-1" data-i18n="light_base_url">Light model Base URL</label>
-                                        <input type="text" class="form-control form-control-sm mb-2" id="conf-light-base-url">
-                                        <label class="form-label small mb-1" data-i18n="light_provider">Light model Provider</label>
-                                        <select class="form-select form-select-sm" id="conf-light-provider">
-                                            <option value="gemini">Google Gemini (Cloud)</option>
-                                            <option value="openai_compatible">OpenAI Compatible (Ollama/Local)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small mb-0" data-i18n="reasoning_model_label">Reasoning Model</label>
-                                    <input type="text" class="form-control form-control-sm" id="conf-reasoning-model">
-                                    <div class="form-check form-switch mt-2">
-                                        <input class="form-check-input" type="checkbox" id="conf-reasoning-sync" checked>
-                                        <label class="form-check-label small" for="conf-reasoning-sync" data-i18n="sync_primary_connection">Sync API Key / Base URL with primary connection</label>
-                                    </div>
-                                    <div id="reasoning-override-group" class="mt-2 d-none">
-                                        <label class="form-label small mb-1" data-i18n="reasoning_api_key">Reasoning model API Key</label>
-                                        <input type="password" class="form-control form-control-sm mb-2" id="conf-reasoning-api-key">
-                                        <label class="form-label small mb-1" data-i18n="reasoning_base_url">Reasoning model Base URL</label>
-                                        <input type="text" class="form-control form-control-sm mb-2" id="conf-reasoning-base-url">
-                                        <label class="form-label small mb-1" data-i18n="reasoning_provider">Reasoning model Provider</label>
-                                        <select class="form-select form-select-sm" id="conf-reasoning-provider">
-                                            <option value="gemini">Google Gemini (Cloud)</option>
-                                            <option value="openai_compatible">OpenAI Compatible (Ollama/Local)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label small mb-0" data-i18n="light_conf_threshold">Light Model Confidence Threshold</label>
-                                    <input type="number" class="form-control form-control-sm" id="conf-light-threshold" min="0" max="1" step="0.01">
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Simulator Settings -->
@@ -194,18 +193,18 @@
                     </div>
 
                     <!-- TTS + STT Voice Engine -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3">🔊 Voice Engine (TTS / STT)</h6>
+                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="voice_engine">🔊 语音引擎（TTS / STT）</h6>
                     <div class="mb-2">
-                        <label class="form-label small mb-0">TTS Backend</label>
+                        <label class="form-label small mb-0" data-i18n="tts_backend">TTS 合成后端</label>
                         <select class="form-select form-select-sm" id="conf-tts-backend"
                             onchange="toggleLocalTtsFields()">
-                            <option value="edge">Edge-TTS (Microsoft Cloud, recommended)</option>
-                            <option value="local">Local TTS (offline, streaming)</option>
+                            <option value="edge" data-i18n="tts_edge_option">Edge-TTS（微软云，推荐）</option>
+                            <option value="local" data-i18n="tts_local_option">本地 TTS（离线流式播放）</option>
                         </select>
                     </div>
                     <div id="local-tts-group" style="display:none;">
                         <div class="mb-2">
-                            <label class="form-label small mb-0">Local Engine</label>
+                            <label class="form-label small mb-0" data-i18n="local_engine">本地引擎</label>
                             <select class="form-select form-select-sm" id="conf-tts-local-engine"
                                 onchange="updateTtsModelPlaceholder()">
                                 <option value="kokoro">Kokoro-ONNX (pip install kokoro-onnx)</option>
@@ -213,21 +212,28 @@
                             </select>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label small mb-0">Model File Path</label>
+                            <label class="form-label small mb-0" data-i18n="model_file_path">模型文件路径</label>
                             <input type="text" class="form-control form-control-sm" id="conf-tts-local-model"
                                 placeholder="./models/kokoro-v0_19.onnx">
                         </div>
                         <div class="mb-2" id="kokoro-voices-group">
-                            <label class="form-label small mb-0">Voices File (Kokoro only)</label>
+                            <label class="form-label small mb-0" data-i18n="voices_file">音色文件（仅 Kokoro）</label>
                             <input type="text" class="form-control form-control-sm" id="conf-tts-local-voices"
                                 placeholder="e.g. ./models/voices.bin">
                         </div>
                         <div class="mb-2">
-                            <button class="btn btn-sm btn-outline-primary mt-1" onclick="downloadTtsModel()">⬇ Download TTS Model</button><span id="tts-dl-status" class="small text-muted ms-2"></span>
+                            <button class="btn btn-sm btn-outline-primary mt-1" id="btn-dl-tts" onclick="downloadModelWithProgress('tts')" data-i18n="download_tts">⬇ 下载 TTS 模型</button>
+                            <span id="tts-dl-status" class="small text-muted ms-2"></span>
+                            <div id="tts-dl-progress" style="display:none;margin-top:6px;">
+                                <div class="small text-muted mb-1" id="tts-dl-label"></div>
+                                <div style="height:5px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden;">
+                                    <div id="tts-dl-fill" style="height:100%;border-radius:3px;background:#0d6efd;width:0%;transition:width 0.3s;"></div>
+                                </div>
+                            </div>
+                            <div id="tts-dl-manual" class="small text-muted mt-2" style="display:none;white-space:pre-wrap;line-height:1.7;"></div>
                         </div>
-                        <div class="form-text x-small text-muted mb-2">
-                            Local TTS streams audio sentence-by-sentence for lower latency.
-                            Kokoro supports English voices; for Chinese/Japanese, Edge-TTS is still recommended.
+                        <div class="form-text x-small text-muted mb-2" data-i18n="local_tts_hint">
+                            本地 TTS 逐句流式播放，延迟更低。Kokoro 支持英语音色；中文/日文推荐使用 Edge-TTS。
                         </div>
                     </div>
 
@@ -247,8 +253,18 @@
                         </select>
                     </div>
                     <div class="mb-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick="downloadSttModel()">⬇ Download STT Model</button>
+                        <button class="btn btn-sm btn-outline-primary" id="btn-dl-stt" onclick="downloadModelWithProgress('stt')" data-i18n="download_stt">⬇ 下载 STT 模型</button>
                         <span id="stt-dl-status" class="small text-muted ms-2"></span>
+                        <div id="stt-dl-progress" style="display:none;margin-top:6px;">
+                            <div class="small text-muted mb-1" id="stt-dl-label"></div>
+                            <div style="height:5px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden;">
+                                <div id="stt-dl-fill" style="height:100%;border-radius:3px;background:#0d6efd;width:0%;transition:width 0.3s;"></div>
+                            </div>
+                        </div>
+                        <div id="stt-dl-manual" class="small text-muted mt-2" style="display:none;white-space:pre-wrap;line-height:1.7;"></div>
+                        <div class="form-text x-small text-muted mt-1">
+                            默认路径：<code>./models/sherpa-onnx-whisper-small</code>（约 145 MB，含 encoder + decoder + tokens）
+                        </div>
                     </div>
 
                     <!-- Audio Settings -->
@@ -276,46 +292,34 @@
                     </div>
                     <div class="mb-2">
                         <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="conf-desktop-ptt-enabled">
-                            <label class="form-check-label small" for="conf-desktop-ptt-enabled" data-i18n="desktop_ptt_enabled">Desktop background PTT</label>
+                            <input class="form-check-input" type="checkbox" id="conf-auto-busy" checked
+                                   onchange="document.getElementById('busy-level-row').style.display=this.checked?'none':'block'">
+                            <label class="form-check-label small" for="conf-auto-busy">
+                                <span data-i18n="auto_busy_label">🤖 自动忙碌等级</span>
+                                <span class="text-muted" style="font-size:0.85em;" data-i18n="auto_busy_desc">— 根据附近真实飞机数量自动推算</span>
+                            </label>
                         </div>
-                        <div class="form-text x-small text-muted" data-i18n="desktop_ptt_hint">Keep desktop push-to-talk available after the window is hidden to tray.</div>
+                        <div id="auto-busy-status" class="form-text x-small text-muted mt-1"></div>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" for="conf-desktop-ptt-key" data-i18n="desktop_ptt_key">Desktop PTT Hotkey</label>
-                        <input type="text" class="form-control form-control-sm" id="conf-desktop-ptt-key">
-                        <div id="desktop-ptt-summary" class="form-text x-small text-muted"></div>
-                        <div id="desktop-ptt-runtime" class="form-text x-small text-muted"></div>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="traffic_density">Traffic Density</label>
+                    <div class="mb-2" id="busy-level-row" style="display:none">
+                        <label class="form-label small mb-0" data-i18n="traffic_density">Traffic Density (Fallback)</label>
                         <select class="form-select form-select-sm" id="conf-busy-level">
                             <option value="low" data-i18n="density_low">Low (Lazy Afternoon)</option>
                             <option value="medium" data-i18n="density_medium">Medium (Standard)</option>
                             <option value="high" data-i18n="density_high">High (Busy Hub)</option>
                         </select>
-                        <div class="form-text x-small text-muted">Used when Auto Busy is off or no traffic data is available.</div>
-                    </div>
-                    <div class="mb-2">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="conf-auto-busy" checked>
-                            <label class="form-check-label small" for="conf-auto-busy">
-                                🤖 Auto Busy Level — derive from real nearby aircraft count
-                            </label>
-                        </div>
-                        <div id="auto-busy-status" class="form-text x-small text-muted mt-1"></div>
+                        <div class="form-text x-small text-muted" data-i18n="busy_level_hint">Used when Auto Busy is off or no traffic data is available.</div>
                     </div>
                     <div class="mb-2">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="conf-allow-intl-non-english">
                             <label class="form-check-label small" for="conf-allow-intl-non-english">
-                                🌐 Allow non-English comms outside Chinese airspace
-                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">Not realistic</span>
+                                <span data-i18n="allow_non_english_label">🌐 允许在中国空域外使用非英语通话</span>
+                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;" data-i18n="allow_non_english_badge">非真实情形</span>
                             </label>
                         </div>
-                        <div class="form-text x-small text-muted">
-                            When off, ATC uses English-only (ICAO standard) outside Chinese/Japanese airspace.
-                            Turn on to use your configured language everywhere.
+                        <div class="form-text x-small text-muted" data-i18n="allow_non_english_hint">
+                            关闭时，在中国/日本空域外管制员将使用英语（ICAO 标准）。开启后可在任何地方使用您设定的语言。
                         </div>
                     </div>
 
@@ -349,33 +353,32 @@
                     </div>
 
                     <!-- Privacy & Updates -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3">☁️ Privacy &amp; Updates</h6>
+                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="privacy_updates">☁️ 隐私与更新</h6>
 
                     <!-- Crash telemetry toggle -->
                     <div class="mb-2">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="conf-telemetry-enabled">
-                            <label class="form-check-label small" for="conf-telemetry-enabled">
-                                Auto-report crashes to help improve OpenFrequency
+                            <label class="form-check-label small" for="conf-telemetry-enabled" data-i18n="telemetry_toggle">
+                                自动上报崩溃日志以帮助改进 OpenFrequency
                             </label>
                         </div>
                         <div class="form-check form-switch mt-1">
                             <input class="form-check-input" type="checkbox" id="conf-telemetry-sim-info">
-                            <label class="form-check-label small" for="conf-telemetry-sim-info">
-                                Include sim/LLM provider info in crash reports
+                            <label class="form-check-label small" for="conf-telemetry-sim-info" data-i18n="telemetry_sim_info">
+                                在崩溃报告中包含模拟器/AI 提供商信息
                             </label>
                         </div>
-                        <div class="form-text x-small text-muted mt-1">
-                            No API keys, passwords, or personal info are ever sent.
-                            Crash logs are always saved locally regardless of this setting.
+                        <div class="form-text x-small text-muted mt-1" data-i18n="telemetry_hint">
+                            不会发送 API 密钥、密码或个人信息。崩溃日志始终本地保存，与此设置无关。
                         </div>
                     </div>
 
                     <!-- Auto update -->
                     <div class="mb-3">
                         <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <button class="btn btn-sm btn-outline-primary" onclick="checkForUpdates()">
-                                🔄 Check for Updates
+                            <button class="btn btn-sm btn-outline-primary" onclick="checkForUpdates()" data-i18n="check_updates">
+                                🔄 检查更新
                             </button>
                             <span id="update-check-status" class="small text-muted"></span>
                         </div>
@@ -385,59 +388,59 @@
                     <!-- Combined crash upload + feedback -->
                     <div class="mb-2">
                         <a class="btn btn-sm btn-outline-secondary collapsed" data-bs-toggle="collapse"
-                            href="#feedback-collapse" role="button" aria-expanded="false">
-                            📤 Report / Feedback
+                            href="#feedback-collapse" role="button" aria-expanded="false" data-i18n="report_feedback_btn">
+                            📤 反馈 / 问题上报
                         </a>
                         <div class="collapse mt-2" id="feedback-collapse">
                             <div class="card card-body p-2" style="font-size:0.85rem;">
                                 <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="uploadRecentCrash()">
-                                        📤 Upload Recent Crash Log
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="uploadRecentCrash()" data-i18n="upload_crash_log">
+                                        📤 上传最近崩溃日志
                                     </button>
                                     <span id="crash-upload-status" class="small text-muted"></span>
                                 </div>
                                 <div id="recent-crash-info" class="form-text x-small text-muted mb-2"></div>
                                 <div class="mb-2">
-                                    <label class="form-label small mb-0">Type</label>
+                                    <label class="form-label small mb-0" data-i18n="fb_type_label">类型</label>
                                     <select class="form-select form-select-sm" id="fb-type">
-                                        <option value="bug">🐛 Bug Report</option>
-                                        <option value="suggestion">💡 Feature Suggestion</option>
-                                        <option value="crash">💥 Crash Follow-up</option>
-                                        <option value="other">📝 Other</option>
+                                        <option value="bug" data-i18n="fb_type_bug">🐛 Bug 报告</option>
+                                        <option value="suggestion" data-i18n="fb_type_suggestion">💡 功能建议</option>
+                                        <option value="crash" data-i18n="fb_type_crash">💥 崩溃跟进</option>
+                                        <option value="other" data-i18n="fb_type_other">📝 其他</option>
                                     </select>
                                 </div>
                                 <div class="mb-2">
-                                    <label class="form-label small mb-0">Title <span class="text-danger">*</span></label>
+                                    <label class="form-label small mb-0" data-i18n="fb_title_label">标题 <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control form-control-sm" id="fb-title"
-                                        placeholder="Brief description of the issue" maxlength="100">
+                                        data-i18n-placeholder="fb_title_placeholder" placeholder="Brief description of the issue" maxlength="100">
                                 </div>
                                 <div class="mb-2">
-                                    <label class="form-label small mb-0">Details</label>
+                                    <label class="form-label small mb-0" data-i18n="fb_details_label">详细描述</label>
                                     <textarea class="form-control form-control-sm" id="fb-description" rows="3"
-                                        placeholder="Steps to reproduce, expected vs actual behavior, etc." maxlength="2000"></textarea>
+                                        data-i18n-placeholder="fb_details_placeholder" placeholder="Steps to reproduce, expected vs actual behavior, etc." maxlength="2000"></textarea>
                                 </div>
                                 <div class="mb-2">
-                                    <label class="form-label small mb-0">Recent Crash ID (auto-filled)</label>
+                                    <label class="form-label small mb-0" data-i18n="fb_crash_id_label">崩溃 ID（自动填写）</label>
                                     <input type="text" class="form-control form-control-sm" id="fb-crash-id"
-                                        placeholder="Leave blank if not crash-related">
+                                        data-i18n-placeholder="fb_crash_id_placeholder" placeholder="Leave blank if not crash-related">
                                 </div>
                                 <div class="mb-2">
-                                    <label class="form-label small mb-0">Contact (optional)</label>
+                                    <label class="form-label small mb-0" data-i18n="fb_contact_label">联系方式（可选）</label>
                                     <input type="text" class="form-control form-control-sm" id="fb-contact"
-                                        placeholder="Email or GitHub handle for follow-up">
+                                        data-i18n-placeholder="fb_contact_placeholder" placeholder="Email or GitHub handle for follow-up">
                                 </div>
                                 <div class="mb-2 d-flex gap-3">
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="fb-include-log" checked>
-                                        <label class="form-check-label small" for="fb-include-log">Attach log excerpt</label>
+                                        <label class="form-check-label small" for="fb-include-log" data-i18n="fb_attach_log">附加日志摘录</label>
                                     </div>
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" id="fb-include-config">
-                                        <label class="form-check-label small" for="fb-include-config">Attach config summary</label>
+                                        <label class="form-check-label small" for="fb-include-config" data-i18n="fb_attach_config">附加配置摘要</label>
                                     </div>
                                 </div>
                                 <div class="d-flex gap-2 align-items-center">
-                                    <button class="btn btn-sm btn-primary" onclick="submitFeedback()">Send Report</button>
+                                    <button class="btn btn-sm btn-primary" onclick="submitFeedback()" data-i18n="fb_send">发送报告</button>
                                     <span id="fb-status" class="small text-muted"></span>
                                 </div>
                             </div>
@@ -452,6 +455,26 @@
                                 onchange="window.toggleDarkMode(this.checked)">
                             <label class="form-check-label small" for="conf-dark-mode" data-i18n="dark_mode">Dark
                                 Mode</label>
+                        </div>
+                    </div>
+
+                    <!-- Theme selector -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" data-i18n="ui_theme">UI Theme</label>
+                        <div class="btn-group w-100" role="group" aria-label="UI Theme selector" id="theme-selector">
+                            <input type="radio" class="btn-check" name="ui-theme" id="theme-classic" value="classic" checked>
+                            <label class="btn btn-outline-secondary btn-sm" for="theme-classic"
+                                   data-i18n="theme_classic">
+                                🖥️ Classic
+                            </label>
+                            <input type="radio" class="btn-check" name="ui-theme" id="theme-apple" value="apple">
+                            <label class="btn btn-outline-secondary btn-sm" for="theme-apple"
+                                   data-i18n="theme_apple">
+                                🍎 Apple
+                            </label>
+                        </div>
+                        <div class="form-text text-muted" style="font-size:0.7rem;" data-i18n="theme_hint">
+                            Apple / Liquid Glass theme. Classic is the default.
                         </div>
                     </div>
                 </form>
@@ -477,99 +500,6 @@
     let pttButtonIndex = -1;
     let isBinding = false;
     let ignoredButtons = new Set(); // Track buttons pressed when binding starts
-    let pttBindingConfig = null;
-    let desktopPttRuntimeTimer = null;
-    const SETTINGS_I18N = {
-        en: {
-            desktopPttKeyboard: 'Desktop PTT: Keyboard {key}',
-            desktopPttGamepad: 'Desktop PTT: {device} / Btn {btn} + {key}',
-            desktopPttNotRunning: 'Desktop backend PTT: Not running',
-            desktopPttEnabled: 'Desktop backend PTT: Enabled',
-            desktopPttDisabled: 'Desktop backend PTT: Disabled',
-            desktopPttDetected: 'Detected {device}',
-            desktopPttWaitingGamepad: 'Waiting for bound gamepad',
-            desktopPttHotkey: 'Hotkey {key}',
-            desktopPttRecording: 'Recording',
-            desktopPttError: 'Error: {error}',
-            desktopPttUnavailable: 'Desktop backend PTT: Status unavailable'
-        },
-        zh: {
-            desktopPttKeyboard: '桌面 PTT：键盘 {key}',
-            desktopPttGamepad: '桌面 PTT：{device} / 按钮 {btn} + {key}',
-            desktopPttNotRunning: '桌面后台 PTT：未运行',
-            desktopPttEnabled: '桌面后台 PTT：已启用',
-            desktopPttDisabled: '桌面后台 PTT：已禁用',
-            desktopPttDetected: '已检测到 {device}',
-            desktopPttWaitingGamepad: '等待已绑定的手柄',
-            desktopPttHotkey: '热键 {key}',
-            desktopPttRecording: '正在录音',
-            desktopPttError: '错误：{error}',
-            desktopPttUnavailable: '桌面后台 PTT：状态不可用'
-        },
-        ja: {
-            desktopPttKeyboard: 'デスクトップ PTT: キーボード {key}',
-            desktopPttGamepad: 'デスクトップ PTT: {device} / ボタン {btn} + {key}',
-            desktopPttNotRunning: 'デスクトップ背景 PTT: 未起動',
-            desktopPttEnabled: 'デスクトップ背景 PTT: 有効',
-            desktopPttDisabled: 'デスクトップ背景 PTT: 無効',
-            desktopPttDetected: '{device} を検出',
-            desktopPttWaitingGamepad: 'バインド済みゲームパッドを待機中',
-            desktopPttHotkey: 'ホットキー {key}',
-            desktopPttRecording: '録音中',
-            desktopPttError: 'エラー: {error}',
-            desktopPttUnavailable: 'デスクトップ背景 PTT: 状態を取得できません'
-        }
-    };
-
-    function settingsText(key, vars = {}) {
-        const lang = localStorage.getItem('language') || 'en';
-        let text = (SETTINGS_I18N[lang] || SETTINGS_I18N.en)[key] || SETTINGS_I18N.en[key] || key;
-        Object.entries(vars).forEach(([name, value]) => {
-            text = text.replaceAll(`{${name}}`, value ?? '');
-        });
-        return text;
-    }
-
-    function updateDesktopPttSummary() {
-        const summary = document.getElementById('desktop-ptt-summary');
-        if (!summary) return;
-        const key = document.getElementById('conf-desktop-ptt-key').value.trim() || 'space';
-        if (pttBindingConfig && pttBindingConfig.source === 'gamepad') {
-            const deviceName = pttBindingConfig.name || `Pad ${pttBindingConfig.gp}`;
-            summary.textContent = settingsText('desktopPttGamepad', { device: deviceName, btn: pttBindingConfig.btn, key });
-            return;
-        }
-        summary.textContent = settingsText('desktopPttKeyboard', { key });
-    }
-
-    async function refreshDesktopPttRuntime() {
-        const runtimeEl = document.getElementById('desktop-ptt-runtime');
-        if (!runtimeEl) return;
-        try {
-            const resp = await fetch('/api/desktop_ptt_status');
-            const data = await resp.json();
-            if (!data.available) {
-                runtimeEl.textContent = settingsText('desktopPttNotRunning');
-                return;
-            }
-            const parts = [];
-            parts.push(data.enabled ? settingsText('desktopPttEnabled') : settingsText('desktopPttDisabled'));
-            if (data.binding && data.binding.source === 'gamepad') {
-                parts.push(data.matched_device ? settingsText('desktopPttDetected', { device: data.matched_device }) : settingsText('desktopPttWaitingGamepad'));
-            } else {
-                parts.push(settingsText('desktopPttHotkey', { key: data.key_name || 'space' }));
-            }
-            if (data.recording) {
-                parts.push(settingsText('desktopPttRecording'));
-            }
-            if (data.last_error) {
-                parts.push(settingsText('desktopPttError', { error: data.last_error }));
-            }
-            runtimeEl.textContent = parts.join(' | ');
-        } catch (e) {
-            runtimeEl.textContent = settingsText('desktopPttUnavailable');
-        }
-    }
 
     function startBindingPTT() {
         isBinding = true;
@@ -616,8 +546,6 @@
 
         // Clear storage
         localStorage.removeItem('ptt_binding');
-        pttBindingConfig = null;
-        updateDesktopPttSummary();
     }
 
     function gamepadLoop() {
@@ -654,8 +582,6 @@
                         statusEl.className = "badge bg-success";
 
                         localStorage.setItem('ptt_binding', JSON.stringify({ gp: i, btn: b }));
-                        pttBindingConfig = { gp: i, btn: b, source: 'gamepad', name: gp.id || `Pad ${i}` };
-                        updateDesktopPttSummary();
                         return;
                     } else {
                         // Button released, remove from ignore list
@@ -673,12 +599,105 @@
     requestAnimationFrame(gamepadLoop);
 
     // --- Config Logic ---
+
+    // Load cabin media packages from API (includes plugins)
+    let cabinMediaPackages = [];
+
+    async function loadCabinMediaPackages() {
+        try {
+            const response = await fetch('/get_cabin_media_packages');
+            const data = await response.json();
+            cabinMediaPackages = data.packages || [];
+            populateCabinMediaDropdown();
+        } catch (e) {
+            console.error('Failed to load cabin media packages:', e);
+        }
+    }
+
+    function populateCabinMediaDropdown() {
+        const select = document.getElementById('conf-cabin-media-package');
+        if (!select) return;
+
+        // Clear existing options except the first one (auto-match)
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+
+        // Add options from API response (includes plugins)
+        for (const pkg of cabinMediaPackages) {
+            const option = document.createElement('option');
+            option.value = pkg.id;
+            // Display name: use Chinese name if available and language is zh, otherwise use English name
+            const lang = localStorage.getItem('language') || 'en';
+            const displayName = (lang === 'zh' && pkg.name_zh) ? pkg.name_zh : pkg.name;
+            option.textContent = `${pkg.id} - ${displayName}`;
+            select.appendChild(option);
+        }
+    }
+
+    // Cabin media auto-matching based on callsign
+    function autoMatchCabinMedia() {
+        const callsignInput = document.getElementById('conf-callsign');
+        const cabinMediaSelect = document.getElementById('conf-cabin-media-package');
+        if (!callsignInput || !cabinMediaSelect) return;
+
+        const callsign = (callsignInput.value || '').toUpperCase().trim();
+        if (callsign.length >= 3) {
+            const airlineCode = callsign.substring(0, 3);
+            // Find matching package by id
+            const matchingPackage = cabinMediaPackages.find(pkg => pkg.id === airlineCode);
+            if (matchingPackage) {
+                // Only auto-select if user hasn't manually set a different value
+                if (cabinMediaSelect.value === '' || cabinMediaSelect.dataset.autoMatched === 'true') {
+                    cabinMediaSelect.value = airlineCode;
+                    cabinMediaSelect.dataset.autoMatched = 'true';
+                }
+            } else {
+                // No match found, use Generic as fallback
+                if (cabinMediaSelect.value === '' || cabinMediaSelect.dataset.autoMatched === 'true') {
+                    cabinMediaSelect.value = 'Generic';
+                    cabinMediaSelect.dataset.autoMatched = 'true';
+                }
+            }
+        }
+    }
+
+    // Listen for callsign changes to auto-match cabin media
+    document.getElementById('conf-callsign')?.addEventListener('input', function() {
+        const cabinMediaSelect = document.getElementById('conf-cabin-media-package');
+        if (cabinMediaSelect) {
+            cabinMediaSelect.dataset.autoMatched = 'false'; // User is manually editing
+        }
+        setTimeout(autoMatchCabinMedia, 500);
+    });
+
+    // Listen for manual cabin media selection to disable auto-match
+    document.getElementById('conf-cabin-media-package')?.addEventListener('change', function() {
+        this.dataset.autoMatched = 'false';
+    });
+
     async function loadConfig() {
         try {
             const response = await fetch('/get_config');
+            if (!response.ok) {
+                const errText = await response.text().catch(() => response.statusText);
+                console.error('loadConfig: server error', response.status, errText);
+                const lang = localStorage.getItem('language') || 'zh';
+                document.getElementById('conf-callsign').placeholder =
+                    lang === 'zh' ? `配置加载失败 (${response.status})` : `Config load failed (${response.status})`;
+                return;
+            }
             const data = await response.json();
 
-            document.getElementById('conf-callsign').value = data.user_profile?.callsign || 'N/A';
+            const csInput    = document.getElementById('conf-callsign');
+            const csLockIcon = document.getElementById('callsign-lock-icon');
+            const csLockHint = document.getElementById('callsign-lock-hint');
+            const csLocked   = data._callsign_locked || false;
+            csInput.value    = data.user_profile?.callsign || 'N/A';
+            csInput.readOnly = csLocked;
+            csInput.classList.toggle('text-muted', csLocked);
+            csLockIcon?.classList.toggle('d-none', !csLocked);
+            csLockHint?.classList.toggle('d-none', !csLocked);
             document.getElementById('conf-simbrief-user').value = data.simbrief?.username || '';
             document.getElementById('conf-fp-origin').value = data.flight_plan?.origin || '';
             document.getElementById('conf-fp-destination').value = data.flight_plan?.destination || '';
@@ -691,17 +710,6 @@
             document.getElementById('conf-model-fast').value = data.connection?.model_fast || data.connection?.model || '';
             document.getElementById('conf-model-thinking').value = data.connection?.model_thinking || '';
             document.getElementById('conf-base-url').value = data.connection?.base_url || '';
-            document.getElementById('conf-light-model').value = data.ai_routing?.light_model || data.connection?.model || 'gemini-3.1-flash-lite-preview';
-            document.getElementById('conf-reasoning-model').value = data.ai_routing?.reasoning_model || 'gemini-3.1-pro-preview';
-            document.getElementById('conf-light-sync').checked = data.ai_routing?.light_sync_with_primary !== false;
-            document.getElementById('conf-reasoning-sync').checked = data.ai_routing?.reasoning_sync_with_primary !== false;
-            document.getElementById('conf-light-api-key').value = data.ai_routing?.light_api_key || '';
-            document.getElementById('conf-light-base-url').value = data.ai_routing?.light_base_url || '';
-            document.getElementById('conf-light-provider').value = data.ai_routing?.light_provider || data.connection?.provider || 'gemini';
-            document.getElementById('conf-reasoning-api-key').value = data.ai_routing?.reasoning_api_key || '';
-            document.getElementById('conf-reasoning-base-url').value = data.ai_routing?.reasoning_base_url || '';
-            document.getElementById('conf-reasoning-provider').value = data.ai_routing?.reasoning_provider || data.connection?.provider || 'gemini';
-            document.getElementById('conf-light-threshold').value = data.ai_routing?.light_confidence_threshold ?? 0.66;
             // TTS backend
             document.getElementById('conf-tts-backend').value = data.audio?.tts_backend || 'edge';
             document.getElementById('conf-tts-local-engine').value = data.audio?.tts_local_engine || 'kokoro';
@@ -714,13 +722,13 @@
             document.getElementById('conf-frequency-source').value = data.navdata?.frequency_source || 'third_party';
             document.getElementById('conf-ground-source').value = data.navdata?.ground_source || 'simulator';
             document.getElementById('conf-osm-overpass-url').value = data.navdata?.osm_overpass_url || 'https://overpass-api.de/api/interpreter';
-            document.getElementById('conf-radio-effect').checked = data.audio.radio_effect;
-            document.getElementById('conf-desktop-ptt-enabled').checked = data.audio.desktop_ptt_enabled !== false;
-            document.getElementById('conf-desktop-ptt-key').value = data.audio.desktop_ptt_key || 'space';
-            document.getElementById('conf-stt-path').value = data.audio.stt_model_path || '';
-            document.getElementById('conf-stt-language').value = data.audio.stt_language || 'en';
-            document.getElementById('conf-busy-level').value = data.immersion.busy_level || 'medium';
-            document.getElementById('conf-auto-busy').checked = data.immersion?.auto_busy_level !== false;
+            document.getElementById('conf-radio-effect').checked = data.audio?.radio_effect ?? false;
+            document.getElementById('conf-stt-path').value = data.audio?.stt_model_path || '';
+            document.getElementById('conf-stt-language').value = data.audio?.stt_language || 'en';
+            document.getElementById('conf-busy-level').value = data.immersion?.busy_level || 'medium';
+            const autoBusy = data.immersion?.auto_busy_level !== false;
+            document.getElementById('conf-auto-busy').checked = autoBusy;
+            document.getElementById('busy-level-row').style.display = autoBusy ? 'none' : 'block';
             document.getElementById('conf-allow-intl-non-english').checked = data.immersion?.allow_non_english_intl || false;
             // Security Mode from Config
             if (data.security && data.security.mode) {
@@ -742,47 +750,38 @@
                 const isDark = localStorage.getItem('dark_mode') === '1' || (data.ui && data.ui.dark_mode);
                 darkModeCheckbox.checked = isDark;
             }
-            if (data.ui?.language && document.getElementById('lang-selector')) {
-                document.getElementById('lang-selector').value = data.ui.language;
-                if (window.applyLanguage) {
-                    window.applyLanguage(data.ui.language);
-                }
-            }
+
+            // Theme selector state (stored in localStorage; 'apple' disabled until implemented)
+            const savedTheme = localStorage.getItem('ui_theme') || 'classic';
+            const themeRadio = document.querySelector(`input[name="ui-theme"][value="${savedTheme}"]`);
+            if (themeRadio && !themeRadio.disabled) themeRadio.checked = true;
 
             // Cloud / Privacy
             document.getElementById('conf-telemetry-enabled').checked = data.cloud?.telemetry_enabled || false;
             document.getElementById('conf-telemetry-sim-info').checked = data.cloud?.include_sim_info !== false;
+            // Hoppie ACARS
+            document.getElementById('conf-hoppie-logon').value = data.hoppie?.logon_code || '';
+            document.getElementById('conf-hoppie-poll-interval').value = Math.max(65, data.hoppie?.poll_interval || 65);
+            // Cabin media package
+            document.getElementById('conf-cabin-media-package').value = data.cabin?.media_package || '';
             // Pre-fill latest crash ID into feedback form
             fetchRecentCrashId();
 
             toggleBaseUrl();
-            toggleRoutingOverrideFields();
             toggleSimulatorFields();
             toggleGroundSourceFields();
 
-            // Restore PTT binding from config, falling back to localStorage
+            // Restore PTT binding from storage if exists
             const savedBind = localStorage.getItem('ptt_binding');
-            const effectiveBind = data.audio?.ptt_binding || (savedBind ? JSON.parse(savedBind) : null);
-            if (effectiveBind && effectiveBind.gp !== undefined && effectiveBind.btn !== undefined) {
-                const b = effectiveBind;
-                gamepadIndex = b.gp;
-                pttButtonIndex = b.btn;
-                pttBindingConfig = { gp: b.gp, btn: b.btn, source: b.source || 'gamepad' };
-                if (b.name) pttBindingConfig.name = b.name;
-                localStorage.setItem('ptt_binding', JSON.stringify({ gp: b.gp, btn: b.btn }));
+            if (savedBind) {
                 const btn = document.getElementById('btn-bind-ptt');
-                btn.classList.replace('btn-outline-warning', 'btn-outline-success');
-
-                document.getElementById('ptt-bind-status').innerText = "Active";
-                document.getElementById('ptt-bind-status').className = "badge bg-success";
-
-                // Text update handled by i18n
+                const statusEl = document.getElementById('ptt-bind-status');
+                if (btn) btn.classList.replace('btn-outline-warning', 'btn-outline-success');
+                if (statusEl) { statusEl.innerText = "Active"; statusEl.className = "badge bg-success"; }
             }
-            updateDesktopPttSummary();
-            refreshDesktopPttRuntime();
 
         } catch (e) {
-            console.error("Failed to load config", e);
+            console.error("Failed to load config:", e);
         }
     }
 
@@ -806,19 +805,6 @@
                     model_thinking: document.getElementById('conf-model-thinking').value,
                     base_url: document.getElementById('conf-base-url').value
                 },
-                ai_routing: {
-                    light_model: document.getElementById('conf-light-model').value.trim(),
-                    reasoning_model: document.getElementById('conf-reasoning-model').value.trim(),
-                    light_sync_with_primary: document.getElementById('conf-light-sync').checked,
-                    reasoning_sync_with_primary: document.getElementById('conf-reasoning-sync').checked,
-                    light_api_key: document.getElementById('conf-light-api-key').value,
-                    light_base_url: document.getElementById('conf-light-base-url').value.trim(),
-                    light_provider: document.getElementById('conf-light-provider').value,
-                    reasoning_api_key: document.getElementById('conf-reasoning-api-key').value,
-                    reasoning_base_url: document.getElementById('conf-reasoning-base-url').value.trim(),
-                    reasoning_provider: document.getElementById('conf-reasoning-provider').value,
-                    light_confidence_threshold: parseFloat(document.getElementById('conf-light-threshold').value || '0.66')
-                },
                 simulator: {
                     provider: document.getElementById('conf-sim-provider').value,
                     xplane_host: document.getElementById('conf-xplane-host').value.trim() || '127.0.0.1',
@@ -831,9 +817,6 @@
                 },
                 audio: {
                     radio_effect: document.getElementById('conf-radio-effect').checked,
-                    desktop_ptt_enabled: document.getElementById('conf-desktop-ptt-enabled').checked,
-                    desktop_ptt_key: document.getElementById('conf-desktop-ptt-key').value.trim() || 'space',
-                    ptt_binding: pttBindingConfig,
                     stt_model_path: document.getElementById('conf-stt-path').value,
                     stt_language: document.getElementById('conf-stt-language').value,
                     tts_backend: document.getElementById('conf-tts-backend').value,
@@ -851,10 +834,14 @@
                     level: document.getElementById('conf-emergency-level').value,
                     enabled: true
                 },
-                ui: {
-                    dark_mode: document.getElementById('conf-dark-mode')?.checked || false,
-                    language: document.getElementById('lang-selector')?.value || (localStorage.getItem('language') || 'en')
+                hoppie: {
+                    logon_code: document.getElementById('conf-hoppie-logon').value.trim(),
+                    poll_interval: Math.max(65, parseInt(document.getElementById('conf-hoppie-poll-interval').value) || 65)
                 },
+                cabin: {
+                    media_package: document.getElementById('conf-cabin-media-package').value
+                },
+                ui: { dark_mode: document.getElementById('conf-dark-mode')?.checked || false },
                 cloud: {
                     telemetry_enabled: document.getElementById('conf-telemetry-enabled').checked,
                     include_sim_info: document.getElementById('conf-telemetry-sim-info').checked
@@ -922,28 +909,11 @@
     }
 
     document.getElementById('conf-provider').addEventListener('change', toggleBaseUrl);
-    document.getElementById('conf-light-sync').addEventListener('change', toggleRoutingOverrideFields);
-    document.getElementById('conf-reasoning-sync').addEventListener('change', toggleRoutingOverrideFields);
     document.getElementById('conf-sim-provider').addEventListener('change', toggleSimulatorFields);
     document.getElementById('conf-ground-source').addEventListener('change', toggleGroundSourceFields);
-    document.getElementById('conf-desktop-ptt-key').addEventListener('input', updateDesktopPttSummary);
-    const langSelector = document.getElementById('lang-selector');
-    if (langSelector) {
-        langSelector.addEventListener('change', () => {
-            setTimeout(() => {
-                updateDesktopPttSummary();
-                refreshDesktopPttRuntime();
-            }, 0);
-        });
-    }
     function toggleBaseUrl() {
         const val = document.getElementById('conf-provider').value;
         document.getElementById('base-url-group').style.display = (val === 'openai_compatible') ? 'block' : 'none';
-    }
-
-    function toggleRoutingOverrideFields() {
-        document.getElementById('light-override-group').classList.toggle('d-none', document.getElementById('conf-light-sync').checked);
-        document.getElementById('reasoning-override-group').classList.toggle('d-none', document.getElementById('conf-reasoning-sync').checked);
     }
 
     function toggleSimulatorFields() {
@@ -962,18 +932,102 @@
     }
 
     function testAudio() {
+        // Stop any currently playing audio before starting new request
+        _stopAllAudio();
+
+        // Unlock audio context on user interaction
+        if (!window.audioContext) {
+            window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (window.audioContext.state === 'suspended') {
+            window.audioContext.resume();
+        }
+        
         const btn = document.querySelector('[onclick="testAudio()"]');
-        if (btn) { btn.textContent = '⏳ Testing...'; btn.disabled = true; }
+        const lang = localStorage.getItem('language') || 'zh';
+        if (btn) {
+            btn.textContent = lang === 'zh' ? '⏳ 合成中...' : '⏳ Testing...';
+            btn.disabled = true;
+        }
         socket.emit('test_tts_trigger');
-        // Reset button after 4 seconds
         setTimeout(() => {
-            if (btn) { btn.textContent = '🔊 Test Audio'; btn.disabled = false; }
-        }, 4000);
+            if (btn) {
+                btn.textContent = lang === 'zh' ? '🔊 测试音频' : '🔊 Test Audio';
+                btn.disabled = false;
+            }
+        }, 6000);
     }
-    socket.on('tts_start', () => {
-        const btn = document.querySelector('[onclick="testAudio()"]');
-        if (btn && btn.disabled) { btn.textContent = '🔊 Playing...'; }
-    });
+
+    // Sequential audio queue — prevents ATIS segments from overlapping
+    let _audioQueue = [];
+    let _audioPlaying = false;
+    let _currentAudio = null;
+
+    function _playNextAudio() {
+        if (_audioPlaying || _audioQueue.length === 0) return;
+        const { url, onDone } = _audioQueue.shift();
+        _audioPlaying = true;
+        const audio = new Audio(url);
+        _currentAudio = audio;
+        audio.onended = () => {
+            URL.revokeObjectURL(url);
+            _currentAudio = null;
+            _audioPlaying = false;
+            if (onDone) onDone();
+            _playNextAudio();
+        };
+        audio.onerror = () => {
+            URL.revokeObjectURL(url);
+            _currentAudio = null;
+            _audioPlaying = false;
+            if (onDone) onDone(true);
+            _playNextAudio();
+        };
+        const resume = () => audio.play().catch(err => console.error('Audio play failed:', err));
+        if (window.audioContext && window.audioContext.state === 'suspended') {
+            window.audioContext.resume().then(resume);
+        } else {
+            resume();
+        }
+    }
+
+    function _enqueueAudio(url, onDone) {
+        _audioQueue.push({ url, onDone });
+        _playNextAudio();
+    }
+
+    function _stopAllAudio() {
+        if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+        _audioQueue = [];
+        _audioPlaying = false;
+    }
+
+    // Play audio received from TTS engine on this page
+    if (socket) socket.on('audio_stream', (data) => {
+        try {
+            const raw = atob(data.data);
+            const bytes = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+            const blob = new Blob([bytes], { type: 'audio/mpeg' });
+            const url = URL.createObjectURL(blob);
+            const btn = document.querySelector('[onclick="testAudio()"]');
+            const lang = localStorage.getItem('language') || 'zh';
+            if (btn && btn.disabled) btn.textContent = lang === 'zh' ? '🔊 播放中...' : '🔊 Playing...';
+            _enqueueAudio(url, (err) => {
+                // Only reset button after last segment finishes (queue empty)
+                if (_audioQueue.length === 0) {
+                    const b = document.querySelector('[onclick="testAudio()"]');
+                    const l = localStorage.getItem('language') || 'zh';
+                    if (b) {
+                        b.textContent = err
+                            ? (l === 'zh' ? '❌ 播放失败' : '❌ Play Failed')
+                            : (l === 'zh' ? '🔊 测试音频' : '🔊 Test Audio');
+                        b.disabled = false;
+                    }
+                }
+            });
+        } catch (e) { console.error('Test audio error:', e); }
+    });  // end socket.on audio_stream
 
     function goBackToDashboard() {
         if (window.history.length > 1) {
@@ -1137,37 +1191,106 @@
         }
     }
 
-    async function downloadSttModel() {
-        const statusEl = document.getElementById('stt-dl-status');
-        statusEl.textContent = 'Starting download...';
-        try {
-            const r = await fetch('/api/models/download_stt', { method: 'POST' });
-            const d = await r.json();
-            statusEl.textContent = d.message || (d.status === 'ok' ? 'Download started!' : 'Error');
-        } catch(e) { statusEl.textContent = 'Error: ' + e.message; }
+    function downloadModelWithProgress(modelType) {
+        const btn      = document.getElementById(`btn-dl-${modelType}`);
+        const status   = document.getElementById(`${modelType}-dl-status`);
+        const progWrap = document.getElementById(`${modelType}-dl-progress`);
+        const label    = document.getElementById(`${modelType}-dl-label`);
+        const fill     = document.getElementById(`${modelType}-dl-fill`);
+        const manual   = document.getElementById(`${modelType}-dl-manual`);
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>下载中…';
+        status.textContent = '';
+        progWrap.style.display = 'block';
+        fill.style.background = '#0d6efd';
+        fill.style.width = '0%';
+        label.textContent = '正在连接…';
+        if (manual) manual.style.display = 'none';
+
+        const es = new EventSource(`/api/model/download/${modelType}`);
+
+        es.onmessage = function(e) {
+            const d = JSON.parse(e.data);
+            const pct = d.progress;
+            if (pct >= 0) fill.style.width = Math.max(2, pct) + '%';
+            if (d.message) label.textContent = d.message;
+
+            if (d.done) {
+                es.close();
+                if (d.success) {
+                    fill.style.width = '100%';
+                    fill.style.background = '#198754';
+                    label.textContent = d.message;
+                    btn.disabled = false;
+                    btn.innerHTML = '✅ 下载完成';
+                    btn.classList.replace('btn-outline-primary', 'btn-outline-success');
+                    status.textContent = '';
+                } else {
+                    fill.style.background = '#dc3545';
+                    fill.style.width = '100%';
+                    label.textContent = '下载失败 — 请查看手动下载说明';
+                    btn.disabled = false;
+                    btn.innerHTML = '🔄 重试';
+                    // Show manual instructions
+                    fetchManualInstructions(modelType, manual);
+                }
+            }
+        };
+
+        es.onerror = function() {
+            es.close();
+            fill.style.background = '#dc3545';
+            fill.style.width = '100%';
+            label.textContent = '连接中断，请检查网络后重试';
+            btn.disabled = false;
+            btn.innerHTML = '🔄 重试';
+            fetchManualInstructions(modelType, manual);
+        };
     }
-    async function downloadTtsModel() {
-        const engine = document.getElementById('conf-tts-local-engine')?.value || 'kokoro';
-        const statusEl = document.getElementById('tts-dl-status');
-        statusEl.textContent = 'Starting download...';
-        try {
-            const r = await fetch('/api/models/download_tts', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({engine}) });
-            const d = await r.json();
-            statusEl.textContent = d.message || (d.status === 'ok' ? 'Download started!' : 'Error');
-        } catch(e) { statusEl.textContent = 'Error: ' + e.message; }
+
+    function fetchManualInstructions(modelType, el) {
+        if (!el) return;
+        const instructions = {
+            stt: '自动下载失败。请手动下载以下文件并放入 models/sherpa-onnx-whisper-small/ 目录：\n'
+               + '• small-encoder.int8.onnx（约 49 MB）\n'
+               + '• small-decoder.int8.onnx（约 96 MB）\n'
+               + '• small-tokens.txt\n\n'
+               + '下载地址（任选一个）：\n'
+               + '① HuggingFace：https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small\n'
+               + '② ModelScope（国内）：https://modelscope.cn/models/csukuangfj/sherpa-onnx-whisper-small',
+            tts: '自动下载失败。请手动下载以下文件并放入 models/ 目录：\n'
+               + '• kokoro-v0_19.onnx（约 310 MB）\n'
+               + '• voices.bin（约 10 MB）\n\n'
+               + '下载地址（任选一个）：\n'
+               + '① HuggingFace：https://huggingface.co/hexgrad/Kokoro-82M\n'
+               + '② GitHub Release：https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0',
+        };
+        el.textContent = instructions[modelType] || '';
+        el.style.display = 'block';
     }
 
     // Live auto-busy status from server
     if (window.socket) {
         window.socket.on('busy_level_update', d => {
             const el = document.getElementById('auto-busy-status');
-            if (el) el.textContent = `Current: ${d.level}  ·  ${d.count} aircraft nearby`;
+        const lang = localStorage.getItem('language') || 'en';
+            if (el) el.textContent = lang === 'zh'
+                ? `当前：${d.level}（自动）· 附近 ${d.count} 架飞机`
+                : `Current: ${d.level} (auto) · ${d.count} aircraft nearby`;
         });
     }
 
     loadConfig();
-    refreshDesktopPttRuntime();
-    if (desktopPttRuntimeTimer) clearInterval(desktopPttRuntimeTimer);
-    desktopPttRuntimeTimer = setInterval(refreshDesktopPttRuntime, 3000);
+    loadCabinMediaPackages();
+
+    // ── Theme selector event binding ──────────────────────────────────────────
+    document.querySelectorAll('input[name="ui-theme"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (!radio.disabled && radio.checked && window.applyTheme) {
+                window.applyTheme(radio.value);
+            }
+        });
+    });
 </script>
 {% endblock %}

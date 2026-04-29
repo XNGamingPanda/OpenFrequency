@@ -92,28 +92,14 @@
 
 </style>
 <div class="row h-100">
-    <!-- Header Row (Full Width) -->
-    <div class="col-12 mb-3">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <!-- Status or other info could go here -->
-            </div>
-            <div>
-                {% if can_interact %}
-                <a href="/history" class="btn btn-outline-secondary btn-sm me-2">Reports</a>
-                <a href="/settings" class="btn btn-outline-secondary btn-sm" data-i18n="settings_btn">⚙️ Settings</a>
-                {% endif %}
-            </div>
-        </div>
-        <div id="career-readiness-alert" class="alert alert-warning mt-2 mb-0"></div>
-    </div>
+    <div id="career-readiness-alert" class="alert alert-warning mt-2 mb-0"></div>
 
     <!-- Left Column: Gauges + Map -->
     <div class="col-lg-7 d-flex flex-column h-100">
         <!-- Gauges Row -->
         <div class="row text-center mb-3">
             <div class="col-3">
-                <div class="card shadow-sm gauge-card">
+                <div class="card shadow-sm gauge-card lg-glass-filter">
                     <div class="card-body py-2">
                         <small class="text-muted" data-i18n="altitude">ALTITUDE</small>
                         <h4 id="data-altitude" class="card-title mb-0">0 FT</h4>
@@ -121,7 +107,7 @@
                 </div>
             </div>
             <div class="col-3">
-                <div class="card shadow-sm gauge-card">
+                <div class="card shadow-sm gauge-card lg-glass-filter">
                     <div class="card-body py-2">
                         <small class="text-muted" data-i18n="airspeed">AIRSPEED</small>
                         <h4 id="data-airspeed" class="card-title mb-0">0 KTS</h4>
@@ -129,7 +115,7 @@
                 </div>
             </div>
             <div class="col-3">
-                <div class="card shadow-sm gauge-card">
+                <div class="card shadow-sm gauge-card lg-glass-filter">
                     <div class="card-body py-2">
                         <small class="text-muted" data-i18n="heading">HEADING</small>
                         <h4 id="data-heading" class="card-title mb-0">0°</h4>
@@ -137,7 +123,7 @@
                 </div>
             </div>
             <div class="col-3">
-                <div class="card shadow-sm gauge-card">
+                <div class="card shadow-sm gauge-card lg-glass-filter">
                     <div class="card-body py-2">
                         <small class="text-muted">VS</small>
                         <h4 id="data-vs" class="card-title mb-0 text-info">0 FPM</h4>
@@ -156,7 +142,8 @@
                 <button class="nav-link" id="radios-tab" data-bs-toggle="tab" data-bs-target="#radios-pane" type="button"
                     role="tab" data-i18n="tab_nearby_airports">Nearby Airports</button>
             </li>
-            <li class="nav-item" role="presentation">
+            <!-- CPDLC tab hidden — Hoppie ACARS requires active sim connection; re-enable per plugin -->
+            <li class="nav-item d-none" role="presentation">
                 <button class="nav-link" id="cpdlc-tab" data-bs-toggle="tab" data-bs-target="#cpdlc-pane" type="button"
                     role="tab">CPDLC</button>
             </li>
@@ -193,26 +180,40 @@
 
             <!-- CPDLC Pane -->
             <div class="tab-pane fade h-100 w-100 position-relative" id="cpdlc-pane" role="tabpanel">
-                <div class="p-2 h-100 d-flex flex-column" style="font-size:0.85rem;">
+                <div class="p-2 h-100 d-flex flex-column cpdlc-container" style="font-size:0.85rem;">
                     <!-- Logon row -->
-                    <div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
-                        <input type="text" id="hoppie-logon" class="form-control form-control-sm" style="width:130px;" placeholder="Logon code">
-                        <input type="text" id="hoppie-station" class="form-control form-control-sm" style="width:90px;" placeholder="Station (e.g. EHAM)">
-                        <button class="btn btn-sm btn-success" onclick="hoppieLogon()" id="hoppie-logon-btn">Connect</button>
-                        <button class="btn btn-sm btn-outline-danger d-none" onclick="hoppieLogoff()" id="hoppie-logoff-btn">Disconnect</button>
-                        <span id="hoppie-status" class="badge bg-secondary">Offline</span>
+                    <div class="row g-2 mb-2 align-items-center">
+                        <div class="col-auto">
+                            <input type="text" id="hoppie-logon" class="form-control form-control-sm" style="min-width:100px;" placeholder="Logon code" data-i18n-placeholder="cpdlc_logon_code">
+                        </div>
+                        <div class="col-auto">
+                            <input type="text" id="hoppie-station" class="form-control form-control-sm" style="min-width:100px;" placeholder="Station (e.g. EHAM)" data-i18n-placeholder="cpdlc_station">
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-sm btn-success" onclick="hoppieLogon()" id="hoppie-logon-btn" data-i18n="cpdlc_connect">Connect</button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-sm btn-outline-danger d-none" onclick="hoppieLogoff()" id="hoppie-logoff-btn" data-i18n="cpdlc_disconnect">Disconnect</button>
+                        </div>
+                        <div class="col-auto">
+                            <span id="hoppie-status" class="badge bg-secondary" data-i18n="cpdlc_offline">Offline</span>
+                        </div>
                     </div>
                     <!-- Message log -->
-                    <div id="cpdlc-log" class="flex-grow-1 overflow-auto border rounded p-2 mb-2 bg-light" style="font-family:monospace;font-size:0.78rem;min-height:100px;max-height:300px;">
-                        <div class="text-muted" id="cpdlc-log-empty">No CPDLC messages. Connect via Hoppie ACARS to begin.</div>
+                    <div id="cpdlc-log" class="flex-grow-1 overflow-auto border rounded p-2 mb-2 cpdlc-log" style="font-family:monospace;font-size:0.78rem;min-height:100px;">
+                        <div class="text-muted" id="cpdlc-log-empty" data-i18n="cpdlc_no_messages">No CPDLC messages. Connect via Hoppie ACARS to begin.</div>
                     </div>
                     <!-- Send row -->
-                    <div class="d-flex gap-2">
-                        <input type="text" id="cpdlc-send-input" class="form-control form-control-sm flex-grow-1" placeholder="Free-text TELEX / CPDLC message" disabled>
-                        <button class="btn btn-sm btn-primary" onclick="hoppieSend()" id="hoppie-send-btn" disabled>Send</button>
+                    <div class="row g-2">
+                        <div class="col">
+                            <input type="text" id="cpdlc-send-input" class="form-control form-control-sm" placeholder="Free-text TELEX / CPDLC message" disabled data-i18n-placeholder="cpdlc_message">
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-sm btn-primary" onclick="hoppieSend()" id="hoppie-send-btn" disabled data-i18n="cpdlc_send">Send</button>
+                        </div>
                     </div>
                     <div class="form-text x-small text-muted mt-1">
-                        Powered by <a href="https://www.hoppie.nl/acars/" target="_blank">Hoppie's ACARS</a>. Register a logon code at hoppie.nl.
+                        <span data-i18n="cpdlc_powered_by">Powered by</span> <a href="https://www.hoppie.nl/acars/" target="_blank">Hoppie's ACARS</a>. <span data-i18n="cpdlc_register_hint">Register a logon code at hoppie.nl.</span>
                     </div>
                 </div>
             </div>
@@ -225,8 +226,6 @@
             <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
                 <strong data-i18n="comms_log">Comms Log</strong>
                 <div class="d-flex align-items-center gap-2">
-                    <span id="llm-model-badge" class="badge bg-light text-secondary border"
-                        style="font-size:0.68em;" title="Active LLM model tier">⚡ Fast</span>
                     <span id="status-badge" class="badge bg-secondary" data-i18n="connecting">Connecting...</span>
                 </div>
             </div>
@@ -299,8 +298,9 @@
             </div>
         </div>
 
-        <button id="ptt-btn" class="btn btn-primary btn-lg w-100 py-3 fw-bold shadow-sm mb-3" data-i18n="ptt_btn">PUSH
+        <button id="ptt-btn" class="btn btn-primary btn-lg w-100 py-3 fw-bold shadow-sm mb-3 lg-glass-filter" data-i18n="ptt_btn">PUSH
             TO TALK</button>
+
         {% endif %}
     </div>
 </div>
@@ -420,9 +420,6 @@
                 const frequency = parseFloat(btn.getAttribute('data-frequency'));
                 socket.emit('tune_frequency', { frequency });
             });
-        }).catch((e) => {
-            console.error('Failed to start recording:', e);
-            setPttState(false);
         });
     }
 
@@ -608,50 +605,20 @@
     let gamepadIndex = -1;
     let pttButtonIndex = -1;
     let wasPressed = false;
-    let gamepadBindingName = '';
 
-    async function loadPTTBinding() {
-        try {
-            const resp = await fetch('/get_config');
-            const cfg = await resp.json();
-            const configured = cfg.audio?.ptt_binding;
-            if (configured && configured.gp !== undefined && configured.btn !== undefined) {
-                gamepadIndex = configured.gp;
-                pttButtonIndex = configured.btn;
-                gamepadBindingName = configured.name || '';
-                localStorage.setItem('ptt_binding', JSON.stringify({ gp: configured.gp, btn: configured.btn }));
-                console.log("PTT Bound from config to GP:", gamepadIndex, "BTN:", pttButtonIndex);
-                return;
-            }
-        } catch (e) {
-            console.warn("Failed to load PTT binding from config", e);
-        }
-
+    function loadPTTBinding() {
         const saved = localStorage.getItem('ptt_binding');
         if (saved) {
             const b = JSON.parse(saved);
             gamepadIndex = b.gp;
             pttButtonIndex = b.btn;
-            gamepadBindingName = b.name || '';
-            console.log("PTT Bound from localStorage to GP:", gamepadIndex, "BTN:", pttButtonIndex);
-        }
-    }
-
-    function remapGamepadByName(gamepads) {
-        if (!gamepadBindingName) return;
-        for (let i = 0; i < gamepads.length; i++) {
-            const gp = gamepads[i];
-            if (gp && gp.id === gamepadBindingName) {
-                gamepadIndex = i;
-                return;
-            }
+            console.log("PTT Bound to GP:", gamepadIndex, "BTN:", pttButtonIndex);
         }
     }
 
     function gamepadLoop() {
         const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
         if (!gamepads) return;
-        remapGamepadByName(gamepads);
 
         for (let i = 0; i < gamepads.length; i++) {
             // Only listen to the bound gamepad
@@ -681,7 +648,9 @@
     let aircraftMarker;
     let currentAirportIdent = null;
     const taxiHighlightLayer = L.layerGroup().addTo(map);
+    let routePredictionLayer = L.layerGroup().addTo(map);
     let lastNavBounds = null;
+    let _wasOnGround = true;  // track ground↔air transitions for map auto-zoom
 
     // Issue 2: Altitude-colored track segments
     let flightPathNodes = [];  // [[lat, lng], ...]
@@ -895,44 +864,45 @@
         if (data.latitude && data.longitude) {
             const latLng = [data.latitude, data.longitude];
             const alt = data.altitude || 0;
+            const onGround = !!data.on_ground;
 
             if (!aircraftMarker) {
-                // Create Ownship Marker
                 aircraftMarker = L.marker(latLng).addTo(map);
                 map.setView(latLng, 13);
             } else {
                 aircraftMarker.setLatLng(latLng);
             }
 
-            // Issue 2: Altitude-colored track segment with teleport filtering
-            // Teleport detection: skip segments > 5nm (9260m)
-            const teleportThreshold = 9260; // 5nm in meters
-            let shouldDrawSegment = true;
+            // Ground → airborne transition: clear taxi overlay, zoom out
+            if (_wasOnGround && !onGround) {
+                taxiHighlightLayer.clearLayers();
+                lastNavBounds = null;
+                map.setView(latLng, 9);
+            }
+            _wasOnGround = onGround;
 
+            // Altitude-colored track segment with teleport filtering (>5nm skipped)
+            const teleportThreshold = 9260;
+            let shouldDrawSegment = true;
             if (lastValidPosition) {
                 const distFromLast = map.distance(lastValidPosition, latLng);
                 if (distFromLast > teleportThreshold) {
                     console.log(`瞬移检测：跳过 ${(distFromLast / 1852).toFixed(1)}nm 的线段`);
                     shouldDrawSegment = false;
-                    // Still update position but don't draw line
                 }
             }
 
-            // Only draw if minimum distance met (50m) and no teleport
             if (flightPathNodes.length === 0 || map.distance(flightPathNodes[flightPathNodes.length - 1], latLng) > 50) {
                 if (shouldDrawSegment && flightPathNodes.length > 0) {
-                    // Create gradient-colored segment
                     const lastNode = flightPathNodes[flightPathNodes.length - 1];
                     const lastAlt = Number(flightPathAlts[flightPathAlts.length - 1] || alt);
                     const color = getAltitudeColor((lastAlt + alt) / 2);
                     const segment = L.polyline([lastNode, latLng], { color: color, weight: 3 }).addTo(map);
                     flightPathSegments.push(segment);
                 }
-
                 flightPathNodes.push(latLng);
                 flightPathAlts.push(alt);
                 lastValidPosition = latLng;
-
                 localStorage.setItem('flight_path', JSON.stringify({ nodes: flightPathNodes, alts: flightPathAlts }));
             }
         }
@@ -957,6 +927,12 @@
                 currentAirportIdent = parts[0];
             }
         }
+        // Lock PTT on ATIS channels (listen-only)
+        if (pttBtn) {
+            const isAtis = data.controller && data.controller.toUpperCase().includes('ATIS');
+            pttBtn.disabled = !!isAtis;
+            pttBtn.title = isAtis ? 'ATIS is listen-only' : '';
+        }
         loadNearbyFrequencies();
     });
 
@@ -969,6 +945,7 @@
             const align = msg.sender === 'Pilot' ? 'text-end' : 'text-start';
             div.className = `mb-2 p-2 rounded ${align}`;
             div.style.cssText = `background-color: ${colors.bg}; color: ${colors.text};`;
+            div.dataset.sender = msg.sender;
             div.innerHTML = `<strong>${msg.sender}:</strong> ${msg.text}`;
             logContainer.appendChild(div);
         });
@@ -1199,8 +1176,119 @@
     let isPlaybackActive = false;
     let currentPlaybackAudio = null;
 
-    function enqueueAudioPlayback(audioUrl, volume = 1.0) {
-        playbackQueue.push({ audioUrl, volume });
+    // ── Web Audio API radio effect chain ──────────────────────────────────────
+    let _audioCtx = null;
+    let _radioEffectEnabled = false;
+
+    // Fetch config once on load to know if radio effect is enabled
+    fetch('/get_config').then(r => r.json()).then(cfg => {
+        _radioEffectEnabled = !!(cfg?.audio?.radio_effect);
+    }).catch(() => {});
+
+    // 监听设置保存后推送的 config_sync，无需刷新页面即可同步无线电效果开关
+    window.addEventListener('lg-config-sync', (e) => {
+        if (e.detail?.audio?.radio_effect !== undefined) {
+            _radioEffectEnabled = !!e.detail.audio.radio_effect;
+        }
+    });
+
+    function _getAudioContext() {
+        if (!_audioCtx || _audioCtx.state === 'closed') {
+            _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (_audioCtx.state === 'suspended') {
+            _audioCtx.resume();
+        }
+        return _audioCtx;
+    }
+
+    /** Build a distortion curve for soft-clipping (radio overdrive effect). */
+    function _makeDistortionCurve(amount = 30) {
+        const n = 256, curve = new Float32Array(n);
+        for (let i = 0; i < n; i++) {
+            const x = (i * 2) / n - 1;
+            curve[i] = ((Math.PI + amount) * x) / (Math.PI + amount * Math.abs(x));
+        }
+        return curve;
+    }
+
+    /**
+     * Play audio URL through the radio effect chain (Web Audio API).
+     * Falls back to HTMLAudioElement if decoding fails or API unavailable.
+     */
+    async function _playWithRadioEffect(audioUrl, volume, onEnded) {
+        try {
+            const ctx = _getAudioContext();
+            const resp = await fetch(audioUrl);
+            const arrayBuf = await resp.arrayBuffer();
+            const audioBuf = await ctx.decodeAudioData(arrayBuf);
+
+            // Source
+            const src = ctx.createBufferSource();
+            src.buffer = audioBuf;
+
+            // 1. Bandpass filter: 300–3400 Hz (VHF voice band)
+            const bp = ctx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.frequency.value = 1800;
+            bp.Q.value = 0.7;
+
+            // 2. High-shelf cut above 3 kHz (further roll off highs)
+            const hs = ctx.createBiquadFilter();
+            hs.type = 'highshelf';
+            hs.frequency.value = 3000;
+            hs.gain.value = -14;
+
+            // 3. Soft-clipping distortion (radio crunch)
+            const ws = ctx.createWaveShaper();
+            ws.curve = _makeDistortionCurve(18);
+            ws.oversample = '2x';
+
+            // 4. Dynamics compressor (AGC-like)
+            const comp = ctx.createDynamicsCompressor();
+            comp.threshold.value = -24;
+            comp.knee.value = 8;
+            comp.ratio.value = 6;
+            comp.attack.value = 0.003;
+            comp.release.value = 0.2;
+
+            // 5. White noise (static) at very low level
+            const noiseFrames = ctx.sampleRate * (audioBuf.duration + 0.1);
+            const noiseBuf = ctx.createBuffer(1, noiseFrames, ctx.sampleRate);
+            const noiseData = noiseBuf.getChannelData(0);
+            for (let i = 0; i < noiseData.length; i++) noiseData[i] = (Math.random() * 2 - 1);
+            const noiseSrc = ctx.createBufferSource();
+            noiseSrc.buffer = noiseBuf;
+            const noiseGain = ctx.createGain();
+            noiseGain.gain.value = 0.018;
+
+            // 6. Master gain
+            const masterGain = ctx.createGain();
+            masterGain.gain.value = volume * 1.2;
+
+            // Chain: src → bp → hs → ws → comp → masterGain → destination
+            src.connect(bp); bp.connect(hs); hs.connect(ws); ws.connect(comp);
+            comp.connect(masterGain);
+            // Mix noise in before master gain
+            noiseSrc.connect(noiseGain); noiseGain.connect(masterGain);
+            masterGain.connect(ctx.destination);
+
+            src.onended = () => { onEnded(); };
+            src.start(0);
+            noiseSrc.start(0);
+            noiseSrc.stop(ctx.currentTime + audioBuf.duration + 0.05);
+
+            URL.revokeObjectURL(audioUrl);
+            // Return a "stop" handle
+            return { stop: () => { try { src.stop(); noiseSrc.stop(); } catch(e){} } };
+        } catch(e) {
+            console.warn('Radio effect failed, falling back to plain audio:', e);
+            return null; // signal fallback
+        }
+    }
+
+    function enqueueAudioPlayback(audioUrl, volume = 1.0, noEffect = false) {
+        playbackQueue.push({ audioUrl, volume, noEffect });
         if (!isPlaybackActive) {
             playNextQueuedAudio();
         }
@@ -1213,25 +1301,46 @@
         }
 
         isPlaybackActive = true;
-        const { audioUrl, volume } = playbackQueue.shift();
+        const { audioUrl, volume, noEffect } = playbackQueue.shift();
+
+        const onEnded = () => {
+            currentPlaybackAudio = null;
+            playNextQueuedAudio();
+        };
+
+        if (!noEffect && _radioEffectEnabled && (window.AudioContext || window.webkitAudioContext)) {
+            _playWithRadioEffect(audioUrl, volume, onEnded).then(handle => {
+                if (handle) {
+                    currentPlaybackAudio = handle;
+                } else {
+                    // Fallback path if effect failed
+                    _playPlain(audioUrl, volume, onEnded);
+                }
+            });
+        } else {
+            _playPlain(audioUrl, volume, onEnded);
+        }
+    }
+
+    function _playPlain(audioUrl, volume, onEnded) {
         const audio = new Audio(audioUrl);
         currentPlaybackAudio = audio;
         audio.volume = volume;
         audio.addEventListener('ended', () => {
             currentPlaybackAudio = null;
             URL.revokeObjectURL(audioUrl);
-            playNextQueuedAudio();
+            onEnded();
         }, { once: true });
         audio.addEventListener('error', () => {
             currentPlaybackAudio = null;
             URL.revokeObjectURL(audioUrl);
-            playNextQueuedAudio();
+            onEnded();
         }, { once: true });
         audio.play().catch(e => {
             console.error(e);
             currentPlaybackAudio = null;
             URL.revokeObjectURL(audioUrl);
-            playNextQueuedAudio();
+            onEnded();
         });
     }
 
@@ -1244,8 +1353,12 @@
         }
         isPlaybackActive = false;
         if (currentPlaybackAudio) {
-            currentPlaybackAudio.pause();
-            currentPlaybackAudio.currentTime = 0;
+            if (typeof currentPlaybackAudio.stop === 'function') {
+                currentPlaybackAudio.stop(); // Web Audio source
+            } else if (typeof currentPlaybackAudio.pause === 'function') {
+                currentPlaybackAudio.pause();
+                currentPlaybackAudio.currentTime = 0;
+            }
             currentPlaybackAudio = null;
         }
         stopCabinMedia();
@@ -1265,6 +1378,126 @@
 
     socket.on('stop_active_audio', () => {
         stopAllPlayback();
+    });
+
+
+    // ── Plugin dashboard appearance API ──────────────────────────────────────
+
+    // CSS injection
+    const _pluginStyles = {};
+    socket.on('plugin_inject_css', (d) => {
+        const sid = `of-plugin-style-${d.plugin}-${d.style_id}`;
+        let el = document.getElementById(sid);
+        if (!el) { el = document.createElement('style'); el.id = sid; document.head.appendChild(el); }
+        el.textContent = d.css;
+        _pluginStyles[sid] = true;
+    });
+    socket.on('plugin_remove_css', (d) => {
+        const sid = `of-plugin-style-${d.plugin}-${d.style_id}`;
+        document.getElementById(sid)?.remove();
+        delete _pluginStyles[sid];
+    });
+
+    // Panel injection
+    const _pluginPanels = {};
+    socket.on('plugin_inject_panel', (d) => {
+        const pid = `of-plugin-panel-${d.panel_id}`;
+        document.getElementById(pid)?.remove();
+        const panel = document.createElement('div');
+        panel.id = pid;
+        panel.className = 'of-plugin-panel';
+        panel.setAttribute('data-position', d.position || 'sidebar');
+        panel.innerHTML = `
+            <div class="of-plugin-panel-header">
+                <span>${d.icon || '🔌'} ${d.title || d.panel_id}</span>
+                <button onclick="document.getElementById('${pid}').remove()" style="background:none;border:none;color:inherit;cursor:pointer;float:right">✕</button>
+            </div>
+            <div class="of-plugin-panel-body">${d.html}</div>`;
+        // Position handling
+        if (d.position === 'map-overlay') {
+            panel.style.cssText = 'position:absolute;z-index:900;top:60px;right:10px;min-width:200px;max-width:320px;background:rgba(20,20,30,0.88);color:#fff;border-radius:8px;padding:0;overflow:hidden;';
+            document.getElementById('map')?.appendChild(panel);
+        } else if (d.position === 'chat-below') {
+            document.getElementById('log-container')?.after(panel);
+        } else {
+            // default: sidebar / floating
+            panel.style.cssText = 'position:fixed;bottom:80px;right:10px;z-index:1100;min-width:200px;max-width:340px;background:rgba(20,20,30,0.92);color:#fff;border-radius:8px;padding:0;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.5);';
+            document.body.appendChild(panel);
+        }
+        _pluginPanels[pid] = true;
+    });
+    socket.on('plugin_remove_panel', (d) => {
+        document.getElementById(`of-plugin-panel-${d.panel_id}`)?.remove();
+    });
+
+    // Map layer/marker API (requires Leaflet map to be ready)
+    const _pluginLayers = {};
+    const _pluginMarkers = {};
+    socket.on('plugin_set_map_layer', (d) => {
+        if (!window.map) return;
+        _pluginLayers[d.layer_id]?.remove();
+        try {
+            _pluginLayers[d.layer_id] = L.geoJSON(d.geojson, {style: d.style || {}}).addTo(window.map);
+        } catch(e) { console.warn('plugin_set_map_layer:', e); }
+    });
+    socket.on('plugin_remove_map_layer', (d) => {
+        _pluginLayers[d.layer_id]?.remove();
+        delete _pluginLayers[d.layer_id];
+    });
+    socket.on('plugin_set_map_marker', (d) => {
+        if (!window.map) return;
+        _pluginMarkers[d.marker_id]?.remove();
+        try {
+            const icon = d.icon_html ? L.divIcon({html: d.icon_html, className:''}) : undefined;
+            const m = L.marker([d.lat, d.lon], icon ? {icon} : {});
+            if (d.label) m.bindTooltip(d.label, {permanent: true, direction: 'top'});
+            if (d.popup_html) m.bindPopup(d.popup_html);
+            m.addTo(window.map);
+            _pluginMarkers[d.marker_id] = m;
+        } catch(e) { console.warn('plugin_set_map_marker:', e); }
+    });
+    socket.on('plugin_remove_map_marker', (d) => {
+        _pluginMarkers[d.marker_id]?.remove();
+        delete _pluginMarkers[d.marker_id];
+    });
+
+    // Status bar items
+    const _pluginStatusItems = {};
+    socket.on('plugin_set_status_bar', (d) => {
+        const bid = `of-plugin-status-${d.item_id}`;
+        let el = document.getElementById(bid);
+        if (!el) {
+            el = document.createElement('span');
+            el.id = bid;
+            el.style.cssText = 'display:inline-block;margin:0 4px;padding:2px 8px;border-radius:4px;font-size:11px;cursor:default;';
+            // Append to nav/status bar area
+            (document.querySelector('.navbar') || document.body).appendChild(el);
+        }
+        el.textContent = d.text;
+        el.style.color = d.color || '#fff';
+        el.style.background = d.bg || 'rgba(0,0,0,.5)';
+        el.title = d.tooltip || '';
+        _pluginStatusItems[bid] = true;
+    });
+    socket.on('plugin_clear_status_bar', (d) => {
+        document.getElementById(`of-plugin-status-${d.item_id}`)?.remove();
+    });
+
+    // Route action clicks from injected plugin HTML back to server
+    document.addEventListener('click', (e) => {
+        const action = e.target.closest('[data-of-action]');
+        if (!action) return;
+        const payload = {};
+        for (const attr of action.attributes) {
+            if (attr.name.startsWith('data-of-') && attr.name !== 'data-of-action') {
+                payload[attr.name.replace('data-of-', '')] = attr.value;
+            }
+        }
+        socket.emit('plugin_dashboard_action', {
+            action_id: action.getAttribute('data-of-action'),
+            plugin: action.closest('[data-plugin]')?.getAttribute('data-plugin') || '',
+            payload,
+        });
     });
 
     socket.on('sim_status', (data) => {
@@ -1313,12 +1546,22 @@
         return { bg: '#28a745', text: 'white' };
     }
 
+    // Deduplication: track last message per sender to prevent ATIS repeat spam
+    const _lastChatMsg = {};
+
     socket.on('chat_log', (data) => {
+        const key = data.sender || '';
+        const incoming = (data.text || '').trim();
+        // If content is identical to the last message from this sender, silently drop it
+        if (_lastChatMsg[key] === incoming) return;
+        _lastChatMsg[key] = incoming;
+
         const div = document.createElement('div');
         const colors = getRoleColor(data.sender);
         const align = data.sender === 'Pilot' ? 'text-end' : 'text-start';
         div.className = `mb-2 p-2 rounded ${align}`;
         div.style.cssText = `background-color: ${colors.bg}; color: ${colors.text};`;
+        div.dataset.sender = data.sender;   // Apple 主题气泡样式依赖此属性
         div.innerHTML = `<strong>${data.sender}:</strong> ${data.text}`;
         logContainer.appendChild(div);
         logContainer.scrollTop = logContainer.scrollHeight;
@@ -1356,7 +1599,23 @@
         return String(value || '').trim().toUpperCase().replace(/^TWY\s+/, '');
     }
 
+    function drawTaxiPathCoords(coords, label) {
+        // Draw an exact polyline from path node coordinates — no name-matching ambiguity
+        taxiHighlightLayer.clearLayers();
+        if (!coords || coords.length < 2) return;
+        const line = L.polyline(coords, {
+            color: '#ff1744',
+            weight: 6,
+            opacity: 0.9,
+            dashArray: '10, 6',
+        }).addTo(taxiHighlightLayer);
+        if (label) line.bindTooltip(label, { sticky: true });
+        // Store bounds for btn-fit-nav but do NOT auto-zoom the map
+        lastNavBounds = line.getBounds();
+    }
+
     async function highlightTaxiRoute(routeValue) {
+        // Fallback: highlight by name when no path coords available (e.g. from instruction card)
         if (!currentAirportIdent || !routeValue) return;
         const routeNames = String(routeValue).split(/\s+/).map(normalizeTaxiName).filter(Boolean);
         if (routeNames.length === 0) return;
@@ -1373,7 +1632,7 @@
                 if (!edgeName || !routeNames.includes(edgeName)) return;
                 const line = L.polyline([edge.start, edge.end], {
                     color: '#ff1744',
-                    weight: 7,
+                    weight: 6,
                     opacity: 0.85,
                     dashArray: '10, 6',
                 }).addTo(taxiHighlightLayer);
@@ -1382,9 +1641,8 @@
             });
 
             if (matched.length > 0) {
-                const group = L.featureGroup(matched);
-                lastNavBounds = group.getBounds();
-                map.fitBounds(lastNavBounds.pad(0.2));
+                lastNavBounds = L.featureGroup(matched).getBounds();
+                // Do NOT auto-fitBounds — user controls the map view
             }
         } catch (e) {
             console.warn('Failed to highlight taxi route', e);
@@ -1397,16 +1655,21 @@
 
     // Auto-highlight taxi route when server computes it
     socket.on('suggested_taxi_route', (data) => {
-        if (data && data.taxiways && data.taxiways.length > 0) {
-            const routeStr = data.taxiways.join(' ');
-            highlightTaxiRoute(routeStr);
+        if (!data) return;
+        if (data.path_coords && data.path_coords.length >= 2) {
+            // Use exact path coordinates — precise, no entire-taxiway ambiguity
+            const label = data.taxiways ? `Taxi: ${data.taxiways.join(' → ')}` : 'Taxi Route';
+            drawTaxiPathCoords(data.path_coords, label);
+        } else if (data.taxiways && data.taxiways.length > 0) {
+            highlightTaxiRoute(data.taxiways.join(' '));
         }
     });
 
-    // Flight plan panel — show when server pushes an update (on import or takeoff)
-    let flightPlanMarkers = [];
+    // Flight plan panel + route prediction line
     socket.on('flight_plan_update', (fp) => {
         if (!fp || (fp.origin === 'N/A' && fp.destination === 'N/A')) return;
+
+        // Info panel
         let panel = document.getElementById('flight-plan-panel');
         if (!panel) {
             panel = document.createElement('div');
@@ -1414,15 +1677,85 @@
             panel.style.cssText = 'position:absolute;top:10px;right:10px;z-index:1000;background:rgba(0,0,0,0.75);color:#fff;padding:8px 12px;border-radius:6px;font-size:11px;max-width:220px;line-height:1.6;';
             document.getElementById('map').appendChild(panel);
         }
-        const alt = fp.cruise_alt ? `FL${Math.round(fp.cruise_alt / 100)}` : '';
+        const crz = fp.cruise_alt ? `FL${Math.round(fp.cruise_alt / 100)}` : '';
         panel.innerHTML = `
-            <div style="font-weight:bold;margin-bottom:3px;">✈ ${fp.flight_number !== 'N/A' ? fp.flight_number : ''} ${fp.origin} → ${fp.destination}</div>
+            <div style="font-weight:bold;margin-bottom:3px;">✈ ${fp.flight_number && fp.flight_number !== 'N/A' ? fp.flight_number + ' ' : ''}${fp.origin} → ${fp.destination}</div>
             ${fp.alternate && fp.alternate !== 'N/A' ? `<div>ALT: ${fp.alternate}</div>` : ''}
-            ${alt ? `<div>CRZ: ${alt}</div>` : ''}
+            ${crz ? `<div>CRZ: ${crz}</div>` : ''}
             ${fp.route && fp.route !== 'N/A' ? `<div style="opacity:0.8;word-break:break-all;font-size:10px;">${fp.route}</div>` : ''}
             <div style="margin-top:4px;text-align:right;"><span onclick="document.getElementById('flight-plan-panel').remove()" style="cursor:pointer;opacity:0.6;font-size:10px;">✕ close</span></div>
         `;
+
+        // Route prediction: resolve waypoints, fall back to straight line
+        drawRoutePrediction(fp);
     });
+
+    async function drawRoutePrediction(fp) {
+        routePredictionLayer.clearLayers();
+        if (!fp || !fp.origin_coords || !fp.dest_coords) return;
+
+        let pts = [];
+
+        // Try to resolve intermediate waypoints via nav SQLite
+        if (fp.route && fp.route !== 'N/A') {
+            try {
+                const resp = await fetch('/api/resolve_route_waypoints', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ route: fp.route, origin: fp.origin, destination: fp.destination }),
+                });
+                const d = await resp.json();
+                if (d.status === 'ok' && d.waypoints && d.waypoints.length > 0) {
+                    pts = d.waypoints.map(w => [w.lat, w.lon]);
+                    // Draw small markers for each waypoint
+                    d.waypoints.forEach(w => {
+                        L.circleMarker([w.lat, w.lon], { radius: 3, color: '#2979ff', fillColor: '#2979ff', fillOpacity: 0.7, weight: 1 })
+                            .bindTooltip(w.ident, { permanent: false })
+                            .addTo(routePredictionLayer);
+                    });
+                }
+            } catch (e) { /* fall through to straight line */ }
+        }
+
+        // Always bookend with origin/dest
+        const allPts = [fp.origin_coords, ...pts, fp.dest_coords];
+        L.polyline(allPts, { color: '#2979ff', weight: 2, opacity: 0.55, dashArray: '8, 8' }).addTo(routePredictionLayer);
+        L.circleMarker(fp.origin_coords, { radius: 5, color: '#2979ff', fillColor: '#fff', fillOpacity: 1, weight: 2 })
+            .bindTooltip(fp.origin, { permanent: false }).addTo(routePredictionLayer);
+        L.circleMarker(fp.dest_coords, { radius: 5, color: '#2979ff', fillColor: '#2979ff', fillOpacity: 0.85, weight: 2 })
+            .bindTooltip(fp.destination, { permanent: false }).addTo(routePredictionLayer);
+    }
+
+    // On load, fetch flight plan in case we joined mid-flight
+    (async () => {
+        try {
+            const r = await fetch('/api/flight_plan');
+            const d = await r.json();
+            if (d.status === 'ok' && d.flight_plan) {
+                socket.emit('flight_plan_update', d.flight_plan);  // reuse existing handler via local emit
+                // Direct call since socket.emit won't trigger own listener
+                const fp = d.flight_plan;
+                if (fp && !(fp.origin === 'N/A' && fp.destination === 'N/A')) {
+                    let panel = document.getElementById('flight-plan-panel');
+                    if (!panel) {
+                        panel = document.createElement('div');
+                        panel.id = 'flight-plan-panel';
+                        panel.style.cssText = 'position:absolute;top:10px;right:10px;z-index:1000;background:rgba(0,0,0,0.75);color:#fff;padding:8px 12px;border-radius:6px;font-size:11px;max-width:220px;line-height:1.6;';
+                        document.getElementById('map').appendChild(panel);
+                    }
+                    const crz = fp.cruise_alt ? `FL${Math.round(fp.cruise_alt / 100)}` : '';
+                    panel.innerHTML = `
+                        <div style="font-weight:bold;margin-bottom:3px;">✈ ${fp.flight_number && fp.flight_number !== 'N/A' ? fp.flight_number + ' ' : ''}${fp.origin} → ${fp.destination}</div>
+                        ${fp.alternate && fp.alternate !== 'N/A' ? `<div>ALT: ${fp.alternate}</div>` : ''}
+                        ${crz ? `<div>CRZ: ${crz}</div>` : ''}
+                        ${fp.route && fp.route !== 'N/A' ? `<div style="opacity:0.8;word-break:break-all;font-size:10px;">${fp.route}</div>` : ''}
+                        <div style="margin-top:4px;text-align:right;"><span onclick="document.getElementById('flight-plan-panel').remove()" style="cursor:pointer;opacity:0.6;font-size:10px;">✕ close</span></div>
+                    `;
+                    drawRoutePrediction(fp);
+                }
+            }
+        } catch(e) { console.warn('flight_plan prefetch failed', e); }
+    })();
 
     // ── Hoppie ACARS / CPDLC ───────────────────────────────────────────────
     let hoppieConnected = false;
@@ -1543,7 +1876,7 @@
             }
             const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
             const audioUrl = URL.createObjectURL(audioBlob);
-            enqueueAudioPlayback(audioUrl, chatterVolume);
+            enqueueAudioPlayback(audioUrl, chatterVolume, !!data.is_cabin);
         } catch (e) { console.error(e); }
     });
 
@@ -1556,30 +1889,6 @@
         }
     });
 
-    async function setPttState(active) {
-        try {
-            await fetch('/api/ptt_state', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ active: !!active })
-            });
-        } catch (e) {
-            console.warn('Failed to update PTT state', e);
-        }
-    }
-
-    async function uploadVoiceBlob(audioBlob) {
-        const resp = await fetch('/api/voice_data', {
-            method: 'POST',
-            headers: { 'Content-Type': audioBlob.type || 'audio/webm' },
-            body: audioBlob
-        });
-        if (!resp.ok) {
-            const msg = await resp.text().catch(() => '');
-            throw new Error(msg || `HTTP ${resp.status}`);
-        }
-    }
-
     // PTT Recording
     const startRecording = () => {
         if (!pttBtn) return; // No PTT for readonly users
@@ -1588,14 +1897,7 @@
             mediaRecorder.start();
             audioChunks = [];
             mediaRecorder.addEventListener("dataavailable", event => audioChunks.push(event.data));
-            setPttState(true);
-            mediaRecorder.addEventListener("stop", async () => {
-                try {
-                    await uploadVoiceBlob(new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' }));
-                } catch (e) {
-                    console.error('Voice upload failed:', e);
-                }
-            });
+            mediaRecorder.addEventListener("stop", () => socket.emit('voice_data', new Blob(audioChunks)));
 
             pttBtn.classList.remove('btn-primary');
             pttBtn.classList.add('btn-danger');
@@ -1608,7 +1910,6 @@
     const stopRecording = () => {
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
-            setPttState(false);
             if (pttBtn) {
                 pttBtn.classList.add('btn-primary');
                 pttBtn.classList.remove('btn-danger');
@@ -1673,6 +1974,33 @@
             document.body.classList.add('cabin-emergency');
         } else {
             document.body.classList.remove('cabin-emergency');
+        }
+    });
+
+    // ── China metric RVSM auto-switch notification ────────────────────────────
+    let _chinaRvsmBanner = null;
+    socket.on('china_rvsm_active', (data) => {
+        if (data.active) {
+            if (!_chinaRvsmBanner) {
+                _chinaRvsmBanner = document.createElement('div');
+                _chinaRvsmBanner.id = 'china-rvsm-banner';
+                _chinaRvsmBanner.style.cssText = [
+                    'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:9999',
+                    'background:#c62828', 'color:#fff', 'text-align:center',
+                    'padding:6px 12px', 'font-size:13px', 'font-weight:bold',
+                    'letter-spacing:.5px'
+                ].join(';');
+                document.body.prepend(_chinaRvsmBanner);
+            }
+            const lvM = data.nearest_level_m;
+            const lvFt = data.nearest_level_ft;
+            _chinaRvsmBanner.textContent =
+                `🇨🇳 中国米制RVSM区域  当前建议高度: ${lvM}M (${lvFt}ft) — CAAC Metric RVSM Active`;
+        } else {
+            if (_chinaRvsmBanner) {
+                _chinaRvsmBanner.remove();
+                _chinaRvsmBanner = null;
+            }
         }
     });
 
@@ -1875,72 +2203,8 @@
         }
     }
 
-    function showSystemToast(title, message, variant = 'primary') {
-        const container = document.getElementById('toast-container');
-        if (!container) {
-            console.log(`${title}: ${message}`);
-            return;
-        }
-        const toastId = `toast-system-${Date.now()}`;
-        const wrap = document.createElement('div');
-        wrap.innerHTML = `
-            <div id="${toastId}" class="toast show text-white bg-${variant}" role="alert" aria-live="assertive" aria-atomic="true">
-              <div class="toast-header bg-${variant} text-white">
-                <strong class="me-auto">${title}</strong>
-                <small>Just now</small>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-              </div>
-              <div class="toast-body">${message}</div>
-            </div>
-        `;
-        container.appendChild(wrap.firstElementChild);
-        setTimeout(() => {
-            const toastEl = document.getElementById(toastId);
-            if (toastEl) toastEl.remove();
-        }, 10000);
-    }
-
-    async function autoImportSimBriefOnEntry() {
-        const sessionKey = `auto_simbrief_${window.location.pathname}_${window.location.search}`;
-        if (sessionStorage.getItem(sessionKey) === 'done') return;
-        try {
-            const lang = localStorage.getItem('language') || 'en';
-            const cfg = await fetch('/get_config').then(r => r.json());
-            const username = cfg?.simbrief?.username;
-            if (!username) return;
-            const response = await fetch('/import_simbrief', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username })
-            });
-            const data = await response.json();
-            if (!response.ok || data.status === 'error') {
-                throw new Error(data.message || data.error || 'import failed');
-            }
-            sessionStorage.setItem(sessionKey, 'done');
-            const origin = data?.data?.origin || 'N/A';
-            const destination = data?.data?.destination || 'N/A';
-            const message = {
-                zh: `已自动导入 SimBrief OFP：${origin} -> ${destination}`,
-                ja: `SimBrief OFP を自動インポートしました: ${origin} -> ${destination}`,
-                en: `OFP imported automatically: ${origin} -> ${destination}`,
-            }[lang] || `OFP imported automatically: ${origin} -> ${destination}`;
-            showSystemToast('SimBrief', message, 'success');
-        } catch (error) {
-            console.warn('Auto SimBrief import failed:', error);
-            const lang = localStorage.getItem('language') || 'en';
-            const message = {
-                zh: `自动导入 SimBrief 失败：${error.message || error}`,
-                ja: `SimBrief 自動インポートに失敗しました: ${error.message || error}`,
-                en: `Automatic import failed: ${error.message || error}`,
-            }[lang] || `Automatic import failed: ${error.message || error}`;
-            showSystemToast('SimBrief', message, 'warning');
-        }
-    }
-
     showCareerReadinessIfNeeded();
     refreshCareerReadinessFromServer();
-    autoImportSimBriefOnEntry();
 
 </script>
 {% endblock %}

@@ -1,179 +1,337 @@
 """
-Environment Self-Check Module.
-Checks for required dependencies before starting the main application.
+Environment Self-Check + Model Downloader
+
+Download sources (with mirror fallback for China users):
+  STT  — sherpa-onnx-whisper-small  (HuggingFace / ModelScope)
+  TTS  — Kokoro-ONNX v0.19          (GitHub / HuggingFace)
 """
-import io
+from __future__ import annotations
 import os
 import shutil
-import tarfile
-import urllib.request
-import zipfile
+from typing import Callable
 
 
-MODEL_NAME = "sherpa-onnx-whisper-small"
-MODEL_ARCHIVE = f"{MODEL_NAME}.tar.bz2"
-MODEL_RELEASE_BASE = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models"
-MODEL_DOWNLOAD_URL = f"{MODEL_RELEASE_BASE}/{MODEL_ARCHIVE}"
-MODEL_DOCS_URL = "https://k2-fsa.github.io/sherpa/onnx/pretrained_models/whisper/export-onnx.html"
-MODEL_INSTALL_DIR = os.path.join(".", "models", MODEL_NAME)
-MODEL_ARCHIVE_PATH = os.path.join(".", "models", MODEL_ARCHIVE)
-MODEL_REQUIRED_FILES = [
-    "small-tokens.txt",
-    "small-encoder.int8.onnx",
-    "small-decoder.int8.onnx",
+# ─────────────────────────────────────────────────────────────────────────────
+# Model catalogue
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _appdata_models_dir() -> str:
+    base = os.environ.get('APPDATA') or os.path.expanduser('~')
+    return os.path.join(base, 'OpenFrequency', 'models')
+
+STT_MODEL_DIR  = os.path.join(_appdata_models_dir(), 'sherpa-onnx-whisper-small')
+KOKORO_DIR     = _appdata_models_dir()
+
+STT_FILES = [
+    {
+        "name":  "small-encoder.int8.onnx",
+        "urls": [
+            "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main/small-encoder.int8.onnx",
+            "https://modelscope.cn/models/csukuangfj/sherpa-onnx-whisper-small/resolve/master/small-encoder.int8.onnx",
+        ],
+        "size_mb": 49,
+    },
+    {
+        "name":  "small-decoder.int8.onnx",
+        "urls": [
+            "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main/small-decoder.int8.onnx",
+            "https://modelscope.cn/models/csukuangfj/sherpa-onnx-whisper-small/resolve/master/small-decoder.int8.onnx",
+        ],
+        "size_mb": 96,
+    },
+    {
+        "name":  "small-tokens.txt",
+        "urls": [
+            "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main/small-tokens.txt",
+            "https://modelscope.cn/models/csukuangfj/sherpa-onnx-whisper-small/resolve/master/small-tokens.txt",
+        ],
+        "size_mb": 0.1,
+    },
 ]
 
-
-def whisper_model_status():
-    installed = os.path.isdir(MODEL_INSTALL_DIR) and all(
-        os.path.exists(os.path.join(MODEL_INSTALL_DIR, filename))
-        for filename in MODEL_REQUIRED_FILES
-    )
-    return {
-        "installed": installed,
-        "model_name": MODEL_NAME,
-        "install_dir": MODEL_INSTALL_DIR,
-        "archive_name": MODEL_ARCHIVE,
-        "download_url": MODEL_DOWNLOAD_URL,
-        "docs_url": MODEL_DOCS_URL,
-        "required_files": list(MODEL_REQUIRED_FILES),
-        "manual_steps": [
-            f"Download {MODEL_ARCHIVE} from the official sherpa-onnx release page.",
-            "Extract the archive.",
-            f"Place the extracted folder at {MODEL_INSTALL_DIR}.",
-            "Keep the int8 ONNX files and token file directly inside that folder.",
+KOKORO_FILES = [
+    {
+        "name":  "kokoro-v0_19.onnx",
+        "urls": [
+            "https://huggingface.co/hexgrad/Kokoro-82M/resolve/main/kokoro-v0_19.onnx",
+            "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v0_19.onnx",
         ],
-    }
+        "size_mb": 310,
+    },
+    {
+        "name":  "voices.bin",
+        "urls": [
+            "https://huggingface.co/hexgrad/Kokoro-82M/resolve/main/voices.bin",
+            "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices.bin",
+        ],
+        "size_mb": 10,
+    },
+]
+
+# Human-readable manual instructions shown on failure
+STT_MANUAL_INSTRUCTIONS = {
+    "zh": (
+        "自动下载失败。请手动下载以下文件并放入 <code>models/sherpa-onnx-whisper-small/</code> 目录：\n"
+        "• small-encoder.int8.onnx（约 49 MB）\n"
+        "• small-decoder.int8.onnx（约 96 MB）\n"
+        "• small-tokens.txt\n\n"
+        "下载地址（任选一个）：\n"
+        "① HuggingFace：https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small\n"
+        "② ModelScope（国内）：https://modelscope.cn/models/csukuangfj/sherpa-onnx-whisper-small"
+    ),
+}
+
+KOKORO_MANUAL_INSTRUCTIONS = {
+    "zh": (
+        "自动下载失败。请手动下载以下文件并放入 <code>models/</code> 目录：\n"
+        "• kokoro-v0_19.onnx（约 310 MB）\n"
+        "• voices.bin（约 10 MB）\n\n"
+        "下载地址（任选一个）：\n"
+        "① HuggingFace：https://huggingface.co/hexgrad/Kokoro-82M\n"
+        "② GitHub Release：https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0"
+    ),
+}
 
 
-def self_check():
+# ─────────────────────────────────────────────────────────────────────────────
+# Core streaming downloader
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _download_file(
+    urls: list[str],
+    dest_path: str,
+    progress_cb: Callable[[int, str], None],
+    label: str = "",
+) -> bool:
     """
-    Perform environment self-check.
-    Returns: (success: bool, errors: list[dict])
+    Try each URL in order. Stream to dest_path, calling progress_cb(0-100, msg).
+    Returns True on success.
     """
-    errors = []
+    import urllib.request
+    import ssl
 
-    ffmpeg_found = False
-    local_ffmpeg = os.path.join(os.getcwd(), "ffmpeg", "bin", "ffmpeg.exe")
+    # Skip if already present and non-empty
+    if os.path.exists(dest_path) and os.path.getsize(dest_path) > 1024:
+        progress_cb(100, f"✓ {label} 已存在，跳过下载")
+        return True
 
-    if shutil.which("ffmpeg"):
-        ffmpeg_found = True
-    elif os.path.exists(local_ffmpeg):
-        ffmpeg_found = True
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
 
-    if not ffmpeg_found:
-        errors.append({
-            "id": "ffmpeg",
-            "title": "FFmpeg Not Found",
-            "message": "FFmpeg was not found. Download the bundled package or add FFmpeg to PATH.",
-            "fixable": True,
-        })
+    for i, url in enumerate(urls):
+        mirror = "HuggingFace" if "huggingface" in url else ("ModelScope" if "modelscope" in url else "GitHub")
+        progress_cb(0, f"正在从 {mirror} 下载 {label}…")
+        try:
+            tmp_path = dest_path + ".tmp"
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "OpenFrequency/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+                total = int(resp.headers.get("Content-Length", 0))
+                downloaded = 0
+                os.makedirs(os.path.dirname(dest_path) or ".", exist_ok=True)
+                with open(tmp_path, "wb") as f:
+                    while True:
+                        chunk = resp.read(65536)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total:
+                            pct = min(99, int(downloaded / total * 100))
+                            mb = downloaded / 1_048_576
+                            progress_cb(pct, f"下载中 {label}：{mb:.1f} / {total/1_048_576:.1f} MB")
+            os.replace(tmp_path, dest_path)
+            progress_cb(100, f"✓ {label} 下载完成")
+            return True
+        except Exception as e:
+            if os.path.exists(tmp_path := dest_path + ".tmp"):
+                try:
+                    os.remove(tmp_path)
+                except Exception:
+                    pass
+            if i < len(urls) - 1:
+                progress_cb(0, f"镜像 {mirror} 失败，切换备用源…（{e}）")
+            else:
+                progress_cb(-1, f"✗ {label} 下载失败：{e}")
 
-    model_info = whisper_model_status()
-    if not model_info["installed"]:
-        errors.append({
-            "id": "whisper",
-            "title": "AI Model Not Found",
-            "message": "The sherpa-onnx Whisper STT model is missing. Download it from the official channel or install it manually into ./models.",
-            "fixable": True,
-        })
+    return False
 
-    config_path = os.environ.get("OPENFREQUENCY_CONFIG_PATH") or "config.json"
-    if not os.path.exists(config_path):
-        errors.append({
-            "id": "config",
-            "title": "Config File Missing",
-            "message": "config.json was not found. The app will fall back to default configuration.",
-            "fixable": False,
-        })
 
-    if errors:
-        return False, errors
+# ─────────────────────────────────────────────────────────────────────────────
+# Public download helpers
+# ─────────────────────────────────────────────────────────────────────────────
 
-    return True, []
+def download_stt_model(
+    progress_cb: Callable[[int, str], None] | None = None,
+) -> tuple[bool, str]:
+    """
+    Download sherpa-onnx-whisper-small STT model.
+    progress_cb(percent: int, message: str) — percent=-1 means error.
+    Returns (success, user_message).
+    """
+    if progress_cb is None:
+        progress_cb = lambda p, m: print(f"[STT {p:3d}%] {m}")
+
+    os.makedirs(STT_MODEL_DIR, exist_ok=True)
+    total = len(STT_FILES)
+
+    for idx, spec in enumerate(STT_FILES):
+        dest = os.path.join(STT_MODEL_DIR, spec["name"])
+        base_pct = idx * 100 // total
+        end_pct  = (idx + 1) * 100 // total
+
+        def _cb(pct: int, msg: str, _b=base_pct, _e=end_pct):
+            if pct < 0:
+                progress_cb(-1, msg)
+            else:
+                progress_cb(_b + pct * (_e - _b) // 100, msg)
+
+        ok = _download_file(spec["urls"], dest, _cb, spec["name"])
+        if not ok:
+            return False, STT_MANUAL_INSTRUCTIONS["zh"]
+
+    return True, "STT 语音识别模型下载完成！重启应用后生效。"
+
+
+def download_tts_model(
+    progress_cb: Callable[[int, str], None] | None = None,
+) -> tuple[bool, str]:
+    """
+    Download Kokoro-ONNX TTS model files.
+    Returns (success, user_message).
+    """
+    if progress_cb is None:
+        progress_cb = lambda p, m: print(f"[TTS {p:3d}%] {m}")
+
+    os.makedirs(KOKORO_DIR, exist_ok=True)
+    total = len(KOKORO_FILES)
+
+    for idx, spec in enumerate(KOKORO_FILES):
+        dest = os.path.join(KOKORO_DIR, spec["name"])
+        base_pct = idx * 100 // total
+        end_pct  = (idx + 1) * 100 // total
+
+        def _cb(pct: int, msg: str, _b=base_pct, _e=end_pct):
+            if pct < 0:
+                progress_cb(-1, msg)
+            else:
+                progress_cb(_b + pct * (_e - _b) // 100, msg)
+
+        ok = _download_file(spec["urls"], dest, _cb, spec["name"])
+        if not ok:
+            return False, KOKORO_MANUAL_INSTRUCTIONS["zh"]
+
+    return True, "TTS 语音合成模型下载完成！重启应用后生效。"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Legacy shim (kept for backward compat with rescue_fix endpoint)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def download_whisper_model():
+    return download_stt_model()
 
 
 def download_ffmpeg():
-    """
-    Download portable FFmpeg for Windows.
-    Returns: (success: bool, message: str)
-    """
+    """Download portable FFmpeg for Windows."""
+    import urllib.request
+    import zipfile
+    import io
+    import ssl
+
     try:
         print("Downloading FFmpeg...")
         url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
-
-        with urllib.request.urlopen(url, timeout=60) as response:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        with urllib.request.urlopen(url, timeout=120, context=ctx) as response:
             zip_data = response.read()
 
         print("Extracting FFmpeg...")
         with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
             for name in zf.namelist():
-                if "bin/ffmpeg.exe" in name or "bin\\ffmpeg.exe" in name:
-                    target_dir = os.path.join(os.getcwd(), "ffmpeg", "bin")
+                if '/bin/' in name and name.endswith('.exe'):
+                    target_dir = os.path.join(os.getcwd(), 'ffmpeg', 'bin')
                     os.makedirs(target_dir, exist_ok=True)
+                    filename = os.path.basename(name)
+                    with open(os.path.join(target_dir, filename), 'wb') as f:
+                        f.write(zf.read(name))
 
-                    for item in zf.namelist():
-                        if item.replace("\\", "/").endswith("/bin/ffmpeg.exe"):
-                            data = zf.read(item)
-                            with open(os.path.join(target_dir, "ffmpeg.exe"), "wb") as handle:
-                                handle.write(data)
-                    break
-
-        print("FFmpeg installed successfully.")
-        return True, "FFmpeg installed successfully."
-
+        return True, "FFmpeg 安装成功！请刷新页面。"
     except Exception as e:
-        return False, f"FFmpeg download failed: {str(e)}"
+        return False, f"FFmpeg 下载失败: {str(e)}"
 
 
-def download_whisper_model():
-    return download_whisper_model_with_progress()
+# ─────────────────────────────────────────────────────────────────────────────
+# Self-check
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _stt_model_present() -> bool:
+    d = STT_MODEL_DIR
+    return (
+        os.path.exists(os.path.join(d, "small-encoder.int8.onnx")) or
+        os.path.exists(os.path.join(d, "encoder.int8.onnx"))
+    )
 
 
-def download_whisper_model_with_progress(progress_callback=None):
-    """
-    Download the official sherpa-onnx Whisper model and report progress.
-    progress_callback receives (percent:int, message:str).
-    """
-    os.makedirs(os.path.dirname(MODEL_ARCHIVE_PATH), exist_ok=True)
+def _tts_model_present() -> bool:
+    return os.path.exists(os.path.join(KOKORO_DIR, "kokoro-v0_19.onnx"))
 
-    if whisper_model_status()["installed"]:
-        if progress_callback:
-            progress_callback(100, "Model already installed.")
-        return True, "Model already installed."
 
-    def update(percent, message):
-        if progress_callback:
-            progress_callback(max(0, min(100, int(percent))), message)
+def self_check():
+    errors = []
 
-    def reporthook(block_count, block_size, total_size):
-        if total_size <= 0:
-            update(20, "Downloading model archive...")
-            return
-        downloaded = block_count * block_size
-        ratio = min(downloaded / total_size, 1.0)
-        update(10 + int(ratio * 60), "Downloading model archive...")
+    # FFmpeg
+    local_ffmpeg = os.path.join(os.getcwd(), 'ffmpeg', 'bin', 'ffmpeg.exe')
+    if not shutil.which("ffmpeg") and not os.path.exists(local_ffmpeg):
+        errors.append({
+            "id": "ffmpeg",
+            "title": "FFmpeg 未找到",
+            "message": "未找到 FFmpeg，音频处理功能将无法使用。",
+            "fixable": True,
+            "manual": None,
+        })
 
-    try:
-        update(5, "Preparing model download...")
-        if os.path.exists(MODEL_ARCHIVE_PATH):
-            os.remove(MODEL_ARCHIVE_PATH)
+    # STT model
+    if not _stt_model_present():
+        errors.append({
+            "id": "stt",
+            "title": "STT 语音识别模型未找到",
+            "message": "未找到 Whisper 语音识别模型（sherpa-onnx-whisper-small）。",
+            "fixable": True,
+            "files": [f"{s['name']} (~{s['size_mb']:.0f} MB)" for s in STT_FILES],
+            "manual": STT_MANUAL_INSTRUCTIONS["zh"],
+        })
 
-        urllib.request.urlretrieve(MODEL_DOWNLOAD_URL, MODEL_ARCHIVE_PATH, reporthook=reporthook)
-        update(75, "Extracting model archive...")
+    # TTS model (optional — edge-tts works without it)
+    # We only warn, not block startup
+    if not _tts_model_present():
+        errors.append({
+            "id": "tts",
+            "title": "本地 TTS 模型未找到（可选）",
+            "message": "未找到 Kokoro 本地语音合成模型。将使用在线 Edge TTS（需要网络）。",
+            "fixable": True,
+            "files": [f"{s['name']} (~{s['size_mb']:.0f} MB)" for s in KOKORO_FILES],
+            "manual": KOKORO_MANUAL_INSTRUCTIONS["zh"],
+        })
 
-        with tarfile.open(MODEL_ARCHIVE_PATH, "r:bz2") as archive:
-            archive.extractall(path=os.path.join(".", "models"))
+    # Config
+    config_path = os.environ.get("OPENFREQUENCY_CONFIG_PATH") or "config.json"
+    if not os.path.exists(config_path):
+        errors.append({
+            "id": "config",
+            "title": "配置文件缺失",
+            "message": "未找到 config.json，将使用默认配置自动创建。",
+            "fixable": False,
+            "manual": None,
+        })
 
-        update(95, "Verifying extracted files...")
-        if not whisper_model_status()["installed"]:
-            raise RuntimeError("Required model files were not found after extraction.")
-
-        if os.path.exists(MODEL_ARCHIVE_PATH):
-            os.remove(MODEL_ARCHIVE_PATH)
-
-        update(100, "Model installed successfully.")
-        return True, "Model installed successfully."
-    except Exception as e:
-        update(0, f"Model download failed: {e}")
-        return False, f"Model download failed: {e}"
+    # Block on ffmpeg + stt only
+    blocking = [e for e in errors if e["id"] in ("ffmpeg", "stt")]
+    if blocking:
+        return False, errors
+    return True, errors

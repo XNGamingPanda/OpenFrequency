@@ -4,13 +4,10 @@ import io
 import struct
 import edge_tts
 import hashlib
-import os
 import threading
 import queue
 import time
 import re
-import shutil
-import subprocess
 from .context import event_bus, shared_context, context_lock
 
 try:
@@ -92,7 +89,8 @@ class TTSEngine:
         self.is_playing = False
         self.ducking_active = False  # When True, suppress background audio
         self._queue_counter = 0  # For stable priority ordering
-        
+        self._atis_epoch = 0  # Incremented on each new ATIS request; stale threads bail out
+
         # Subscribe to events
         event_bus.on('tts_request', self.speak)
         event_bus.on('atis_tts_request', self.speak_atis)
@@ -123,8 +121,12 @@ class TTSEngine:
 
         if engine_name == 'kokoro' and _KOKORO_AVAILABLE:
             try:
-                voices_bin = audio_cfg.get('tts_local_voices', 'voices.bin')
-                self._local_engine = _Kokoro(model_path or 'kokoro-v0_19.onnx', voices_bin)
+                import os as _os
+                _models_dir = _os.path.join(_os.environ.get('APPDATA') or _os.path.expanduser('~'), 'OpenFrequency', 'models')
+                _default_model = _os.path.join(_models_dir, 'kokoro-v0_19.onnx')
+                _default_voices = _os.path.join(_models_dir, 'voices.bin')
+                voices_bin = audio_cfg.get('tts_local_voices') or _default_voices
+                self._local_engine = _Kokoro(model_path or _default_model, voices_bin)
                 self._local_engine_name = 'kokoro'
                 print(f"TTSEngine: Kokoro local TTS loaded from '{model_path}'.")
             except Exception as e:
@@ -294,62 +296,6 @@ class TTSEngine:
             wf.setframerate(sample_rate)
             wf.writeframes(pcm.tobytes())
         return buf.getvalue()
-
-    def _radio_effect_enabled(self):
-        return bool(self.config.get('audio', {}).get('radio_effect', False))
-
-    def _should_apply_radio_effect(self, controller_name='ATC', is_atis=False):
-        if not self._radio_effect_enabled():
-            return False
-        if is_atis:
-            return True
-        name = (controller_name or '').lower()
-        non_atc_markers = ('purser', 'first officer', 'cabin', 'crew', 'pilot')
-        return not any(marker in name for marker in non_atc_markers)
-
-    def _apply_radio_effect(self, audio_bytes):
-        if not audio_bytes:
-            return audio_bytes
-
-        ffmpeg_path = shutil.which("ffmpeg")
-        if not ffmpeg_path:
-            return audio_bytes
-
-        filter_chain = (
-            "highpass=f=350,"
-            "lowpass=f=2800,"
-            "acompressor=threshold=-18dB:ratio=3:attack=5:release=40,"
-            "volume=1.8"
-        )
-        cmd = [
-            ffmpeg_path,
-            "-hide_banner",
-            "-loglevel", "error",
-            "-i", "pipe:0",
-            "-af", filter_chain,
-            "-c:a", "libmp3lame",
-            "-b:a", "64k",
-            "-f", "mp3",
-            "pipe:1",
-        ]
-
-        kwargs = {}
-        if sys.platform == 'win32':
-            kwargs['creationflags'] = 0x08000000
-
-        try:
-            completed = subprocess.run(
-                cmd,
-                input=audio_bytes,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=True,
-                **kwargs
-            )
-            return completed.stdout or audio_bytes
-        except Exception as e:
-            print(f"TTSEngine: Radio effect processing failed: {e}")
-            return audio_bytes
 
     def set_voice_override(self, voice_id):
         """Sets a specific voice to use for all ATC, overriding region logic."""
@@ -531,27 +477,32 @@ class TTSEngine:
             return text
 
         digit_map = {
-            '0': '洞', '1': '幺', '2': '二', '3': '三', '4': '四',
+            '0': '洞', '1': '幺', '2': '两', '3': '三', '4': '四',
             '5': '五', '6': '六', '7': '拐', '8': '八', '9': '九'
         }
+
+        # Convert runway designators before digit expansion: 34R→34右, 28L→28左, 36C→36中
+        text = re.sub(r'(\d{1,2})([Rr])(?=\b|[^\w]|$)', lambda m: m.group(1) + '右', text)
+        text = re.sub(r'(\d{1,2})([Ll])(?=\b|[^\w]|$)', lambda m: m.group(1) + '左', text)
+        text = re.sub(r'(\d{1,2})([Cc])(?=\b|[^\w]|$)', lambda m: m.group(1) + '中', text)
 
         def convert_number(match):
             token = match.group(0)
             if token.endswith('米') and token[:-1].isdigit():
                 num = token[:-1]
                 if len(num) == 4 and num.endswith('000'):
-                    return f"{digit_map[num[0]]}千米"
+                    return f"{digit_map.get(num[0], num[0])}千米"
                 return ''.join(digit_map.get(ch, ch) for ch in num) + '米'
             if token.endswith('英尺') and token[:-2].isdigit():
                 num = token[:-2]
                 if len(num) == 4 and num.endswith('000'):
-                    return f"{digit_map[num[0]]}千英尺"
+                    return f"{digit_map.get(num[0], num[0])}千英尺"
                 return ''.join(digit_map.get(ch, ch) for ch in num) + '英尺'
             if '/' in token and token.replace('/', '').isdigit():
                 return ''.join(digit_map.get(ch, ch) for ch in token if ch != '/')
             if token.isdigit():
                 if len(token) == 4 and token.endswith('000'):
-                    return f"{digit_map[token[0]]}千"
+                    return f"{digit_map.get(token[0], token[0])}千"
                 return ''.join(digit_map.get(ch, ch) for ch in token)
             return token
 
@@ -590,37 +541,58 @@ class TTSEngine:
 
     def speak_atis(self, text, icao=None):
         print(f"TTSEngine.speak_atis() called for {icao or 'N/A'}")
+        self._atis_epoch += 1
+        my_epoch = self._atis_epoch
 
         def run_async():
+            _played = False
             try:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                if icao and icao.upper().startswith('Z') and '\n\n' in text:
+                _icao_up = (icao or '').upper()
+                _is_chinese_airport = (
+                    _icao_up.startswith('Z') or
+                    _icao_up.startswith('VH') or
+                    _icao_up.startswith('VM') or
+                    _icao_up.startswith('RC')
+                )
+                if icao and _is_chinese_airport and '\n\n' in text:
                     english_text, chinese_text = text.split('\n\n', 1)
                     english_audio = loop.run_until_complete(self._synthesize_audio(english_text, self.ENGLISH_VOICE))
                     chinese_spoken = self._expand_chinese_digits_for_speech(
-                        self._normalize_text(chinese_text, self.CHINESE_VOICE)
+                        self._normalize_text(chinese_text.replace(' / ', ' 和 '), self.CHINESE_VOICE)
                     )
                     chinese_audio = loop.run_until_complete(
                         self._synthesize_audio(chinese_spoken, self.CHINESE_VOICE)
                     )
                     full_audio = english_audio + chinese_audio
-                    if full_audio:
-                        if self._should_apply_radio_effect('ATIS', is_atis=True):
-                            full_audio = self._apply_radio_effect(full_audio)
+                    # Bail out if a newer ATIS request arrived while we were synthesizing
+                    if full_audio and self._atis_epoch == my_epoch:
+                        # Estimate playback duration so atis_played fires after audio ends on client
+                        duration_ms = max(1000, int(len(full_audio) / 16000 * 1000))
                         self.socketio.emit('audio_stream', {
-                            'data': base64.b64encode(full_audio).decode('utf-8')
+                            'data': base64.b64encode(full_audio).decode('utf-8'),
+                            'is_atis': True,
+                            'icao': icao,
+                            'duration_ms': duration_ms,
                         })
+                        import time as _time
+                        _time.sleep(duration_ms / 1000.0)
                 else:
-                    loop.run_until_complete(self.speak_async(text, icao_override=icao))
+                    if self._atis_epoch == my_epoch:
+                        loop.run_until_complete(self.speak_async(text, icao_override=icao))
                 loop.close()
-                if icao:
-                    # Estimate audio playback duration so ATIS doesn't loop instantaneously
-                    estimated_duration = len(text) * 0.08 + 2.0
-                    time.sleep(estimated_duration)
+                if icao and self._atis_epoch == my_epoch:
                     event_bus.emit('atis_played', icao)
+                    _played = True
             except Exception as e:
                 print(f"TTSEngine ATIS Error in thread: {e}")
+            finally:
+                # Keep the loop alive even if synthesis failed
+                if not _played and icao and self._atis_epoch == my_epoch:
+                    import time as _time
+                    _time.sleep(5)  # brief pause before retry
+                    event_bus.emit('atis_played', icao)
 
         thread = threading.Thread(target=run_async, daemon=True)
         thread.start()
@@ -682,15 +654,11 @@ class TTSEngine:
                 # Edge-TTS: full audio then emit once
                 full_audio = await self._synthesize_edge(text_norm, voice)
                 if full_audio:
-                    if self._should_apply_radio_effect(controller_name, is_atis=False):
-                        full_audio = self._apply_radio_effect(full_audio)
                     try:
-                        if os.environ.get("OPENFREQUENCY_DEBUG_TTS") == "1":
-                            with open("debug_tts.mp3", "wb") as f:
-                                f.write(full_audio)
-                            print(f"TTSEngine: Debug file written to debug_tts.mp3 ({len(full_audio)} bytes)")
-                    except Exception as e:
-                        print(f"TTSEngine Debug Error: {e}")
+                        with open("debug_tts.mp3", "wb") as f:
+                            f.write(full_audio)
+                    except Exception:
+                        pass
                     self.socketio.emit('audio_stream', {
                         'data': base64.b64encode(full_audio).decode('utf-8')
                     })
@@ -711,6 +679,7 @@ class TTSEngine:
         text = data.get('text', '')
         voice = data.get('voice')  # Pre-assigned voice for this callsign
         is_atc = data.get('is_atc', False)
+        is_cabin = data.get('is_cabin', False)
         
         if not text:
             return
@@ -738,7 +707,7 @@ class TTSEngine:
             try:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                loop.run_until_complete(self._generate_chatter_audio(text, voice))
+                loop.run_until_complete(self._generate_chatter_audio(text, voice, is_cabin=is_cabin))
                 loop.close()
             except Exception as e:
                 print(f"TTSEngine Chatter Error: {e}")
@@ -746,7 +715,7 @@ class TTSEngine:
         thread = threading.Thread(target=run_chatter, daemon=True)
         thread.start()
     
-    async def _generate_chatter_audio(self, text, voice):
+    async def _generate_chatter_audio(self, text, voice, is_cabin=False):
         """Generate and emit chatter audio."""
         # Check ducking again before generating
         if self.ducking_active:
@@ -764,7 +733,8 @@ class TTSEngine:
             if full_audio and not self.ducking_active:
                 # Emit as background audio (separate event for volume control)
                 self.socketio.emit('chatter_audio', {
-                    'data': base64.b64encode(full_audio).decode('utf-8')
+                    'data': base64.b64encode(full_audio).decode('utf-8'),
+                    'is_cabin': is_cabin
                 })
                 print(f"TTSEngine: Sent chatter audio ({len(full_audio)} bytes)")
                 

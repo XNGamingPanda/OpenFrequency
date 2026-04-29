@@ -1,6 +1,176 @@
-# OpenFrequency v3.9-beta Release Notes
+# OpenFrequency Release Notes
 
-## 2026-04-18 Update
+---
+
+# v3.9-alpha — 2026-04-29
+
+> **Release Date**: 2026-04-29
+> **Version**: **v3.9-alpha**
+> **Status**: **Alpha**
+
+<!-- en -->
+This release is a major feature milestone. It introduces CPDLC datalink, metric RVSM for Chinese airspace, a full MSI installer pipeline, community plugin support, radar vectoring, auto-update via Cloudflare Workers, crash telemetry, two-tier LLM support, local TTS streaming, and dozens of bug fixes accumulated since v3.5-beta.
+<!-- /en -->
+
+<!-- zh -->
+本版本是一次重大功能里程碑，引入了 CPDLC 数字放行通信、中国空域米制 RVSM 自动切换、完整 MSI 安装程序构建流程、社区插件支持、雷达引导、通过 Cloudflare Workers 自动更新、崩溃遥测上报、双层 LLM 配置、本地流式 TTS，以及自 v3.5-beta 以来积累的数十项错误修复。
+<!-- /zh -->
+
+---
+
+## Bug Fixes
+
+| Area | Fix |
+|------|-----|
+| Network | LAN devices could not access the dashboard |
+| Career | Callsign was locked to the career mission after switching to free flight |
+| Packaging | Some user data directories were not found in compiled builds |
+| ATIS | Information letter was always "Alpha" on every fetch |
+| ATIS | Some airport names were read as raw ICAO codes instead of local names |
+| ATIS | ATIS was not re-announced (now replays in comms log on re-tune unless the content has already been shown) |
+| Navigation | VFR guidance improved |
+| Packaging | The STT module briefly flashed a console window in compiled builds |
+| Ground routing | Airport auto-routing existed but was not reachable from the UI |
+| Dashboard | SimBrief route prediction did not auto-display after becoming airborne |
+| ATC | ATC proactive speaking logic improved |
+| Audio | Radio noise/static effect improved |
+| ATC | ATC frequency knowledge improved — ATC now knows actual assigned frequencies better |
+| X-Plane | Frequency injection format corrected for X-Plane 12 aircraft model COM tuning |
+| Instruments | V/S (vertical speed) calculation fixed |
+| X-Plane | LiveTraffic AI aircraft status could not be read in X-Plane 12 |
+
+---
+
+## New Features
+
+### MSI Installer
+- WiX 4 MSI build pipeline via `installer/OpenFrequency.wxs` and `installer/build_installer.ps1`.
+- Per-machine install with Start Menu and Desktop shortcuts, major-upgrade support, and Programs & Features entry.
+- `version.txt` is the single source of truth for version numbers.
+
+### CPDLC
+- Controller–Pilot Data Link Communications support.
+- Handles pre-departure clearance, oceanic, and en-route datalink messages.
+
+### Metric RVSM for Chinese Airspace
+- Automatically switches to metric altitude (metres) when operating in Chinese RVSM airspace.
+- Correct metric flight levels used in ATC phraseology and clearances.
+
+### Quick-Reply Templates
+- Most common ATC read-backs are now pre-populated from templates.
+- Reduces input time and improves phraseology consistency.
+
+### Dual LLM Model Support
+- Configure a lightweight model (fast, cheap) and a reasoning model (slower, higher quality).
+- Routine read-backs use the lightweight model; complex clearances and ambiguous situations escalate to the reasoning model.
+
+### Local Streaming TTS
+- Support for switching between Edge-TTS (cloud) and a local streaming text-to-speech model.
+- Local model files stored under `%APPDATA%\OpenFrequency\models`.
+
+### Radar Vectoring
+- ATC radar guidance panel on the dashboard.
+- HDG / ALT / SPD vector inputs with live dispatch to the ATC logic engine.
+
+### Plugin System
+- `OpenFrequencyPlugin` base class with lifecycle hooks (`on_load`, `on_unload`, `on_event`, `on_config_update`).
+- Plugin Manager discovers and loads plugins from the `plugins/` directory.
+- DLC catalog browser built in; one-click FlyByWire A32NX download to MSFS.
+
+### Crash Telemetry & Feedback
+- Unhandled exceptions are PII-sanitised and (with consent) sent to Cloudflare Workers for analysis.
+- Manual crash upload and user feedback form available in Settings.
+- Reports received at the Workers `/api/crash` and `/api/feedback` endpoints.
+
+### Auto-Update via Cloudflare Workers
+- Version check throttled to once per 24 hours.
+- Release metadata and installer assets proxied through Workers for faster China downloads.
+- SHA-256 verification before launching the downloaded installer.
+
+### Non-English ATC Toggle
+- New "Allow non-English ATC comms (international flights)" switch for non-Chinese international airports.
+- Disabled by default; labelled as non-realistic.
+
+### Auto Busy / Standby
+- When "Auto Busy Level" is enabled, workload level is derived from live nearby aircraft count.
+- Traffic density dropdown hidden when auto-busy is active.
+
+### SimConnect SDK Auto-Bundling
+- `SimConnect.dll` from the PyPI package is automatically collected at build time — no manual download needed.
+
+---
+
+## Cloudflare Configuration Guide
+
+### Workers (`workers/workers.js`)
+
+The Workers backend handles version checks, asset proxying, crash reports, feedback, and usage pings.
+
+**Steps:**
+
+```
+# 1. Install Wrangler
+npm install -g wrangler
+
+# 2. Authenticate
+wrangler login
+
+# 3. Create KV namespace
+wrangler kv:namespace create OF_KV
+# → Copy the returned id into workers/wrangler.toml  [[kv_namespaces]] id
+
+wrangler kv:namespace create OF_KV --preview
+# → Copy into preview_id
+
+# 4. Set secrets (never commit)
+wrangler secret put CLIENT_TOKEN     # shared token used by the app
+wrangler secret put GITHUB_TOKEN     # optional — raises GH API rate limit
+
+# 5. Edit workers/wrangler.toml
+#    Set GITHUB_OWNER and GITHUB_REPO to your repository
+
+# 6. Deploy
+cd workers
+wrangler deploy
+```
+
+**Environment variables in `wrangler.toml`:**
+
+| Variable | Purpose |
+|----------|---------|
+| `GITHUB_OWNER` | GitHub repo owner |
+| `GITHUB_REPO` | GitHub repo name |
+| `MIN_REQUIRED_VERSION` | Force-update floor version (semver) |
+| `CLIENT_TOKEN` *(secret)* | Token the app sends in `X-OF-Token` header |
+| `GITHUB_TOKEN` *(secret)* | GitHub PAT — optional, raises rate limit |
+
+### Pages (`workers/pages/index.html`)
+
+The download landing page is a static site deployed to Cloudflare Pages.
+
+```
+# In the Cloudflare dashboard:
+# 1. Pages → Create project → Connect to Git (or upload directly)
+# 2. Set build output directory to:  workers/pages
+# 3. No build command needed (pure static HTML)
+# 4. Set the environment variable WORKERS_URL to your Workers subdomain:
+#       e.g. https://openfrequency-api.<your-account>.workers.dev
+#    (or update the download URL directly in index.html)
+```
+
+The download button on the page calls `GET /pub/dl/latest` on the Workers, which redirects to the latest MSI asset on GitHub.
+
+---
+
+## SHA-256 Checksums
+
+```
+<!-- sha256 block inserted by release workflow -->
+```
+
+---
+
+# v3.9-beta — 2026-04-18
 
 > **Release Date**: 2026-04-18
 > **Version**: **v3.9-beta**
@@ -17,7 +187,7 @@ This release brings cloud-connected telemetry and auto-update infrastructure, in
 
 - **Crash reporting**: Unhandled exceptions and thread crashes are silently captured, PII-sanitized, and (with user consent) uploaded to the OpenFrequency cloud for analysis. Opt-out available in Settings → Privacy & Updates.
 - **Manual log upload**: Users can click "Upload Recent Crash" in Settings to manually send a sanitized crash report or log excerpt at any time.
-- **Auto-update check**: OpenFrequency checks for a new release 8 seconds after startup and whenever the user clicks "Check for Updates" in Settings.
+- **Auto-update check**: OpenFrequency checks for a new release once per day and whenever the user clicks "Check for Updates" in Settings.
 - **In-app download**: New releases are downloaded directly inside the app with a progress bar; SHA-256 checksum is verified before the installer is launched.
 - **China download acceleration**: All version metadata and release assets are proxied through the OpenFrequency Cloudflare Workers endpoint to improve download speeds.
 - **Feedback form**: A built-in feedback form in Settings lets users submit bug reports or suggestions without leaving the app.
@@ -66,12 +236,10 @@ This release brings cloud-connected telemetry and auto-update infrastructure, in
 
 ---
 
-# OpenFrequency v3.5-beta Release Notes
-
-## 2026-04-07 Update
+# v3.9-alpha (prior) — 2026-04-07
 
 > **Release Date**: 2026-04-07
-> **Version**: **v3.5-beta**
+> **Version**: **v3.9-alpha**
 > **Status**: **Beta**. This build is more complete than the 3.1 alpha line, but several systems remain under active tuning.
 
 This update is a broad beta milestone focused on making OpenFrequency easier to run, more useful in career flights, and more tightly integrated with X-Plane and live airport data. The headline changes are the new packaged Windows build path, a rebuilt career workflow, richer SimBrief integration, improved airport ground intelligence, and more proactive ATC behavior.
@@ -144,136 +312,49 @@ This update is a broad beta milestone focused on making OpenFrequency easier to 
 - **Media licensing**: Users are responsible for ensuring cabin announcement audio/video files are legally obtained and usable.
 - **Career balance**: Rewards, licenses, and operator availability are still beta tuning areas.
 
-## 2026-04-05 Update
+---
+
+# v3.1 — 2026-04-05
 
 > **Release Date**: 2026-04-05
-> **Version**: **3.1**
 
-This update focuses on simulator integration, airport frequency intelligence, ATIS realism, and dashboard workflow improvements. It also includes major frontend quality-of-life fixes for multilingual use, crew/ATC channel switching, and map presentation.
+This update focuses on simulator integration, airport frequency intelligence, ATIS realism, and dashboard workflow improvements.
 
 ### New Features
 
-- **X-Plane Local Web API support**: Replaced the legacy XPlaneConnect path with X-Plane 12 Local Web API support in the simulator bridge.
-- **Airport frequency service**: Added local caching and lookup for `airports.csv`, `airport-frequencies.csv`, and `runways.csv` from OurAirports.
-- **Nearby Airports panel**: Replaced the old radar traffic tab with a nearby airport and frequency browser, including one-click tuning.
-- **Per-frequency context memory**: ATC chat history now persists per tuned frequency and restores when returning to a previous channel.
-- **Settings UI for simulator selection**: Added frontend simulator provider switching and X-Plane host/port settings without editing JSON manually.
-- **Flight plan editing in settings**: Added editable route/origin/destination/alternate/cruise altitude fields with SimBrief import backfill.
-- **Automatic SimBrief callsign import**: Callsign can now be derived from SimBrief and written back to runtime state and config.
+- X-Plane Local Web API support.
+- Airport frequency service with local CSV caching.
+- Nearby Airports panel replacing the old radar traffic tab.
+- Per-frequency context memory.
+- Settings UI for simulator selection and X-Plane host/port.
+- Flight plan editing in settings with SimBrief import backfill.
+- Automatic SimBrief callsign import.
 
 ### ATIS Improvements
 
-- **Real ATIS playback chain**: ATIS requests now trigger METAR fetch, ATIS generation, TTS playback, and comms log output correctly.
-- **Repeated ATIS replay**: Re-tuning ATIS will replay the ATIS instead of only playing once.
-- **ATIS logging**: Full ATIS text is now written into the communications log, not just shown as a system banner.
-- **AviationWeather METAR timing**: ATIS now uses real `reportTime`/`obsTime` timing from AviationWeather.gov instead of generic placeholders.
-- **Runway-in-use support**: Added runway selection from `runways.csv`, with runway-in-use included in generated ATIS.
-- **Chinese airport bilingual ATIS**: Chinese airports now generate bilingual ATIS output regardless of UI language.
-- **Improved phraseology**: Chinese ATIS wording was revised toward a more realistic CAAC-style format, and English ATIS phrasing was tightened toward operational radio style.
-- **Display vs speech separation**: ATIS now displays normal digits in the UI while TTS uses aviation-style spoken forms.
+- Real ATIS playback chain.
+- Bilingual ATIS for Chinese airports.
+- CAAC-style Chinese ATIS phraseology.
+- Display vs speech separation (digits in UI, aviation spoken forms in TTS).
 
 ### TTS and Language
 
-- **English digit phraseology**: English TTS now uses aviation number pronunciation such as `Tree`, `Fower`, `Fife`, and `Niner`.
-- **Digit expansion rules**: English TTS reads numbers digit-by-digit and supports `Hundred`, `Thousand`, and `Decimal` patterns.
-- **Japanese voice behavior**: Japanese interaction mode now uses Japanese voices while converting spoken English-like content into Katakana for pronunciation, without changing displayed text.
-- **Chinese speech formatting**: Chinese TTS can read displayed values such as visibility, cloud base, QNH, and wind using Chinese aviation reading rules.
-
-### UI and UX
-
-- **Crew channel fixes**: Crew mode text messages no longer leak into ATC; frontend and backend both enforce correct routing.
-- **Crew button styling**: Crew radio mode now has proper active-state styling.
-- **Multilingual cleanup**: Fixed missing Chinese/Japanese translations for several dynamic dashboard strings and simulator connection states.
-- **Dark mode fixes**: Improved dark mode readability for helper text, form labels, and settings guidance text.
-- **Altitude map gradient**: Map trail altitude coloring now uses a continuous gradient with a more accurate legend and dynamic redraw.
-- **Persisted trail restoration**: Flight path history now restores more reliably after page refresh.
-- **Sequential audio playback**: Browser playback now queues incoming audio to prevent overlapping ATIS or radio messages.
-
-### Simulator and Failure Logic
-
-- **Simulator-aware failure injection**: Random failures are now restricted to supported simulators and injected only where backend support exists.
-- **X-Plane bridge integration**: SimBridge now follows the configured simulator provider instead of always behaving like MSFS/SimConnect.
-- **Improved diagnostics**: Added clearer X-Plane connection and ATIS behavior diagnostics during development.
+- English digit phraseology (Tree, Fower, Fife, Niner).
+- Digit expansion rules (Hundred, Thousand, Decimal).
+- Japanese Katakana voice path.
+- Chinese aviation reading rules for TTS.
 
 ### Known Limitations
 
-- **Runway selection is heuristic**: Runway-in-use is currently inferred from runway data and wind, not from live airport operational configuration.
-- **ATIS phraseology still evolving**: Chinese and English ATIS wording is improved but still not a full real-world phraseology engine.
-- **X-Plane Web API required**: X-Plane support depends on the official Local Web API being available and reachable.
+- Runway selection is heuristic.
+- X-Plane Web API required.
 
 ---
 
-> **Release Date**: 2026-02-08
-> **Status**: **ALPHA** (Expect bugs and rough edges)
+# v2.5 / v2.0 Alpha — 2026-02-08
 
-This release introduces significant architectural changes, including a new Career Mode and a refactored Crew Communication system. Due to the complexity of these features and known limitations in SimConnect traffic scanning, we are releasing this as an **Alpha** build for community testing and feedback.
+> **Status**: **ALPHA**
 
-## New Features
+Initial public alpha. Introduced Career Mode, Crew Communication refactor, Emergency System 2.0, multi-language support, and basic flight monitoring.
 
-### Career Mode (Major Update)
-Separate your serious flying from casual sessions.
-- **Dashboard**: New central hub for managing your pilot career.
-- **Job Market**: Real-world route generator with rank-based distance filtering (e.g., PPL limited to <500km).
-- **Economy & Licenses**: Bank account tracking, XP rewards, and purchasable pilot licenses (Student -> Master Aviator).
-- **Violations**: Flight monitoring system that records infractions (speeding, unstable approach).
-
-### Crew Communication Refactor
-A more realistic, role-based interaction system.
-- **First Officer (Cockpit)**: Monitors ATC and assists with checklists. Hears both ATC and Intercom.
-- **Purser (Cabin)**: Manage passenger comfort and safety. Only hears Intercom.
-- **Ambience Control**: Play Boarding/Deboarding environment sounds directly from the UI.
-
-### Emergency System 2.0
-More granular control and realism.
-- **Probability Settings**: Adjustable frequency (None / Low / Medium / High).
-- **Specific Failures**: Alerts now pinpoint specific systems (e.g., "Hydraulic System A", "Engine 1 Fire").
-- **Logic Improvements**: Bird strikes only occur when airborne (>100ft).
-
-### UI & UX Enhancements
-- **Multi-Language Support**: Full translation support for English, Chinese (Simplified), and Japanese.
-- **Clear Track**: New button on the map to clear flight path history.
-- **Channel Selector**: Dedicated switch for ATC vs. Crew radio channels.
-- **Cabin Emergency**: Distinct visual alert (Red Border) only active during actual emergencies.
-
----
-
-## Bug Fixes
-
-| Component | Fix |
-|-----------|-----|
-| **Core** | Fixed `NameError` crash related to `CabinCrew` module. |
-| **Career** | Fixed `_save_profile` attribute error in Job Generator. |
-| **Logic** | Optimized PPL route generation to prioritize regional airports (125-438km). |
-| **UI** | Fixed "Accept Job" button failing to trigger (replaced onclick with event listeners). |
-| **API** | Fixed locale loading route to correctly handle `.json` extensions. |
-| **Settings** | Fixed PTT binding logic for joystick buttons. |
-
----
-
-## Known Issues (Alpha)
-
-### Requested by User Feedback
-1. **Career Mode Language**: Language settings do not automatically refresh the page; a manual reload is required to apply changes.
-2. **Career Dashboard Interaction**: Clicking on career cards (Jobs, Licenses, etc.) may fail to open the corresponding modal windows in certain states.
-3. **Crew Interaction**: The crew interaction functions (Purser/FO communication) are currently unstable and may not function as expected.
-
-### General Issues
-- **SimConnect Traffic**: AI Traffic scanning is currently simulated (Mock) for stability testing. Real-time injection is planned for Beta.
-- **Voice Latency**: LLM response times may vary based on API load.
-- **Career Balance**: XP formulas and penalty thresholds are preliminary and may need tuning.
-
----
-
-## Dependencies
-
-No new Python packages required since v2.5. Ensure you have `ffmpeg` installed for audio features.
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## Feedback
-
-Please report issues on our GitHub Issues page. Your feedback is critical to moving from Alpha to Beta!
+See the archived release notes in git history for full details.

@@ -32,8 +32,10 @@ class Purser:
         self.state = CabinState.UNKNOWN
         self.last_state_change = 0
         self.scripts = self._load_scripts()
-        self.airline = config.get('cabin', {}).get('airline', 'Generic')
-        
+        # Priority: media_package > airline > Generic
+        self.airline = (config.get('cabin', {}).get('media_package') or
+                       config.get('cabin', {}).get('airline', 'Generic'))
+
         # Subscribe to telemetry
         event_bus.on('telemetry_update', self._on_telemetry)
         event_bus.on('cabin_intercom', self._on_intercom)
@@ -138,7 +140,8 @@ class Purser:
         event_bus.emit('chatter_tts_request', {
             'text': text,
             'voice': voice,
-            'is_atc': False, # It's cabin
+            'is_atc': False,
+            'is_cabin': True,
             'priority': 2
         })
 
