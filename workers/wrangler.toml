@@ -7,6 +7,7 @@
 #        wrangler kv:namespace create OF_KV
 #      Copy the returned `id` into the kv_namespaces block below.
 #   4. Set secrets (never commit these):
+#        wrangler secret put DOWNLOAD_TOKEN
 #        wrangler secret put STATS_TOKEN
 #        wrangler secret put GITHUB_TOKEN       # optional — skip if not using auth'd GH API
 #   5. Deploy:           wrangler deploy
@@ -43,6 +44,9 @@ GITHUB_REPO          = "OpenFrequency"
 MIN_REQUIRED_VERSION = "0.0.0"
 
 # Secrets — set via CLI, NOT here:
+#   wrangler secret put DOWNLOAD_TOKEN
+#       Optional token required by Workers download proxy endpoints.
+#
 #   wrangler secret put STATS_TOKEN
 #       Admin token for GET /api/stats. Client endpoints are public and rate-limited.
 #

@@ -15,6 +15,7 @@
  *   GITHUB_OWNER         - GitHub repo owner
  *   GITHUB_REPO          - GitHub repo name
  *   GITHUB_TOKEN         - (optional) GitHub PAT for higher API rate limits
+ *   DOWNLOAD_TOKEN       - optional secret for proxied release downloads
  *   STATS_TOKEN          - admin secret for GET /api/stats
  *   MIN_REQUIRED_VERSION - semver string, default "0.0.0"
  *
@@ -28,7 +29,7 @@
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-OF-Admin-Token",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-OF-Admin-Token, X-OF-Download-Token",
   "Access-Control-Expose-Headers": "Content-Type",
 };
 
@@ -73,6 +74,8 @@ export default {
       // Public download redirect - no auth required, rate-limited
       // GET /pub/dl/latest -> resolves latest tag and redirects to MSI asset
       if (request.method === "GET" && path === "/pub/dl/latest") {
+        const authErr = requireDownloadToken(request, env);
+        if (authErr) return authErr;
         return handlePublicDownload(request, env, ctx);
       }
 
@@ -82,11 +85,15 @@ export default {
 
       const dlLatest = path.match(/^\/dl\/latest\/(.+)$/);
       if (request.method === "GET" && dlLatest) {
+        const authErr = requireDownloadToken(request, env);
+        if (authErr) return authErr;
         return handleDownload(request, env, ctx, null, dlLatest[1]);
       }
 
       const dlTagged = path.match(/^\/dl\/([^/]+)\/(.+)$/);
       if (request.method === "GET" && dlTagged) {
+        const authErr = requireDownloadToken(request, env);
+        if (authErr) return authErr;
         return handleDownload(request, env, ctx, dlTagged[1], dlTagged[2]);
       }
 
@@ -117,7 +124,7 @@ export default {
 };
 
 // ---------------------------------------------------------------------------
-// Handler: GET /pub/dl/latest  - public redirect to latest MSI (no auth)
+// Handler: GET /pub/dl/latest - token-protected stream to latest MSI
 // ---------------------------------------------------------------------------
 
 async function handlePublicDownload(request, env, ctx) {
@@ -141,20 +148,7 @@ async function handlePublicDownload(request, env, ctx) {
     return corsJSON({ error: "No installer asset found in latest release" }, 404);
   }
 
-  // Proxy through the rate-limited download handler rather than exposing the raw GitHub URL
-  const tag = encodeURIComponent(release.tag_name);
-  const asset = encodeURIComponent(msiAsset.name);
-  const workerOrigin = new URL(request.url).origin;
-  const proxyUrl = `${workerOrigin}/dl/${tag}/${asset}`;
-
-  // Redirect to the proxied download - client follows the redirect
-  return new Response(null, {
-    status: 302,
-    headers: {
-      ...CORS_HEADERS,
-      Location: proxyUrl,
-    },
-  });
+  return handleDownload(request, env, ctx, release.tag_name, msiAsset.name, { skipRateLimit: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -169,6 +163,18 @@ function requireStatsToken(request, env) {
   const auth = request.headers.get("Authorization") || "";
   const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   const token = request.headers.get("X-OF-Admin-Token") || bearer;
+  if (!token || token !== expected) {
+    return corsJSON({ error: "Unauthorized" }, 401);
+  }
+  return null;
+}
+
+function requireDownloadToken(request, env) {
+  const expected = env.DOWNLOAD_TOKEN || env.PAGES_DOWNLOAD_TOKEN;
+  if (!expected) {
+    return null;
+  }
+  const token = request.headers.get("X-OF-Download-Token");
   if (!token || token !== expected) {
     return corsJSON({ error: "Unauthorized" }, 401);
   }
@@ -374,7 +380,9 @@ function buildAssetsMap(release, workerBaseUrl) {
       filename: match.name,
       size: match.size,
       sha256: sha256 || null,
-      dl_path: `${workerBaseUrl}/dl/${encodeURIComponent(tag)}/${encodeURIComponent(match.name)}`,
+      // In-app clients do not carry download tokens, so use GitHub direct URLs.
+      // The Pages download button uses a Pages Function that calls /pub/dl/latest server-side.
+      dl_path: match.browser_download_url,
     };
   }
 
@@ -462,10 +470,12 @@ async function handleVersion(request, env, ctx) {
 // Handler: GET /dl/latest/:asset  and  GET /dl/:tag/:asset
 // ---------------------------------------------------------------------------
 
-async function handleDownload(request, env, ctx, tag, assetName) {
+async function handleDownload(request, env, ctx, tag, assetName, options = {}) {
   const ip = getClientIP(request);
-  const rl = await checkRateLimit(env, "download", ip);
-  if (rl.limited) return rl.response;
+  if (!options.skipRateLimit) {
+    const rl = await checkRateLimit(env, "download", ip);
+    if (rl.limited) return rl.response;
+  }
 
   // Resolve tag if "latest"
   let resolvedTag = tag;

@@ -123,6 +123,7 @@ wrangler kv:namespace create OF_KV --preview
 # → Copy into preview_id
 
 # 4. Set secrets (never commit)
+wrangler secret put DOWNLOAD_TOKEN   # Pages Function uses this for proxied downloads
 wrangler secret put STATS_TOKEN      # admin-only stats endpoint
 wrangler secret put GITHUB_TOKEN     # optional — raises GH API rate limit
 
@@ -141,7 +142,8 @@ wrangler deploy
 | `GITHUB_OWNER` | GitHub repo owner |
 | `GITHUB_REPO` | GitHub repo name |
 | `MIN_REQUIRED_VERSION` | Force-update floor version (semver) |
-| `STATS_TOKEN` *(secret)* | Admin token for `GET /api/stats`; client endpoints are public and rate-limited |
+| `DOWNLOAD_TOKEN` *(secret)* | Optional token for Workers download proxy endpoints; Pages Function sends it server-side |
+| `STATS_TOKEN` *(secret)* | Admin token for `GET /api/stats`; client telemetry/update endpoints are public and rate-limited |
 | `GITHUB_TOKEN` *(secret)* | GitHub PAT — optional, raises rate limit |
 
 ### Pages (`workers/pages/index.html`)
@@ -153,12 +155,12 @@ The download landing page is a static site deployed to Cloudflare Pages.
 # 1. Pages → Create project → Connect to Git (or upload directly)
 # 2. Set build output directory to:  workers/pages
 # 3. No build command needed (pure static HTML)
-# 4. Set the environment variable WORKERS_URL to your Workers subdomain:
-#       e.g. https://openfrequency-api.<your-account>.workers.dev
-#    (or update the download URL directly in index.html)
+# 4. Set Pages environment variables:
+#       WORKERS_URL=https://openfrequency-api.<your-account>.workers.dev
+#       WORKERS_DOWNLOAD_TOKEN=<same value as Workers DOWNLOAD_TOKEN>
 ```
 
-The download button on the page calls `GET /pub/dl/latest` on the Workers, which redirects to the latest MSI asset on GitHub.
+The download button calls the Pages Function `GET /dl/latest`; the function sends `X-OF-Download-Token` to Workers server-side and streams the latest MSI.
 
 ---
 

@@ -934,7 +934,7 @@ function handleDownload(e) {
   const btn = document.getElementById('btn-dl');
   btn.classList.add('loading');
   window.location.href = useWorkers()
-    ? WORKERS_URL + "/pub/dl/latest"
+    ? "/dl/latest"
     : GH_DL_LATEST;
   setTimeout(() => btn.classList.remove('loading'), 5000);
   return false;
