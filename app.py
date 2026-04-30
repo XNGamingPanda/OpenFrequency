@@ -97,6 +97,8 @@ def load_config():
             config = json.load(f)
     else:
         print("Warning: config.json not found, using defaults.")
+    # Backfill ui.tutorial_completed for configs created before this field existed
+    config.setdefault('ui', {}).setdefault('tutorial_completed', False)
     _sync_runtime_from_config()
 
 
@@ -1202,6 +1204,21 @@ def save_settings():
         print(f"Hoppie: poll interval set to {hoppie_interval}s (logon code saved, connect via dashboard)")
 
     return jsonify({"status": "success"})
+
+@app.route('/api/tutorial/done', methods=['POST'])
+def tutorial_done():
+    """Mark the onboarding tutorial as completed and persist to config."""
+    global config
+    config.setdefault('ui', {})['tutorial_completed'] = True
+    with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+        json.dump(config, f, indent=2, ensure_ascii=False)
+    socketio.emit('config_sync', {
+        'ui':    config.get('ui', {}),
+        'audio': {'radio_effect': bool(config.get('audio', {}).get('radio_effect', False))},
+        'cabin': {'media_package': config.get('cabin', {}).get('media_package', '')},
+    })
+    return jsonify({"status": "ok"})
+
 
 @app.route('/import_simbrief', methods=['POST'])
 def import_simbrief():

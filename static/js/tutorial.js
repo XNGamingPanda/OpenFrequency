@@ -317,13 +317,19 @@
     }
   }
 
+  function markDoneOnServer() {
+    fetch('/api/tutorial/done', { method: 'POST' }).catch(() => {});
+  }
+
   function endTutorial() {
     clearHighlight(currentStep);
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     localStorage.removeItem(LS_KEY);
+    localStorage.setItem('of_tutorial_completed', '1');
     currentStep = -1;
     if (cardEl) { cardEl.style.display = 'none'; }
     hideMasks();
+    markDoneOnServer();
   }
 
   /* ─── Confetti 🎊 ────────────────────────────────────────────────────────── */
@@ -360,19 +366,43 @@
 
   /* ─── Auto-resume on page load ───────────────────────────────────────────── */
   function tryResume() {
+    // If mid-tutorial (cross-page navigation), resume immediately
     const saved = localStorage.getItem(LS_KEY);
-    if (saved === null) return;
-    const index = parseInt(saved, 10);
-    if (isNaN(index) || index < 0 || index >= STEPS.length) {
-      localStorage.removeItem(LS_KEY);
-      return;
+    if (saved !== null) {
+      const index = parseInt(saved, 10);
+      if (!isNaN(index) && index >= 0 && index < STEPS.length) {
+        const step = STEPS[index];
+        if (step.page === window.location.pathname) {
+          currentStep = index;
+          buildDOM();
+          showStep(index);
+          return;
+        }
+      } else {
+        localStorage.removeItem(LS_KEY);
+      }
     }
-    const step = STEPS[index];
-    if (step.page !== window.location.pathname) return; // wrong page, wait
+  }
 
-    currentStep = index;
-    buildDOM();
-    showStep(index);
+  /* ─── Auto-start on first visit (driven by server config) ───────────────── */
+  function tryAutoStart() {
+    // Already completed or currently mid-tutorial → skip
+    if (localStorage.getItem('of_tutorial_completed') === '1') return;
+    if (localStorage.getItem(LS_KEY) !== null) return;
+    // Wait for config_sync from server to confirm tutorial_completed flag
+    if (window.socket) {
+      window.socket.once('config_sync', (cfg) => {
+        if (cfg && cfg.ui && cfg.ui.tutorial_completed === false) {
+          // Only auto-start from the home page
+          if (window.location.pathname === '/') {
+            setTimeout(startTutorial, 800);
+          }
+        } else if (cfg && cfg.ui && cfg.ui.tutorial_completed === true) {
+          // Server says done — sync local flag
+          localStorage.setItem('of_tutorial_completed', '1');
+        }
+      });
+    }
   }
 
   /* ─── Tutorial button injection ──────────────────────────────────────────── */
@@ -404,6 +434,8 @@
   document.addEventListener('DOMContentLoaded', () => {
     injectButton();
     tryResume();
+    // Slight delay so socket is ready before we listen for config_sync
+    setTimeout(tryAutoStart, 400);
   });
 
   // Expose for external trigger
