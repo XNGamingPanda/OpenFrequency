@@ -125,7 +125,7 @@
 
   /* ─── Spotlight DOM ──────────────────────────────────────────────────────── */
   function buildDOM() {
-    if (document.getElementById('tut-overlay')) return;
+    if (document.getElementById('tut-card')) return;
 
     // 4-quadrant dark mask
     const mkDiv = (id, extra) => {
@@ -386,48 +386,56 @@
 
   /* ─── Auto-start on first visit (driven by server config) ───────────────── */
   function tryAutoStart() {
-    // Already completed or currently mid-tutorial → skip
+    // Already completed locally or mid-tutorial → skip
     if (localStorage.getItem('of_tutorial_completed') === '1') return;
     if (localStorage.getItem(LS_KEY) !== null) return;
-    // Wait for config_sync from server to confirm tutorial_completed flag
-    if (window.socket) {
-      window.socket.once('config_sync', (cfg) => {
-        if (cfg && cfg.ui && cfg.ui.tutorial_completed === false) {
-          // Only auto-start from the home page
-          if (window.location.pathname === '/') {
-            setTimeout(startTutorial, 800);
-          }
-        } else if (cfg && cfg.ui && cfg.ui.tutorial_completed === true) {
-          // Server says done — sync local flag
+    // Only auto-start from the home page
+    if (window.location.pathname !== '/') return;
+
+    fetch('/api/tutorial/status')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.completed) {
+          setTimeout(startTutorial, 800);
+        } else {
           localStorage.setItem('of_tutorial_completed', '1');
         }
-      });
-    }
+      })
+      .catch(() => {});
   }
 
   /* ─── Tutorial button injection ──────────────────────────────────────────── */
   function injectButton() {
     // Don't inject on dashboard (cluttered) or career
     if (['/dashboard', '/career'].some(p => window.location.pathname.startsWith(p))) return;
-    const navbar = document.querySelector('.navbar .d-flex');
-    if (!navbar || document.getElementById('tut-start-btn')) return;
+    if (document.getElementById('tut-start-btn')) return;
 
     const btn = document.createElement('button');
     btn.id = 'tut-start-btn';
-    btn.className = 'btn btn-sm btn-outline-primary';
-    btn.style.cssText = 'font-size:0.75rem;';
     btn.addEventListener('click', startTutorial);
 
-    // Update label with current lang
     function updateLabel() {
-      const lang = getLang();
-      btn.textContent = (T[lang] || T.en).tut_btn;
+      btn.textContent = (T[getLang()] || T.en).tut_btn;
     }
     updateLabel();
-    // Re-label on lang change
     document.addEventListener('of-lang-changed', updateLabel);
 
-    navbar.insertBefore(btn, navbar.firstChild);
+    const navbar = document.querySelector('.navbar .d-flex');
+    if (navbar) {
+      // base.html pages: inject into navbar
+      btn.className = 'btn btn-sm btn-outline-primary';
+      btn.style.cssText = 'font-size:0.75rem;';
+      navbar.insertBefore(btn, navbar.firstChild);
+    } else {
+      // Standalone pages (main_menu): floating pill in top-right corner
+      btn.className = 'btn btn-primary';
+      Object.assign(btn.style, {
+        position: 'fixed', top: '16px', right: '16px', zIndex: '9000',
+        borderRadius: '20px', padding: '6px 16px', fontSize: '0.8rem',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+      });
+      document.body.appendChild(btn);
+    }
   }
 
   /* ─── Init ───────────────────────────────────────────────────────────────── */

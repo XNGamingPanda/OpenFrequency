@@ -1205,6 +1205,11 @@ def save_settings():
 
     return jsonify({"status": "success"})
 
+@app.route('/api/tutorial/status', methods=['GET'])
+def tutorial_status():
+    return jsonify({"completed": bool(config.get('ui', {}).get('tutorial_completed', False))})
+
+
 @app.route('/api/tutorial/done', methods=['POST'])
 def tutorial_done():
     """Mark the onboarding tutorial as completed and persist to config."""
