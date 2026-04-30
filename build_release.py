@@ -6,7 +6,7 @@ try:
     with open("version.txt", "r", encoding="utf-8") as f:
         version = f.read().strip()
 except Exception:
-    version = "v3.9-beta"
+    version = "v3.9-beta-ef"
 
 zip_name = f"OpenFrequency_{version}.zip"
 

@@ -32,8 +32,8 @@ html.theme-apple {
   --glass-fill-hvy: rgba(255,255,255,0.88);
   --glass-border:   rgba(60,60,67,0.12);
   --glass-shine:    rgba(255,255,255,0.90);
-  --glass-blur:     blur(22px) saturate(180%);
-  --glass-shadow:   0 4px 20px rgba(0,0,0,0.08), 0 1px 0 rgba(255,255,255,0.80) inset;
+  --glass-blur:     none;
+  --glass-shadow:   0 2px 10px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.70) inset;
 
   /* 表面语义色（随深浅模式切换） */
   --surface-nav:        rgba(242,242,247,0.88);
@@ -124,7 +124,7 @@ html.theme-apple body.dark-mode {
   --glass-fill-hvy: rgba(255,255,255,0.13);
   --glass-border:   rgba(255,255,255,0.13);
   --glass-shine:    rgba(255,255,255,0.22);
-  --glass-shadow:   0 8px 32px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.09) inset;
+  --glass-shadow:   0 3px 14px rgba(0,0,0,0.34), 0 1px 0 rgba(255,255,255,0.08) inset;
 
   --surface-nav:        rgba(14,16,22,0.88);
   --surface-card-hdr:   rgba(255,255,255,0.04);
@@ -186,9 +186,16 @@ html.theme-apple body.dark-mode {
 html.theme-apple,
 html.theme-apple body {
   font-family: var(--font-ui) !important;
-  background: linear-gradient(150deg, var(--apple-bg) 0%, var(--apple-bg-alt) 100%) !important;
-  background-attachment: fixed !important;
   color: var(--apple-t1) !important;
+}
+
+html.theme-apple {
+  background: var(--apple-bg) !important;
+}
+
+html.theme-apple body {
+  min-height: 100vh !important;
+  background: var(--apple-bg) !important;
 }
 
 /* 颜色工具类 */
@@ -838,4 +845,57 @@ html.theme-apple [data-lg-interactive]::after {
   mask-composite: exclude !important;
   pointer-events: none !important;
   z-index: 2 !important;
+}
+
+/* Performance profile: keep the Apple visual language without scroll-janking
+   browser repaint effects. Backdrop blur, SVG filters, per-message animations,
+   and broad "transition: all" rules are the main cost on settings/dashboard. */
+html.theme-apple .navbar,
+html.theme-apple .card,
+html.theme-apple .control-stack .btn,
+html.theme-apple #log-container > div,
+html.theme-apple #instruction-cards-panel,
+html.theme-apple .instruction-card,
+html.theme-apple .btn-group[role="group"][aria-label="Radio channel selector"],
+html.theme-apple #ptt-btn,
+html.theme-apple .alert,
+html.theme-apple .toast,
+html.theme-apple .modal-content,
+html.theme-apple .modal-backdrop,
+html.theme-apple .tooltip .tooltip-inner,
+html.theme-apple #cabin-media-overlay .card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.theme-apple .card,
+html.theme-apple #ptt-btn,
+html.theme-apple .toast,
+html.theme-apple .modal-content {
+  box-shadow: var(--glass-shadow) !important;
+}
+
+html.theme-apple .btn,
+html.theme-apple .control-stack .btn,
+html.theme-apple .btn-group[aria-label="Radio channel selector"] label.btn,
+html.theme-apple #ptt-btn {
+  transition-property: background-color, border-color, color, box-shadow, transform !important;
+  transition-duration: 0.12s !important;
+}
+
+html.theme-apple #log-container > div,
+html.theme-apple .instruction-card,
+html.theme-apple .toast,
+html.theme-apple .lg-stagger > *,
+html.theme-apple .lg-flash {
+  animation: none !important;
+}
+
+html.theme-apple .lg-glass-filter {
+  filter: none !important;
+  will-change: auto !important;
+}
+
+html.theme-apple [data-lg-interactive]::after {
+  display: none !important;
 }

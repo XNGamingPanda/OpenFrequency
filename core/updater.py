@@ -84,10 +84,13 @@ def _get_current_version() -> str:
 
 def _version_tuple(v: str) -> tuple:
     """Convert a version string like 'v1.2.3' to (1, 2, 3)."""
-    try:
-        return tuple(int(x) for x in v.lstrip('v').split('.')[:3])
-    except Exception:
-        return (0, 0, 0)
+    import re
+    text = (v or '').strip().lstrip('vV')
+    nums = [int(x) for x in re.findall(r'\d+', text)[:3]]
+    while len(nums) < 3:
+        nums.append(0)
+    prerelease_rank = 0 if re.search(r'(alpha|beta|rc)', text, re.I) else 1
+    return (*nums, prerelease_rank)
 
 
 # ---------------------------------------------------------------------------

@@ -64,7 +64,7 @@ if (Test-Path $VersionFile) {
     $Version = Get-Content $VersionFile -Raw -Encoding UTF8
     $Version = $Version.Trim()
 } else {
-    $Version = "v3.9-beta"
+    $Version = "v3.9-beta-ef"
 }
 
 $PackageRoot = Join-Path $Root "dist\packages"

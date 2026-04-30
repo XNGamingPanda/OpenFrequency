@@ -2,6 +2,7 @@ import threading
 import time
 import random
 import os
+import re
 from .context import shared_context, context_lock, event_bus
 from .immersion.workload_sim import WorkloadSimulator
 from .taxi_router import TaxiRouter
@@ -505,7 +506,8 @@ class LogicManager:
                 role = freq_entry['role']
                 airport_ident = freq_entry['airport_ident']
                 label = freq_entry['label']
-                final_role = role if role in ["Center", "Emergency", "Unicom"] else f"{airport_ident} {role}"
+                airport_name = self._airport_short_name(airport_ident) or airport_ident
+                final_role = role if role in ["Center", "Emergency", "Unicom"] else f"{airport_name} {role}"
                 channel_key = self._format_channel_key(airport_ident, frequency_mhz, role)
                 shared_context['environment']['current_airport'] = airport_ident
                 shared_context['atc_state']['current_controller'] = final_role
@@ -515,7 +517,8 @@ class LogicManager:
             else:
                 role = self._determine_controller(frequency_mhz, shared_context['aircraft'].get('altitude', 0))
                 airport_ident = shared_context['environment'].get('nearest_airport', 'AREA')
-                final_role = role if role in ["Center", "Emergency", "Unicom"] else f"{airport_ident} {role}"
+                airport_name = self._airport_short_name(airport_ident) or airport_ident
+                final_role = role if role in ["Center", "Emergency", "Unicom"] else f"{airport_name} {role}"
                 channel_key = self._format_channel_key(airport_ident, frequency_mhz, role)
                 shared_context['atc_state']['current_controller'] = final_role
                 shared_context['atc_state']['current_frequency_label'] = f"{final_role} {float(frequency_mhz):.3f}"
@@ -1018,6 +1021,7 @@ class LogicManager:
         if not text or not text.strip():
             print("LogicManager: Received empty response (Silence).")
             return
+        text = self._normalize_radio_numbers(text)
 
         # ── Plugin hook: allow plugins to modify ATC text ─────────────────
         if self._plugin_manager:
@@ -1033,6 +1037,31 @@ class LogicManager:
         event_bus.emit('atc_instruction_issued', text, action, shared_context)
         self._emit_instruction_cards(text, sender)
         event_bus.emit('tts_request', text)
+
+    @staticmethod
+    def _normalize_radio_numbers(text: str) -> str:
+        """Normalize displayed English radio numbers that LLMs often leave as digits."""
+        if not text or re.search(r'[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]', text):
+            return text
+        digit_words = {
+            '0': 'zero',
+            '1': 'one',
+            '2': 'two',
+            '3': 'tree',
+            '4': 'four',
+            '5': 'fife',
+            '6': 'six',
+            '7': 'seven',
+            '8': 'eight',
+            '9': 'niner',
+        }
+
+        def qnh_repl(match):
+            label = match.group(1)
+            digits = match.group(2)
+            return f"{label} " + ' '.join(digit_words.get(ch, ch) for ch in digits)
+
+        return re.sub(r'\b(QNH|altimeter)\s+(\d{4})\b', qnh_repl, text, flags=re.I)
 
     def _emit_instruction_cards(self, text, sender):
         cards = InstructionExtractor.extract(text)

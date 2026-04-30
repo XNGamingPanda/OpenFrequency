@@ -44,6 +44,36 @@ _CATEGORIES: dict = _DB.get('categories', {})
 _BY_ID: dict[str, dict] = {t['id']: t for t in _TEMPLATES}
 
 
+def _normalize_lang(lang: str | None) -> str:
+    """Normalize app/STT language codes to template suffixes."""
+    lang = (lang or 'en').strip().lower()
+    if lang.startswith('zh'):
+        return 'zh'
+    if lang.startswith('ja') or lang.startswith('jp'):
+        return 'ja'
+    return 'en'
+
+
+def _qnh_radio_words(value: object) -> str:
+    """Format QNH digits for English radio phraseology, e.g. 1013 -> one zero one tree."""
+    qnh = re.sub(r'\D+', '', str(value or ''))
+    if not qnh:
+        return str(value or '')
+    words = {
+        '0': 'zero',
+        '1': 'one',
+        '2': 'two',
+        '3': 'tree',
+        '4': 'four',
+        '5': 'fife',
+        '6': 'six',
+        '7': 'seven',
+        '8': 'eight',
+        '9': 'niner',
+    }
+    return ' '.join(words.get(ch, ch) for ch in qnh)
+
+
 class QuickReplyEngine:
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -80,7 +110,8 @@ class QuickReplyEngine:
         if not tmpl:
             return None
 
-        # Pick the right language template
+        # Pick the right language template.
+        lang = _normalize_lang(lang)
         tpl_str = tmpl.get(f'template_{lang}') or tmpl.get('template_en', '')
         if not tpl_str:
             return None
@@ -90,6 +121,8 @@ class QuickReplyEngine:
         def _fill(m: re.Match) -> str:
             key = m.group(1)
             val = context.get(key, f'[{key}]')
+            if lang == 'en' and key.lower() == 'qnh' and val and not str(val).startswith('['):
+                return _qnh_radio_words(val)
             return str(val) if val else f'[{key}]'
 
         return re.sub(r'\{(\w+)\}', _fill, tpl_str)
@@ -107,13 +140,15 @@ class QuickReplyEngine:
         When pilot_text contains CJK characters, triggers_zh is preferred and
         the response is rendered in Chinese (template_zh).
         """
-        text_lower = pilot_text.lower()
+        text_lower = (pilot_text or '').lower()
         role_key = cls._extract_role_key(role)
 
         # Detect Chinese input → use Chinese triggers and response language
-        is_chinese = bool(re.search(r'[一-鿿㐀-䶿]', pilot_text))
+        is_chinese = bool(re.search(r'[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]', pilot_text or ''))
         if is_chinese:
             lang = 'zh'
+        else:
+            lang = _normalize_lang(lang)
 
         # Only auto-apply acknowledgement-category templates
         AUTO_CATEGORIES = {'acknowledgement'}
@@ -173,7 +208,7 @@ class QuickReplyEngine:
         return {
             'callsign':  ac.get('callsign', ''),
             'freq':      atc.get('current_frequency', ''),
-            'role':      atc.get('current_frequency_label', ''),
+            'role':      atc.get('current_controller') or atc.get('current_frequency_label', ''),
             'runway':    runway,
             'wind':      wind,
             'squawk':    issued.get('squawk', ''),

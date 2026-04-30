@@ -478,12 +478,20 @@ def build_whisper_hotwords(config: dict) -> str:
     # Get user's airline / callsign from config
     callsign = config.get('user_profile', {}).get('callsign', '')
     airline_icao = config.get('user_profile', {}).get('airline_icao', '')
+    flight_plan = config.get('flight_plan', {}) or {}
 
     phrases = []
 
     # Add current callsign first (highest priority)
     if callsign:
         phrases.append(callsign)
+        if any(ch.isdigit() for ch in callsign):
+            phrases.append(' '.join(callsign))
+
+    for key in ('origin', 'destination', 'alternate', 'departure', 'arrival'):
+        value = (flight_plan.get(key) or '').strip()
+        if value and value != 'N/A':
+            phrases.append(value)
 
     # Core aviation vocabulary (English)
     phrases += [
@@ -539,6 +547,7 @@ def build_whisper_hotwords(config: dict) -> str:
         "爬升", "下降", "保持高度", "飞航向",
         "联系", "更换频率", "气压拨正", "应答机",
         "雷达接触", "跑道", "滑行", "等待",
+        "高崎", "Gaoqi", "厦门", "Xiamen",
     ]
 
     return ', '.join(phrases)

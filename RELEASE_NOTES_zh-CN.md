@@ -2,6 +2,75 @@
 
 ---
 
+# v3.9-beta-ef (Emergency Fix) - 2026-04-30
+
+> **发布日期**：2026-04-30
+> **版本**：**v3.9-beta-ef**
+> **状态**：**紧急修复版**
+
+本版本是 v3.9 beta 的紧急修复版，重点修复 MSI 安装后的写入权限、IFR/VFR 放行崩溃、模拟器属性 Unknown、模型目录识别、插件管理器损坏、ATIS/无线电读法、下载链接与更新检查等问题。
+
+## 紧急修复
+
+| 模块 | 修复内容 |
+|------|---------|
+| MSI 安装程序 | 修复安装后缺少写入权限的问题，运行时配置、日志、缓存和模型文件统一使用可写的 `%APPDATA%\OpenFrequency` 目录。 |
+| IFR/VFR 规则 | 修复切换或处理 IFR/VFR 放行规则时可能导致程序崩溃的问题。 |
+| 模拟器属性 | 修复已有运行时信息时模拟器属性仍显示为 `Unknown` 的问题。 |
+| 用户统计 | 使用 UUID 对用户进行去重计数，减少仅依赖 IP fallback 的误差。 |
+| 模型识别 | STT/TTS 可识别位于 `%APPDATA%\OpenFrequency\models` 目录下的模型文件。 |
+| 插件管理器 | 修复插件管理器 HTML 标签损坏导致页面漂移/空白的问题，Classic 和 Apple 风格均可正常访问，并恢复 1-10 节详细开发文档。 |
+| 启动流程 | 修复 `_plugin_manager` 全局初始化导致的启动语法错误。 |
+
+## ATIS、无线电读法与 STT/TTS
+
+- 修复中文模板匹配后仍回复英文的问题。
+- 快速回复使用显示管制名，例如 `Gaoqi Tower`，不再错误使用 `ZSAM Tower`。
+- Whisper/STT 热词加入呼号、机场名、Gaoqi/Xiamen/高崎/厦门等地名。
+- 中文 ATIS 能见度显示改为数字格式，例如 `9700米`，不再显示 `9千7百米`。
+- 过渡高度显示保持 `过渡高度 3000米 / 过渡高度层 3600米`，TTS 读作 `过渡高度三千米 / 过渡高度层三千六米`。
+- 英文 QNH 改为无线电逐位读法，例如 `QNH 1013` 读作 `QNH one zero one tree`。
+- 播报前规范 LLM 输出中的 `QNH 1013` 这类数字读法。
+- 本地 STT 改为持久 Sherpa worker，避免每次识别重新加载模型。
+- 修复 STT/TTS 自动下载和手动下载链接 404：
+  - STT 使用 HuggingFace / hf-mirror 的 Sherpa-ONNX Whisper small。
+  - Kokoro TTS 使用 `kokoro-v1.0.onnx` 和 `voices-v1.0.bin`。
+- Kokoro 默认模型更新到 v1.0，同时保留旧 v0.19 文件兼容。
+
+## UI、更新与插件
+
+- Apple 风格默认关闭高成本实时毛玻璃和 SVG 位移滤镜，改善浏览器卡顿。
+- “界面设置”新增 Apple Liquid Glass Effects 开关。
+- 修复 Apple 风格背景上深下浅/分层问题。
+- 检查更新的 Up to date 增加中文和日文文案。
+- 修复版本号显示可能出现 `vv3.9-beta` 的问题。
+- 更新比较逻辑支持 beta/rc 等预发布版本。
+- Hoppie ACARS 增加设置页测试按钮和 `/api/hoppie/test` 后端接口。
+
+## 导航与机场数据
+
+- 优化优先跑道选择，避免同时给出互为反向的跑道端，并避免明显顺风跑道。
+- SimBrief 导入时提取 `navlog.fix` 航路点，仪表盘蓝色预测航路优先按计划航路绘制，不再只画起终点直线。
+
+## 构建/发布信息
+
+- Release tag：`v3.9-beta-ef`
+- ZIP 文件：`OpenFrequency-v3.9-beta-ef.zip`
+- MSI 文件：`OpenFrequency-v3.9-beta-ef-Setup.msi`
+- SHA-256：
+  - `OpenFrequency-v3.9-beta-ef.zip`：`A43AA5AAC8941A810AC025C31B6EA7D9EEEEE49DB1164A11CC2EB14E955A393F`
+  - `OpenFrequency-v3.9-beta-ef-Setup.msi`：`1EF47DE74E5F84C1E8E9689E0F689575DFC5C33E25574FC25DF245B19EEB9ACA`
+- 构建命令：
+
+```powershell
+.\build.bat msi
+```
+
+---
+# OpenFrequency 发布说明
+
+---
+
 # v3.9-beta — 2026-04-29
 
 > **发布日期**：2026-04-29

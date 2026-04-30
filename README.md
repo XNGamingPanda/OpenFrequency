@@ -1,11 +1,11 @@
 # OpenFrequency 📡
 > *The AI ATC for Everyone.*
 
-![Version](https://img.shields.io/badge/Status-v3.9--beta-orange) ![License](https://img.shields.io/badge/License-MIT-green) ![Simulator](https://img.shields.io/badge/Simulator-MSFS%20|%20X--Plane-blue)
+![Version](https://img.shields.io/badge/Status-v3.9--beta--ef-orange) ![License](https://img.shields.io/badge/License-MIT-green) ![Simulator](https://img.shields.io/badge/Simulator-MSFS%20|%20X--Plane-blue)
 
 > 📖 **[中文文档 README_zh-CN.md](README_zh-CN.md)**
 
-> ⚠️ **Alpha Notice**: v3.9-beta contains major new features — CPDLC, plugin system, MSI installer, auto-update, local TTS, and more. See [Release Notes](RELEASE_NOTES.md) before upgrading.
+> ⚠️ **Emergency Fix Notice**: v3.9-beta-ef fixes urgent MSI permission, IFR/VFR, plugin manager, STT/TTS download, ATIS phraseology, and updater issues in the v3.9 beta line. See [Release Notes](RELEASE_NOTES.md) before upgrading.
 
 **OpenFrequency** is a next-generation, open-source Air Traffic Control system for flight simulators.
 
@@ -68,7 +68,7 @@ Simulation enthusiasts deserve an immersion system that:
 
 ## Download
 
-Go to the [Releases](https://github.com/XNGamingPanda/OpenFrequency/releases) page and download the latest `OpenFrequency-v3.9-beta-Setup.msi`.
+Go to the [Releases](https://github.com/XNGamingPanda/OpenFrequency/releases) page and download the latest `OpenFrequency-v3.9-beta-ef-Setup.msi`.
 
 Or use the [Download Page](https://openfrequency.pages.dev) powered by Cloudflare Pages.
 
@@ -80,7 +80,7 @@ Or use the [Download Page](https://openfrequency.pages.dev) powered by Cloudflar
 - Google Gemini API Key (Free tier available)
 
 ### Option A: MSI Installer (Recommended)
-1. Download `OpenFrequency-v3.9-beta-Setup.msi` from [Releases](https://github.com/XNGamingPanda/OpenFrequency/releases).
+1. Download `OpenFrequency-v3.9-beta-ef-Setup.msi` from [Releases](https://github.com/XNGamingPanda/OpenFrequency/releases).
 2. Run the installer — it creates Start Menu and Desktop shortcuts.
 3. On first launch, OpenFrequency creates `%APPDATA%\OpenFrequency\config.json` from the example config.
 4. Open the config, add your API key, and start flying.
@@ -100,7 +100,7 @@ python app.py
 # Install WiX: dotnet tool install --global wix
 
 powershell -ExecutionPolicy Bypass -File installer\build_installer.ps1
-# Output: dist\OpenFrequency-v3.9-beta-Setup.msi
+# Output: dist\OpenFrequency-v3.9-beta-ef-Setup.msi
 ```
 
 ## Roadmap 🗺️

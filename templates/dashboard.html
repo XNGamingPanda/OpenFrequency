@@ -1696,8 +1696,20 @@
 
         let pts = [];
 
+        if (Array.isArray(fp.route_waypoints) && fp.route_waypoints.length > 0) {
+            pts = fp.route_waypoints
+                .filter(w => Number.isFinite(Number(w.lat)) && Number.isFinite(Number(w.lon)))
+                .map(w => [Number(w.lat), Number(w.lon)]);
+            fp.route_waypoints.forEach(w => {
+                if (!Number.isFinite(Number(w.lat)) || !Number.isFinite(Number(w.lon))) return;
+                L.circleMarker([Number(w.lat), Number(w.lon)], { radius: 3, color: '#2979ff', fillColor: '#2979ff', fillOpacity: 0.7, weight: 1 })
+                    .bindTooltip(w.ident || '', { permanent: false })
+                    .addTo(routePredictionLayer);
+            });
+        }
+
         // Try to resolve intermediate waypoints via nav SQLite
-        if (fp.route && fp.route !== 'N/A') {
+        if (pts.length === 0 && fp.route && fp.route !== 'N/A') {
             try {
                 const resp = await fetch('/api/resolve_route_waypoints', {
                     method: 'POST',

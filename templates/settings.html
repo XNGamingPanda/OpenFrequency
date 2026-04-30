@@ -3,1118 +3,1246 @@
 {% block content %}
 <div class="container-fluid px-3 py-3" style="max-width:1100px;">
 
-  <div class="row justify-content-center">
-    <div class="col-lg-8 col-md-10">
-      <div class="card shadow-sm">
-        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-          <h5 class="mb-0" data-i18n="system_config">System Configuration</h5>
-          <div>
-            <button class="btn btn-sm btn-outline-light" onclick="testAudio()" data-i18n="test_audio">🔊 Test
-              Audio</button>
-          </div>
-        </div>
-        <div class="card-body">
-          <form id="settings-form">
-
-            <!-- Language Selector -->
-            <div class="mb-3">
-              <label class="form-label small mb-0" data-i18n="language">Language / 语言</label>
-              <select id="lang-selector" class="form-select form-select-sm">
-                <option value="en">English</option>
-                <option value="zh">中文</option>
-                <option value="ja">日本語</option>
-              </select>
-            </div>
-
-            <!-- Pilot Profile & SimBrief -->
-            <h6 class="border-bottom pb-1 mb-2" data-i18n="pilot_profile">Pilot Profile</h6>
-            <div class="mb-2">
-              <label class="form-label small mb-0" data-i18n="callsign">Callsign</label>
-              <div class="input-group input-group-sm">
-                <input type="text" class="form-control form-control-sm" id="conf-callsign"
-                  placeholder="e.g. CCA1024">
-                <span class="input-group-text d-none text-warning border-warning" id="callsign-lock-icon"
-                      title="Career mode: callsign locked">🔒</span>
-              </div>
-              <div class="form-text text-warning d-none" id="callsign-lock-hint"
-                   data-i18n="callsign_career_locked">Career mode active — callsign locked to job</div>
-            </div>
-            <div class="mb-2">
-              <label class="form-label small mb-0" data-i18n="simbrief_username">SimBrief Username</label>
-              <div class="input-group input-group-sm">
-                <input type="text" class="form-control" id="conf-simbrief-user" placeholder="J.Doe">
-                <button class="btn btn-outline-primary" type="button" onclick="importSimBrief()"
-                  data-i18n="import">Import</button>
-              </div>
-              <div id="simbrief-status" class="form-text x-small text-muted" data-i18n="simbrief_hint">Enter
-                username to fetch latest OFP.</div>
-            </div>
-            <div class="mb-2">
-              <label class="form-label small mb-0" data-i18n="flight_plan">Flight Plan</label>
-              <div class="row g-2">
-                <div class="col-sm-4">
-                  <label class="form-label small mb-1 mt-1" for="conf-fp-origin" data-i18n="flight_plan_origin">Origin ICAO</label>
-                  <input type="text" class="form-control form-control-sm" id="conf-fp-origin">
-                </div>
-                <div class="col-sm-4">
-                  <label class="form-label small mb-1 mt-1" for="conf-fp-destination" data-i18n="flight_plan_destination">Destination ICAO</label>
-                  <input type="text" class="form-control form-control-sm" id="conf-fp-destination">
-                </div>
-                <div class="col-sm-4">
-                  <label class="form-label small mb-1 mt-1" for="conf-fp-alternate" data-i18n="flight_plan_alternate">Alternate ICAO</label>
-                  <input type="text" class="form-control form-control-sm" id="conf-fp-alternate">
-                </div>
-                <div class="col-sm-4">
-                  <label class="form-label small mb-1 mt-1" for="conf-fp-cruise" data-i18n="flight_plan_cruise">Cruise Alt FT</label>
-                  <input type="number" class="form-control form-control-sm" id="conf-fp-cruise">
-                </div>
-                <div class="col-sm-8">
-                  <label class="form-label small mb-1 mt-1" for="conf-fp-route" data-i18n="flight_plan_route">Route / SID / Airway</label>
-                  <input type="text" class="form-control form-control-sm" id="conf-fp-route">
-                </div>
-              </div>
-              <div class="form-text x-small text-muted" data-i18n="flight_plan_hint">Import from SimBrief or edit manually, then click Save Settings.</div>
-            </div>
-
-            <!-- Hoppie ACARS -->
-            <div class="mb-3 mt-3">
-              <h6 class="border-bottom pb-1 mb-2" data-i18n="hoppie_section">Hoppie ACARS</h6>
-              <div class="mb-2">
-                <label class="form-label small mb-0" data-i18n="hoppie_logon_label">Logon Code</label>
-                <input type="password" class="form-control form-control-sm" id="conf-hoppie-logon"
-                  placeholder="hoppie.nl logon code" autocomplete="off">
-                <div class="form-text x-small text-muted" data-i18n="hoppie_logon_hint">
-                  在 hoppie.nl 注册获取。留空则禁用 Hoppie。
-                </div>
-              </div>
-              <div class="mb-2">
-                <label class="form-label small mb-0" data-i18n="hoppie_poll_label">轮询间隔（秒，最少 65）</label>
-                <input type="number" class="form-control form-control-sm" id="conf-hoppie-poll-interval"
-                  min="65" max="600" step="5" value="65">
-                <div class="form-text x-small text-muted" data-i18n="hoppie_poll_hint">
-                  Hoppie 规定最少 60 秒一次请求，建议保持 65 秒以上。
-                </div>
-              </div>
-            </div>
-
-            <!-- Cabin Media Package Selection -->
-            <div class="mb-3 mt-3">
-              <label class="form-label small mb-0" data-i18n="cabin_media_package">客舱语音包</label>
-              <select class="form-select form-select-sm" id="conf-cabin-media-package">
-                <option value="" data-i18n="cabin_media_auto">自动匹配（根据呼号）</option>
-              </select>
-              <div class="form-text x-small text-muted" data-i18n="cabin_media_hint">选择当前航班的客舱语音包。留空则根据呼号自动匹配。</div>
-            </div>
-
-            <!-- Connection Settings -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="ai_connection">AI Connection</h6>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="provider">Provider</label>
-                        <select class="form-select form-select-sm" id="conf-provider">
-                            <option value="gemini">Google Gemini (Cloud)</option>
-                            <option value="openai_compatible">OpenAI Compatible (Ollama/Local)</option>
-                        </select>
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0" data-i18n="system_config">System Configuration</h5>
+                    <div>
+                        <button class="btn btn-sm btn-outline-light" onclick="testAudio()" data-i18n="test_audio">🔊
+                            Test
+                            Audio</button>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="api_key">API Key</label>
-                        <input type="password" class="form-control form-control-sm" id="conf-api-key"
-                            placeholder="Enter API Key">
-                        <div class="form-text x-small text-muted" data-i18n="api_key_hint">Existing key is hidden. Leave as ******
-                            to keep current.</div>
-                    </div>
+                </div>
+                <div class="card-body">
+                    <form id="settings-form">
 
-                    <!-- Dual Model -->
-                    <div class="mb-1">
-                        <label class="form-label small mb-0" data-i18n="model_fast_label">⚡ 快速模型
-                            <span class="text-muted" style="font-size:0.75em;" data-i18n="model_fast_desc">— 读回、简单确认</span>
-                        </label>
-                        <input type="text" class="form-control form-control-sm" id="conf-model-fast"
-                            placeholder="e.g. gemini-2.0-flash">
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="model_thinking_label">🧠 思考模型
-                            <span class="text-muted" style="font-size:0.75em;" data-i18n="model_thinking_desc">— 放行、紧急情况、航路规划</span>
-                        </label>
-                        <input type="text" class="form-control form-control-sm" id="conf-model-thinking"
-                            placeholder="e.g. gemini-2.0-flash-thinking-exp-01-21">
-                        <div class="form-text x-small text-muted" data-i18n="model_dual_hint">任一字段留空则两个层级使用同一模型。</div>
-                    </div>
-                    <!-- Legacy single model (hidden but kept for backward compat) -->
-                    <input type="hidden" id="conf-model">
+                        <!-- Language Selector -->
+                        <div class="mb-3">
+                            <label class="form-label small mb-0" data-i18n="language">Language / 语言</label>
+                            <select id="lang-selector" class="form-select form-select-sm">
+                                <option value="en">English</option>
+                                <option value="zh">中文</option>
+                                <option value="ja">日本語</option>
+                            </select>
+                        </div>
 
-                    <div class="mb-2" id="base-url-group">
-                        <label class="form-label small mb-0" data-i18n="base_url">Base URL (Local/Ollama)</label>
-                        <input type="text" class="form-control form-control-sm" id="conf-base-url"
-                            placeholder="http://localhost:11434/v1">
-                    </div>
-
-                    <!-- Simulator Settings -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="simulator_settings">Simulator</h6>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="simulator_provider">Simulator Provider</label>
-                        <select class="form-select form-select-sm" id="conf-sim-provider">
-                            <option value="auto">Auto Detect</option>
-                            <option value="msfs">MSFS / SimConnect</option>
-                            <option value="xplane">X-Plane / Local Web API</option>
-                            <option value="p3d">Prepar3D</option>
-                            <option value="fsx">FSX</option>
-                        </select>
-                    </div>
-                    <div id="xplane-config-group">
-                        <div class="row g-2">
-                            <div class="col-sm-8">
-                                <label class="form-label small mb-0" data-i18n="xplane_host">X-Plane Host</label>
-                                <input type="text" class="form-control form-control-sm" id="conf-xplane-host" placeholder="127.0.0.1">
+                        <!-- Pilot Profile & SimBrief -->
+                        <h6 class="border-bottom pb-1 mb-2" data-i18n="pilot_profile">Pilot Profile</h6>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0" data-i18n="callsign">Callsign</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control form-control-sm" id="conf-callsign"
+                                    placeholder="e.g. CCA1024">
+                                <span class="input-group-text d-none text-warning border-warning"
+                                    id="callsign-lock-icon" title="Career mode: callsign locked">🔒</span>
                             </div>
-                            <div class="col-sm-4">
-                                <label class="form-label small mb-0" data-i18n="xplane_port">X-Plane Web API Port</label>
-                                <input type="number" class="form-control form-control-sm" id="conf-xplane-port" placeholder="8086">
+                            <div class="form-text text-warning d-none" id="callsign-lock-hint"
+                                data-i18n="callsign_career_locked">Career mode active — callsign locked to job</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0" data-i18n="simbrief_username">SimBrief Username</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" id="conf-simbrief-user" placeholder="J.Doe">
+                                <button class="btn btn-outline-primary" type="button" onclick="importSimBrief()"
+                                    data-i18n="import">Import</button>
+                            </div>
+                            <div id="simbrief-status" class="form-text x-small text-muted" data-i18n="simbrief_hint">
+                                Enter
+                                username to fetch latest OFP.</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0" data-i18n="flight_plan">Flight Plan</label>
+                            <div class="row g-2">
+                                <div class="col-sm-4">
+                                    <label class="form-label small mb-1 mt-1" for="conf-fp-origin"
+                                        data-i18n="flight_plan_origin">Origin ICAO</label>
+                                    <input type="text" class="form-control form-control-sm" id="conf-fp-origin">
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label small mb-1 mt-1" for="conf-fp-destination"
+                                        data-i18n="flight_plan_destination">Destination ICAO</label>
+                                    <input type="text" class="form-control form-control-sm" id="conf-fp-destination">
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label small mb-1 mt-1" for="conf-fp-alternate"
+                                        data-i18n="flight_plan_alternate">Alternate ICAO</label>
+                                    <input type="text" class="form-control form-control-sm" id="conf-fp-alternate">
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label small mb-1 mt-1" for="conf-fp-cruise"
+                                        data-i18n="flight_plan_cruise">Cruise Alt FT</label>
+                                    <input type="number" class="form-control form-control-sm" id="conf-fp-cruise">
+                                </div>
+                                <div class="col-sm-8">
+                                    <label class="form-label small mb-1 mt-1" for="conf-fp-route"
+                                        data-i18n="flight_plan_route">Route / SID / Airway</label>
+                                    <input type="text" class="form-control form-control-sm" id="conf-fp-route">
+                                </div>
+                            </div>
+                            <div class="form-text x-small text-muted" data-i18n="flight_plan_hint">Import from SimBrief
+                                or edit manually, then click Save Settings.</div>
+                        </div>
+
+                        <!-- Hoppie ACARS -->
+                        <div class="mb-3 mt-3">
+                            <h6 class="border-bottom pb-1 mb-2" data-i18n="hoppie_section">Hoppie ACARS</h6>
+                            <div class="mb-2">
+                                <label class="form-label small mb-0" data-i18n="hoppie_logon_label">Logon Code</label>
+                                <input type="password" class="form-control form-control-sm" id="conf-hoppie-logon"
+                                    placeholder="hoppie.nl logon code" autocomplete="off">
+                                <div class="form-text x-small text-muted" data-i18n="hoppie_logon_hint">
+                                    在 hoppie.nl 注册获取。留空则禁用 Hoppie。
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-0" data-i18n="hoppie_poll_label">轮询间隔（秒，最少 65）</label>
+                                <input type="number" class="form-control form-control-sm" id="conf-hoppie-poll-interval"
+                                    min="65" max="600" step="5" value="65">
+                                <div class="form-text x-small text-muted" data-i18n="hoppie_poll_hint">
+                                    Hoppie 规定最少 60 秒一次请求，建议保持 65 秒以上。
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="testHoppieAcars()"
+                                    data-i18n="hoppie_test_btn">Test Hoppie</button>
+                                <span id="hoppie-test-status" class="small text-muted"></span>
                             </div>
                         </div>
-                    </div>
-                    <div class="mt-2">
-                        <label class="form-label small mb-0" data-i18n="frequency_data_source">Frequency Data Source</label>
-                        <select class="form-select form-select-sm" id="conf-frequency-source">
-                            <option value="third_party" data-i18n="source_ourairports">OurAirports / Third-party</option>
-                            <option value="simulator" data-i18n="source_simulator">Simulator Native Data</option>
-                        </select>
-                    </div>
-                    <div class="mt-2">
-                        <label class="form-label small mb-0" data-i18n="ground_data_source">Ground Layout Source</label>
-                        <select class="form-select form-select-sm" id="conf-ground-source">
-                            <option value="simulator" data-i18n="source_simulator_ground">Simulator apt.dat / scenery</option>
-                            <option value="osm" data-i18n="source_osm">OpenStreetMap / Overpass</option>
-                        </select>
-                    </div>
-                    <div class="mt-2" id="osm-config-group">
-                        <label class="form-label small mb-0" data-i18n="osm_overpass_url">OSM Overpass API</label>
-                        <input type="text" class="form-control form-control-sm" id="conf-osm-overpass-url" placeholder="https://overpass-api.de/api/interpreter">
-                        <div class="form-text x-small text-muted" data-i18n="ground_data_hint">Choose simulator or third-party sources for airport frequencies and taxi/apron data.</div>
-                    </div>
 
-                    <!-- TTS + STT Voice Engine -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="voice_engine">🔊 语音引擎（TTS / STT）</h6>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="tts_backend">TTS 合成后端</label>
-                        <select class="form-select form-select-sm" id="conf-tts-backend"
-                            onchange="toggleLocalTtsFields()">
-                            <option value="edge" data-i18n="tts_edge_option">Edge-TTS（微软云，推荐）</option>
-                            <option value="local" data-i18n="tts_local_option">本地 TTS（离线流式播放）</option>
-                        </select>
-                    </div>
-                    <div id="local-tts-group" style="display:none;">
+                        <!-- Cabin Media Package Selection -->
+                        <div class="mb-3 mt-3">
+                            <label class="form-label small mb-0" data-i18n="cabin_media_package">客舱语音包</label>
+                            <select class="form-select form-select-sm" id="conf-cabin-media-package">
+                                <option value="" data-i18n="cabin_media_auto">自动匹配（根据呼号）</option>
+                            </select>
+                            <div class="form-text x-small text-muted" data-i18n="cabin_media_hint">
+                                选择当前航班的客舱语音包。留空则根据呼号自动匹配。</div>
+                        </div>
+
+                        <!-- Connection Settings -->
+                        <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="ai_connection">AI Connection</h6>
                         <div class="mb-2">
-                            <label class="form-label small mb-0" data-i18n="local_engine">本地引擎</label>
-                            <select class="form-select form-select-sm" id="conf-tts-local-engine"
-                                onchange="updateTtsModelPlaceholder()">
-                                <option value="kokoro">Kokoro-ONNX (pip install kokoro-onnx)</option>
-                                <option value="piper">Piper TTS (pip install piper-tts)</option>
+                            <label class="form-label small mb-0" data-i18n="provider">Provider</label>
+                            <select class="form-select form-select-sm" id="conf-provider">
+                                <option value="gemini">Google Gemini (Cloud)</option>
+                                <option value="openai_compatible">OpenAI Compatible (Ollama/Local)</option>
                             </select>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label small mb-0" data-i18n="model_file_path">模型文件路径</label>
-                            <input type="text" class="form-control form-control-sm" id="conf-tts-local-model"
-                                placeholder="./models/kokoro-v0_19.onnx">
+                            <label class="form-label small mb-0" data-i18n="api_key">API Key</label>
+                            <input type="password" class="form-control form-control-sm" id="conf-api-key"
+                                placeholder="Enter API Key">
+                            <div class="form-text x-small text-muted" data-i18n="api_key_hint">Existing key is hidden.
+                                Leave as ******
+                                to keep current.</div>
                         </div>
-                        <div class="mb-2" id="kokoro-voices-group">
-                            <label class="form-label small mb-0" data-i18n="voices_file">音色文件（仅 Kokoro）</label>
-                            <input type="text" class="form-control form-control-sm" id="conf-tts-local-voices"
-                                placeholder="e.g. ./models/voices.bin">
+
+                        <!-- Dual Model -->
+                        <div class="mb-1">
+                            <label class="form-label small mb-0" data-i18n="model_fast_label">⚡ 快速模型
+                                <span class="text-muted" style="font-size:0.75em;" data-i18n="model_fast_desc">—
+                                    读回、简单确认</span>
+                            </label>
+                            <input type="text" class="form-control form-control-sm" id="conf-model-fast"
+                                placeholder="e.g. gemini-2.0-flash">
                         </div>
                         <div class="mb-2">
-                            <button class="btn btn-sm btn-outline-primary mt-1" id="btn-dl-tts" onclick="downloadModelWithProgress('tts')" data-i18n="download_tts">⬇ 下载 TTS 模型</button>
-                            <span id="tts-dl-status" class="small text-muted ms-2"></span>
-                            <div id="tts-dl-progress" style="display:none;margin-top:6px;">
-                                <div class="small text-muted mb-1" id="tts-dl-label"></div>
-                                <div style="height:5px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden;">
-                                    <div id="tts-dl-fill" style="height:100%;border-radius:3px;background:#0d6efd;width:0%;transition:width 0.3s;"></div>
-                                </div>
-                            </div>
-                            <div id="tts-dl-manual" class="small text-muted mt-2" style="display:none;white-space:pre-wrap;line-height:1.7;"></div>
-                        </div>
-                        <div class="form-text x-small text-muted mb-2" data-i18n="local_tts_hint">
-                            本地 TTS 逐句流式播放，延迟更低。Kokoro 支持英语音色；中文/日文推荐使用 Edge-TTS。
-                        </div>
-                    </div>
-
-                    <!-- STT Settings -->
-                    <div class="mb-2 mt-2">
-                        <label class="form-label small mb-0" data-i18n="stt_model_path">STT Model Path</label>
-                        <input type="text" class="form-control form-control-sm" id="conf-stt-path"
-                            placeholder="./models/sherpa-onnx-whisper-tiny.en">
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="stt_language">STT Language</label>
-                        <select class="form-select form-select-sm" id="conf-stt-language">
-                            <option value="auto" data-i18n="stt_auto">Auto Detect</option>
-                            <option value="en">English</option>
-                            <option value="zh">Chinese (中文)</option>
-                            <option value="ja">Japanese (日本語)</option>
-                        </select>
-                    </div>
-                    <div class="mb-2">
-                        <button class="btn btn-sm btn-outline-primary" id="btn-dl-stt" onclick="downloadModelWithProgress('stt')" data-i18n="download_stt">⬇ 下载 STT 模型</button>
-                        <span id="stt-dl-status" class="small text-muted ms-2"></span>
-                        <div id="stt-dl-progress" style="display:none;margin-top:6px;">
-                            <div class="small text-muted mb-1" id="stt-dl-label"></div>
-                            <div style="height:5px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden;">
-                                <div id="stt-dl-fill" style="height:100%;border-radius:3px;background:#0d6efd;width:0%;transition:width 0.3s;"></div>
+                            <label class="form-label small mb-0" data-i18n="model_thinking_label">🧠 思考模型
+                                <span class="text-muted" style="font-size:0.75em;" data-i18n="model_thinking_desc">—
+                                    放行、紧急情况、航路规划</span>
+                            </label>
+                            <input type="text" class="form-control form-control-sm" id="conf-model-thinking"
+                                placeholder="e.g. gemini-2.0-flash-thinking-exp-01-21">
+                            <div class="form-text x-small text-muted" data-i18n="model_dual_hint">任一字段留空则两个层级使用同一模型。
                             </div>
                         </div>
-                        <div id="stt-dl-manual" class="small text-muted mt-2" style="display:none;white-space:pre-wrap;line-height:1.7;"></div>
-                        <div class="form-text x-small text-muted mt-1">
-                            默认路径：<code>./models/sherpa-onnx-whisper-small</code>（约 145 MB，含 encoder + decoder + tokens）
-                        </div>
-                    </div>
+                        <!-- Legacy single model (hidden but kept for backward compat) -->
+                        <input type="hidden" id="conf-model">
 
-                    <!-- Audio Settings -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="audio_controls">Audio & Controls</h6>
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <label class="form-label small mb-0" data-i18n="joystick_ptt">Joystick PTT</label>
-                            <span id="ptt-bind-status" class="badge bg-secondary" style="font-size: 0.7em;"
-                                data-i18n="unbound">Unbound</span>
+                        <div class="mb-2" id="base-url-group">
+                            <label class="form-label small mb-0" data-i18n="base_url">Base URL (Local/Ollama)</label>
+                            <input type="text" class="form-control form-control-sm" id="conf-base-url"
+                                placeholder="http://localhost:11434/v1">
                         </div>
-                        <div class="d-flex gap-1">
-                            <button class="btn btn-sm btn-outline-warning flex-grow-1" id="btn-bind-ptt"
-                                onclick="startBindingPTT(); return false;" data-i18n="bind_btn">Click to Bind
-                                Button</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="clearBindingPTT(); return false;"
-                                title="Clear Binding">✕</button>
-                        </div>
-                    </div>
-                    <div class="mb-2">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="conf-radio-effect">
-                            <label class="form-check-label small" for="conf-radio-effect" data-i18n="radio_static">Radio
-                                Static Effect</label>
-                        </div>
-                    </div>
-                    <div class="mb-2">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="conf-auto-busy" checked
-                                   onchange="document.getElementById('busy-level-row').style.display=this.checked?'none':'block'">
-                            <label class="form-check-label small" for="conf-auto-busy">
-                                <span data-i18n="auto_busy_label">🤖 自动忙碌等级</span>
-                                <span class="text-muted" style="font-size:0.85em;" data-i18n="auto_busy_desc">— 根据附近真实飞机数量自动推算</span>
-                            </label>
-                        </div>
-                        <div id="auto-busy-status" class="form-text x-small text-muted mt-1"></div>
-                    </div>
-                    <div class="mb-2" id="busy-level-row" style="display:none">
-                        <label class="form-label small mb-0" data-i18n="traffic_density">Traffic Density (Fallback)</label>
-                        <select class="form-select form-select-sm" id="conf-busy-level">
-                            <option value="low" data-i18n="density_low">Low (Lazy Afternoon)</option>
-                            <option value="medium" data-i18n="density_medium">Medium (Standard)</option>
-                            <option value="high" data-i18n="density_high">High (Busy Hub)</option>
-                        </select>
-                        <div class="form-text x-small text-muted" data-i18n="busy_level_hint">Used when Auto Busy is off or no traffic data is available.</div>
-                    </div>
-                    <div class="mb-2">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="conf-allow-intl-non-english">
-                            <label class="form-check-label small" for="conf-allow-intl-non-english">
-                                <span data-i18n="allow_non_english_label">🌐 允许在中国空域外使用非英语通话</span>
-                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;" data-i18n="allow_non_english_badge">非真实情形</span>
-                            </label>
-                        </div>
-                        <div class="form-text x-small text-muted" data-i18n="allow_non_english_hint">
-                            关闭时，在中国/日本空域外管制员将使用英语（ICAO 标准）。开启后可在任何地方使用您设定的语言。
-                        </div>
-                    </div>
 
-                    <!-- Security Settings -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3 text-danger" data-i18n="security_settings">Security & Access
-                    </h6>
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="access_mode">Access Mode</label>
-                        <select class="form-select form-select-sm" id="conf-security-mode">
-                            <option value="doorbell" data-i18n="mode_doorbell">🟡 Doorbell (Approve New)</option>
-                            <option value="open" data-i18n="mode_open">🟢 Open (Allow All)</option>
-                            <option value="lockdown" data-i18n="mode_lockdown">🔴 Lockdown (Reject All)</option>
-                        </select>
-                        <div class="form-text x-small text-muted">
-                            <span data-i18n="security_hint">Control who can access this dashboard via network.</span>
+                        <!-- Simulator Settings -->
+                        <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="simulator_settings">Simulator</h6>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0" data-i18n="simulator_provider">Simulator
+                                Provider</label>
+                            <select class="form-select form-select-sm" id="conf-sim-provider">
+                                <option value="auto">Auto Detect</option>
+                                <option value="msfs">MSFS / SimConnect</option>
+                                <option value="xplane">X-Plane / Local Web API</option>
+                                <option value="p3d">Prepar3D</option>
+                                <option value="fsx">FSX</option>
+                            </select>
                         </div>
-                        <div class="mt-2 text-end">
-                            <a href="/devices" class="btn btn-sm btn-outline-primary"
-                                data-i18n="manage_devices_btn">Manage Devices</a>
-                        </div>
-                    </div>
-
-                    <div class="mb-2">
-                        <label class="form-label small mb-0" data-i18n="emergency_level">Emergency Probability</label>
-                        <select class="form-select form-select-sm" id="conf-emergency-level">
-                            <option value="none" data-i18n="level_none">None (Safe)</option>
-                            <option value="low" data-i18n="level_low">Low (Realistic)</option>
-                            <option value="medium" data-i18n="level_medium">Medium (Frequent)</option>
-                            <option value="high" data-i18n="level_high">High (Mayday!)</option>
-                        </select>
-                    </div>
-
-                    <!-- Privacy & Updates -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="privacy_updates">☁️ 隐私与更新</h6>
-
-                    <!-- Crash telemetry toggle -->
-                    <div class="mb-2">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="conf-telemetry-enabled">
-                            <label class="form-check-label small" for="conf-telemetry-enabled" data-i18n="telemetry_toggle">
-                                自动上报崩溃日志以帮助改进 OpenFrequency
-                            </label>
-                        </div>
-                        <div class="form-check form-switch mt-1">
-                            <input class="form-check-input" type="checkbox" id="conf-telemetry-sim-info">
-                            <label class="form-check-label small" for="conf-telemetry-sim-info" data-i18n="telemetry_sim_info">
-                                在崩溃报告中包含模拟器/AI 提供商信息
-                            </label>
-                        </div>
-                        <div class="form-text x-small text-muted mt-1" data-i18n="telemetry_hint">
-                            不会发送 API 密钥、密码或个人信息。崩溃日志始终本地保存，与此设置无关。
-                        </div>
-                    </div>
-
-                    <!-- Auto update -->
-                    <div class="mb-3">
-                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <button class="btn btn-sm btn-outline-primary" onclick="checkForUpdates()" data-i18n="check_updates">
-                                🔄 检查更新
-                            </button>
-                            <span id="update-check-status" class="small text-muted"></span>
-                        </div>
-                        <div id="update-info-box" class="alert alert-info alert-sm mt-2 d-none p-2" style="font-size:0.82rem;"></div>
-                    </div>
-
-                    <!-- Combined crash upload + feedback -->
-                    <div class="mb-2">
-                        <a class="btn btn-sm btn-outline-secondary collapsed" data-bs-toggle="collapse"
-                            href="#feedback-collapse" role="button" aria-expanded="false" data-i18n="report_feedback_btn">
-                            📤 反馈 / 问题上报
-                        </a>
-                        <div class="collapse mt-2" id="feedback-collapse">
-                            <div class="card card-body p-2" style="font-size:0.85rem;">
-                                <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
-                                    <button class="btn btn-sm btn-outline-secondary" onclick="uploadRecentCrash()" data-i18n="upload_crash_log">
-                                        📤 上传最近崩溃日志
-                                    </button>
-                                    <span id="crash-upload-status" class="small text-muted"></span>
+                        <div id="xplane-config-group">
+                            <div class="row g-2">
+                                <div class="col-sm-8">
+                                    <label class="form-label small mb-0" data-i18n="xplane_host">X-Plane Host</label>
+                                    <input type="text" class="form-control form-control-sm" id="conf-xplane-host"
+                                        placeholder="127.0.0.1">
                                 </div>
-                                <div id="recent-crash-info" class="form-text x-small text-muted mb-2"></div>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0" data-i18n="fb_type_label">类型</label>
-                                    <select class="form-select form-select-sm" id="fb-type">
-                                        <option value="bug" data-i18n="fb_type_bug">🐛 Bug 报告</option>
-                                        <option value="suggestion" data-i18n="fb_type_suggestion">💡 功能建议</option>
-                                        <option value="crash" data-i18n="fb_type_crash">💥 崩溃跟进</option>
-                                        <option value="other" data-i18n="fb_type_other">📝 其他</option>
-                                    </select>
+                                <div class="col-sm-4">
+                                    <label class="form-label small mb-0" data-i18n="xplane_port">X-Plane Web API
+                                        Port</label>
+                                    <input type="number" class="form-control form-control-sm" id="conf-xplane-port"
+                                        placeholder="8086">
                                 </div>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0" data-i18n="fb_title_label">标题 <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control form-control-sm" id="fb-title"
-                                        data-i18n-placeholder="fb_title_placeholder" placeholder="Brief description of the issue" maxlength="100">
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0" data-i18n="fb_details_label">详细描述</label>
-                                    <textarea class="form-control form-control-sm" id="fb-description" rows="3"
-                                        data-i18n-placeholder="fb_details_placeholder" placeholder="Steps to reproduce, expected vs actual behavior, etc." maxlength="2000"></textarea>
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0" data-i18n="fb_crash_id_label">崩溃 ID（自动填写）</label>
-                                    <input type="text" class="form-control form-control-sm" id="fb-crash-id"
-                                        data-i18n-placeholder="fb_crash_id_placeholder" placeholder="Leave blank if not crash-related">
-                                </div>
-                                <div class="mb-2">
-                                    <label class="form-label small mb-0" data-i18n="fb_contact_label">联系方式（可选）</label>
-                                    <input type="text" class="form-control form-control-sm" id="fb-contact"
-                                        data-i18n-placeholder="fb_contact_placeholder" placeholder="Email or GitHub handle for follow-up">
-                                </div>
-                                <div class="mb-2 d-flex gap-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="fb-include-log" checked>
-                                        <label class="form-check-label small" for="fb-include-log" data-i18n="fb_attach_log">附加日志摘录</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="fb-include-config">
-                                        <label class="form-check-label small" for="fb-include-config" data-i18n="fb_attach_config">附加配置摘要</label>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <label class="form-label small mb-0" data-i18n="frequency_data_source">Frequency Data
+                                Source</label>
+                            <select class="form-select form-select-sm" id="conf-frequency-source">
+                                <option value="third_party" data-i18n="source_ourairports">OurAirports / Third-party
+                                </option>
+                                <option value="simulator" data-i18n="source_simulator">Simulator Native Data</option>
+                            </select>
+                        </div>
+                        <div class="mt-2">
+                            <label class="form-label small mb-0" data-i18n="ground_data_source">Ground Layout
+                                Source</label>
+                            <select class="form-select form-select-sm" id="conf-ground-source">
+                                <option value="simulator" data-i18n="source_simulator_ground">Simulator apt.dat /
+                                    scenery</option>
+                                <option value="osm" data-i18n="source_osm">OpenStreetMap / Overpass</option>
+                            </select>
+                        </div>
+                        <div class="mt-2" id="osm-config-group">
+                            <label class="form-label small mb-0" data-i18n="osm_overpass_url">OSM Overpass API</label>
+                            <input type="text" class="form-control form-control-sm" id="conf-osm-overpass-url"
+                                placeholder="https://overpass-api.de/api/interpreter">
+                            <div class="form-text x-small text-muted" data-i18n="ground_data_hint">Choose simulator or
+                                third-party sources for airport frequencies and taxi/apron data.</div>
+                        </div>
+
+                        <!-- TTS + STT Voice Engine -->
+                        <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="voice_engine">🔊 语音引擎（TTS / STT）</h6>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0" data-i18n="tts_backend">TTS 合成后端</label>
+                            <select class="form-select form-select-sm" id="conf-tts-backend"
+                                onchange="toggleLocalTtsFields()">
+                                <option value="edge" data-i18n="tts_edge_option">Edge-TTS（微软云，推荐）</option>
+                                <option value="local" data-i18n="tts_local_option">本地 TTS（离线流式播放）</option>
+                            </select>
+                        </div>
+                        <div id="local-tts-group" style="display:none;">
+                            <div class="mb-2">
+                                <label class="form-label small mb-0" data-i18n="local_engine">本地引擎</label>
+                                <select class="form-select form-select-sm" id="conf-tts-local-engine"
+                                    onchange="updateTtsModelPlaceholder()">
+                                    <option value="kokoro">Kokoro-ONNX (pip install kokoro-onnx)</option>
+                                    <option value="piper">Piper TTS (pip install piper-tts)</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-0" data-i18n="model_file_path">模型文件路径</label>
+                                <input type="text" class="form-control form-control-sm" id="conf-tts-local-model"
+                                    placeholder="./models/kokoro-v1.0.onnx">
+                            </div>
+                            <div class="mb-2" id="kokoro-voices-group">
+                                <label class="form-label small mb-0" data-i18n="voices_file">音色文件（仅 Kokoro）</label>
+                                <input type="text" class="form-control form-control-sm" id="conf-tts-local-voices"
+                                    placeholder="e.g. ./models/voices-v1.0.bin">
+                            </div>
+                            <div class="mb-2">
+                                <button class="btn btn-sm btn-outline-primary mt-1" id="btn-dl-tts"
+                                    onclick="downloadModelWithProgress('tts')" data-i18n="download_tts">⬇ 下载 TTS
+                                    模型</button>
+                                <span id="tts-dl-status" class="small text-muted ms-2"></span>
+                                <div id="tts-dl-progress" style="display:none;margin-top:6px;">
+                                    <div class="small text-muted mb-1" id="tts-dl-label"></div>
+                                    <div
+                                        style="height:5px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden;">
+                                        <div id="tts-dl-fill"
+                                            style="height:100%;border-radius:3px;background:#0d6efd;width:0%;transition:width 0.3s;">
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="d-flex gap-2 align-items-center">
-                                    <button class="btn btn-sm btn-primary" onclick="submitFeedback()" data-i18n="fb_send">发送报告</button>
-                                    <span id="fb-status" class="small text-muted"></span>
+                                <div id="tts-dl-manual" class="small text-muted mt-2"
+                                    style="display:none;white-space:pre-wrap;line-height:1.7;"></div>
+                            </div>
+                            <div class="form-text x-small text-muted mb-2" data-i18n="local_tts_hint">
+                                本地 TTS 逐句流式播放，延迟更低。Kokoro 支持英语音色；中文/日文推荐使用 Edge-TTS。
+                            </div>
+                        </div>
+
+                        <!-- STT Settings -->
+                        <div class="mb-2 mt-2">
+                            <label class="form-label small mb-0" data-i18n="stt_model_path">STT Model Path</label>
+                            <input type="text" class="form-control form-control-sm" id="conf-stt-path"
+                                placeholder="./models/sherpa-onnx-whisper-tiny.en">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0" data-i18n="stt_language">STT Language</label>
+                            <select class="form-select form-select-sm" id="conf-stt-language">
+                                <option value="auto" data-i18n="stt_auto">Auto Detect</option>
+                                <option value="en">English</option>
+                                <option value="zh">Chinese (中文)</option>
+                                <option value="ja">Japanese (日本語)</option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <button class="btn btn-sm btn-outline-primary" id="btn-dl-stt"
+                                onclick="downloadModelWithProgress('stt')" data-i18n="download_stt">⬇ 下载 STT 模型</button>
+                            <span id="stt-dl-status" class="small text-muted ms-2"></span>
+                            <div id="stt-dl-progress" style="display:none;margin-top:6px;">
+                                <div class="small text-muted mb-1" id="stt-dl-label"></div>
+                                <div
+                                    style="height:5px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden;">
+                                    <div id="stt-dl-fill"
+                                        style="height:100%;border-radius:3px;background:#0d6efd;width:0%;transition:width 0.3s;">
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="stt-dl-manual" class="small text-muted mt-2"
+                                style="display:none;white-space:pre-wrap;line-height:1.7;"></div>
+                            <div class="form-text x-small text-muted mt-1">
+                                默认路径：<code>./models/sherpa-onnx-whisper-small</code>（约 1.25 GB，含 encoder + decoder +
+                                tokens）
+                            </div>
+                        </div>
+
+                        <!-- Audio Settings -->
+                        <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="audio_controls">Audio & Controls</h6>
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label small mb-0" data-i18n="joystick_ptt">Joystick PTT</label>
+                                <span id="ptt-bind-status" class="badge bg-secondary" style="font-size: 0.7em;"
+                                    data-i18n="unbound">Unbound</span>
+                            </div>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-warning flex-grow-1" id="btn-bind-ptt"
+                                    onclick="startBindingPTT(); return false;" data-i18n="bind_btn">Click to Bind
+                                    Button</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="clearBindingPTT(); return false;"
+                                    title="Clear Binding">✕</button>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="conf-radio-effect">
+                                <label class="form-check-label small" for="conf-radio-effect"
+                                    data-i18n="radio_static">Radio
+                                    Static Effect</label>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="conf-auto-busy" checked
+                                    onchange="document.getElementById('busy-level-row').style.display=this.checked?'none':'block'">
+                                <label class="form-check-label small" for="conf-auto-busy">
+                                    <span data-i18n="auto_busy_label">🤖 自动忙碌等级</span>
+                                    <span class="text-muted" style="font-size:0.85em;" data-i18n="auto_busy_desc">—
+                                        根据附近真实飞机数量自动推算</span>
+                                </label>
+                            </div>
+                            <div id="auto-busy-status" class="form-text x-small text-muted mt-1"></div>
+                        </div>
+                        <div class="mb-2" id="busy-level-row" style="display:none">
+                            <label class="form-label small mb-0" data-i18n="traffic_density">Traffic Density
+                                (Fallback)</label>
+                            <select class="form-select form-select-sm" id="conf-busy-level">
+                                <option value="low" data-i18n="density_low">Low (Lazy Afternoon)</option>
+                                <option value="medium" data-i18n="density_medium">Medium (Standard)</option>
+                                <option value="high" data-i18n="density_high">High (Busy Hub)</option>
+                            </select>
+                            <div class="form-text x-small text-muted" data-i18n="busy_level_hint">Used when Auto Busy is
+                                off or no traffic data is available.</div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="conf-allow-intl-non-english">
+                                <label class="form-check-label small" for="conf-allow-intl-non-english">
+                                    <span data-i18n="allow_non_english_label">🌐 允许在中国空域外使用非英语通话</span>
+                                    <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;"
+                                        data-i18n="allow_non_english_badge">非真实情形</span>
+                                </label>
+                            </div>
+                            <div class="form-text x-small text-muted" data-i18n="allow_non_english_hint">
+                                关闭时，在中国/日本空域外管制员将使用英语（ICAO 标准）。开启后可在任何地方使用您设定的语言。
+                            </div>
+                        </div>
+
+                        <!-- Security Settings -->
+                        <h6 class="border-bottom pb-1 mb-2 mt-3 text-danger" data-i18n="security_settings">Security &
+                            Access
+                        </h6>
+                        <div class="mb-2">
+                            <label class="form-label small mb-0" data-i18n="access_mode">Access Mode</label>
+                            <select class="form-select form-select-sm" id="conf-security-mode">
+                                <option value="doorbell" data-i18n="mode_doorbell">🟡 Doorbell (Approve New)</option>
+                                <option value="open" data-i18n="mode_open">🟢 Open (Allow All)</option>
+                                <option value="lockdown" data-i18n="mode_lockdown">🔴 Lockdown (Reject All)</option>
+                            </select>
+                            <div class="form-text x-small text-muted">
+                                <span data-i18n="security_hint">Control who can access this dashboard via
+                                    network.</span>
+                            </div>
+                            <div class="mt-2 text-end">
+                                <a href="/devices" class="btn btn-sm btn-outline-primary"
+                                    data-i18n="manage_devices_btn">Manage Devices</a>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label small mb-0" data-i18n="emergency_level">Emergency
+                                Probability</label>
+                            <select class="form-select form-select-sm" id="conf-emergency-level">
+                                <option value="none" data-i18n="level_none">None (Safe)</option>
+                                <option value="low" data-i18n="level_low">Low (Realistic)</option>
+                                <option value="medium" data-i18n="level_medium">Medium (Frequent)</option>
+                                <option value="high" data-i18n="level_high">High (Mayday!)</option>
+                            </select>
+                        </div>
+
+                        <!-- Privacy & Updates -->
+                        <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="privacy_updates">☁️ 隐私与更新</h6>
+
+                        <!-- Crash telemetry toggle -->
+                        <div class="mb-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="conf-telemetry-enabled">
+                                <label class="form-check-label small" for="conf-telemetry-enabled"
+                                    data-i18n="telemetry_toggle">
+                                    自动上报崩溃日志以帮助改进 OpenFrequency
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mt-1">
+                                <input class="form-check-input" type="checkbox" id="conf-telemetry-sim-info">
+                                <label class="form-check-label small" for="conf-telemetry-sim-info"
+                                    data-i18n="telemetry_sim_info">
+                                    在崩溃报告中包含模拟器/AI 提供商信息
+                                </label>
+                            </div>
+                            <div class="form-text x-small text-muted mt-1" data-i18n="telemetry_hint">
+                                不会发送 API 密钥、密码或个人信息。崩溃日志始终本地保存，与此设置无关。
+                            </div>
+                        </div>
+
+                        <!-- Auto update -->
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <button class="btn btn-sm btn-outline-primary" onclick="checkForUpdates()"
+                                    data-i18n="check_updates">
+                                    🔄 检查更新
+                                </button>
+                                <span id="update-check-status" class="small text-muted"></span>
+                            </div>
+                            <div id="update-info-box" class="alert alert-info alert-sm mt-2 d-none p-2"
+                                style="font-size:0.82rem;"></div>
+                        </div>
+
+                        <!-- Combined crash upload + feedback -->
+                        <div class="mb-2">
+                            <a class="btn btn-sm btn-outline-secondary collapsed" data-bs-toggle="collapse"
+                                href="#feedback-collapse" role="button" aria-expanded="false"
+                                data-i18n="report_feedback_btn">
+                                📤 反馈 / 问题上报
+                            </a>
+                            <div class="collapse mt-2" id="feedback-collapse">
+                                <div class="card card-body p-2" style="font-size:0.85rem;">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="uploadRecentCrash()"
+                                            data-i18n="upload_crash_log">
+                                            📤 上传最近崩溃日志
+                                        </button>
+                                        <span id="crash-upload-status" class="small text-muted"></span>
+                                    </div>
+                                    <div id="recent-crash-info" class="form-text x-small text-muted mb-2"></div>
+                                    <div class="mb-2">
+                                        <label class="form-label small mb-0" data-i18n="fb_type_label">类型</label>
+                                        <select class="form-select form-select-sm" id="fb-type">
+                                            <option value="bug" data-i18n="fb_type_bug">🐛 Bug 报告</option>
+                                            <option value="suggestion" data-i18n="fb_type_suggestion">💡 功能建议</option>
+                                            <option value="crash" data-i18n="fb_type_crash">💥 崩溃跟进</option>
+                                            <option value="other" data-i18n="fb_type_other">📝 其他</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small mb-0" data-i18n="fb_title_label">标题 <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control form-control-sm" id="fb-title"
+                                            data-i18n-placeholder="fb_title_placeholder"
+                                            placeholder="Brief description of the issue" maxlength="100">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small mb-0" data-i18n="fb_details_label">详细描述</label>
+                                        <textarea class="form-control form-control-sm" id="fb-description" rows="3"
+                                            data-i18n-placeholder="fb_details_placeholder"
+                                            placeholder="Steps to reproduce, expected vs actual behavior, etc."
+                                            maxlength="2000"></textarea>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small mb-0" data-i18n="fb_crash_id_label">崩溃
+                                            ID（自动填写）</label>
+                                        <input type="text" class="form-control form-control-sm" id="fb-crash-id"
+                                            data-i18n-placeholder="fb_crash_id_placeholder"
+                                            placeholder="Leave blank if not crash-related">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small mb-0"
+                                            data-i18n="fb_contact_label">联系方式（可选）</label>
+                                        <input type="text" class="form-control form-control-sm" id="fb-contact"
+                                            data-i18n-placeholder="fb_contact_placeholder"
+                                            placeholder="Email or GitHub handle for follow-up">
+                                    </div>
+                                    <div class="mb-2 d-flex gap-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="fb-include-log" checked>
+                                            <label class="form-check-label small" for="fb-include-log"
+                                                data-i18n="fb_attach_log">附加日志摘录</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="fb-include-config">
+                                            <label class="form-check-label small" for="fb-include-config"
+                                                data-i18n="fb_attach_config">附加配置摘要</label>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <button class="btn btn-sm btn-primary" onclick="submitFeedback()"
+                                            data-i18n="fb_send">发送报告</button>
+                                        <span id="fb-status" class="small text-muted"></span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- UI Settings -->
-                    <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="ui_settings">🎨 UI Settings</h6>
-                    <div class="mb-2">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="conf-dark-mode"
-                                onchange="window.toggleDarkMode(this.checked)">
-                            <label class="form-check-label small" for="conf-dark-mode" data-i18n="dark_mode">Dark
-                                Mode</label>
+                        <!-- UI Settings -->
+                        <h6 class="border-bottom pb-1 mb-2 mt-3" data-i18n="ui_settings">🎨 UI Settings</h6>
+                        <div class="mb-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="conf-dark-mode"
+                                    onchange="window.toggleDarkMode(this.checked)">
+                                <label class="form-check-label small" for="conf-dark-mode" data-i18n="dark_mode">Dark
+                                    Mode</label>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Theme selector -->
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold" data-i18n="ui_theme">UI Theme</label>
-                        <div class="btn-group w-100" role="group" aria-label="UI Theme selector" id="theme-selector">
-                            <input type="radio" class="btn-check" name="ui-theme" id="theme-classic" value="classic" checked>
-                            <label class="btn btn-outline-secondary btn-sm" for="theme-classic"
-                                   data-i18n="theme_classic">
-                                🖥️ Classic
-                            </label>
-                            <input type="radio" class="btn-check" name="ui-theme" id="theme-apple" value="apple">
-                            <label class="btn btn-outline-secondary btn-sm" for="theme-apple"
-                                   data-i18n="theme_apple">
-                                🍎 Apple
-                            </label>
+                        <!-- Theme selector -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold" data-i18n="ui_theme">UI Theme</label>
+                            <div class="btn-group w-100" role="group" aria-label="UI Theme selector"
+                                id="theme-selector">
+                                <input type="radio" class="btn-check" name="ui-theme" id="theme-classic" value="classic"
+                                    checked>
+                                <label class="btn btn-outline-secondary btn-sm" for="theme-classic"
+                                    data-i18n="theme_classic">
+                                    🖥️ Classic
+                                </label>
+                                <input type="radio" class="btn-check" name="ui-theme" id="theme-apple" value="apple">
+                                <label class="btn btn-outline-secondary btn-sm" for="theme-apple"
+                                    data-i18n="theme_apple">
+                                    🍎 Apple
+                                </label>
+                            </div>
+                            <div class="form-text text-muted" style="font-size:0.7rem;" data-i18n="theme_hint">
+                                Apple / Liquid Glass theme. Classic is the default.
+                            </div>
                         </div>
-                        <div class="form-text text-muted" style="font-size:0.7rem;" data-i18n="theme_hint">
-                            Apple / Liquid Glass theme. Classic is the default.
+                        <div class="mb-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="conf-apple-liquid-effects">
+                                <label class="form-check-label small" for="conf-apple-liquid-effects"
+                                    data-i18n="apple_liquid_effects">Apple Liquid Glass Effects</label>
+                            </div>
+                            <div class="form-text text-muted" style="font-size:0.7rem;"
+                                data-i18n="apple_liquid_effects_hint">
+                                Enables mouse tracking and SVG displacement filters. Requires refresh.
+                            </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
 
-                <div class="d-grid gap-2 mt-4">
-                    <button class="btn btn-success" onclick="saveConfig()" data-i18n="save_settings">Save
-                        Settings</button>
-                    <button class="btn btn-secondary" onclick="loadConfig()" data-i18n="reload">Reload</button>
-                    <button type="button" class="btn btn-outline-primary" onclick="goBackToDashboard()" data-i18n="back_dashboard">Back to Dashboard</button>
+                    <div class="d-grid gap-2 mt-4">
+                        <button class="btn btn-success" onclick="saveConfig()" data-i18n="save_settings">Save
+                            Settings</button>
+                        <button class="btn btn-secondary" onclick="loadConfig()" data-i18n="reload">Reload</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="goBackToDashboard()"
+                            data-i18n="back_dashboard">Back to Dashboard</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
+    {% endblock %}
 
-{% block scripts %}
-<script>
-    const socket = window.socket;
+    {% block scripts %}
+    <script>
+        const socket = window.socket;
 
-    // --- Gamepad PTT Binding Logic ---
-    let gamepadIndex = -1;
-    let pttButtonIndex = -1;
-    let isBinding = false;
-    let ignoredButtons = new Set(); // Track buttons pressed when binding starts
+        // --- Gamepad PTT Binding Logic ---
+        let gamepadIndex = -1;
+        let pttButtonIndex = -1;
+        let isBinding = false;
+        let ignoredButtons = new Set(); // Track buttons pressed when binding starts
 
-    function startBindingPTT() {
-        isBinding = true;
-        ignoredButtons.clear();
+        function startBindingPTT() {
+            isBinding = true;
+            ignoredButtons.clear();
 
-        // Scan for currently pressed buttons to ignore
-        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-        for (let i = 0; i < gamepads.length; i++) {
-            const gp = gamepads[i];
-            if (gp) {
-                for (let b = 0; b < gp.buttons.length; b++) {
-                    if (gp.buttons[b].pressed) {
-                        ignoredButtons.add(`${i}-${b}`);
-                    }
-                }
-            }
-        }
-        console.log("Ignored buttons initially:", ignoredButtons);
-
-        const btn = document.getElementById('btn-bind-ptt');
-        // i18n support for dynamic text
-        const lang = localStorage.getItem('language') || 'en';
-        btn.innerText = (lang === 'zh') ? "按下摇杆按键..." : "PRESS ANY JOYSTICK BUTTON...";
-        btn.classList.add('active');
-    }
-
-    function clearBindingPTT() {
-        gamepadIndex = -1;
-        pttButtonIndex = -1;
-        isBinding = false;
-        ignoredButtons.clear();
-
-        document.getElementById('btn-bind-ptt').innerText = "Click to Bind Button";
-        document.getElementById('btn-bind-ptt').classList.remove('active', 'btn-outline-success');
-        document.getElementById('btn-bind-ptt').classList.add('btn-outline-warning');
-
-        const statusEl = document.getElementById('ptt-bind-status');
-        statusEl.innerText = "Unbound";
-        statusEl.className = "badge bg-secondary";
-
-        // Trigger update
-        const lang = localStorage.getItem('language') || 'en';
-        if (window.applyLanguage) window.applyLanguage(lang);
-
-        // Clear storage
-        localStorage.removeItem('ptt_binding');
-    }
-
-    function gamepadLoop() {
-        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-        if (!gamepads) return;
-
-        for (let i = 0; i < gamepads.length; i++) {
-            const gp = gamepads[i];
-            if (gp && isBinding) {
-                for (let b = 0; b < gp.buttons.length; b++) {
-                    const btnId = `${i}-${b}`;
-                    if (gp.buttons[b].pressed) {
-                        // If this button was already pressed when we started, ignore it
-                        if (ignoredButtons.has(btnId)) {
-                            continue;
-                        }
-
-                        // Start Binding
-                        gamepadIndex = i;
-                        pttButtonIndex = b;
-                        isBinding = false;
-
-                        // UI Update
-                        const lang = localStorage.getItem('language') || 'en';
-                        const prefix = (lang === 'zh') ? `已绑定: 设备${i} 按键${b}` : `Bound: Pad ${i} Btn ${b}`;
-
-                        const btn = document.getElementById('btn-bind-ptt');
-                        btn.innerText = prefix;
-                        btn.classList.remove('active');
-                        btn.classList.replace('btn-outline-warning', 'btn-outline-success');
-
-                        const statusEl = document.getElementById('ptt-bind-status');
-                        statusEl.innerText = "Active";
-                        statusEl.className = "badge bg-success";
-
-                        localStorage.setItem('ptt_binding', JSON.stringify({ gp: i, btn: b }));
-                        return;
-                    } else {
-                        // Button released, remove from ignore list
-                        if (ignoredButtons.has(btnId)) {
-                            ignoredButtons.delete(btnId);
+            // Scan for currently pressed buttons to ignore
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            for (let i = 0; i < gamepads.length; i++) {
+                const gp = gamepads[i];
+                if (gp) {
+                    for (let b = 0; b < gp.buttons.length; b++) {
+                        if (gp.buttons[b].pressed) {
+                            ignoredButtons.add(`${i}-${b}`);
                         }
                     }
                 }
             }
-        }
-        requestAnimationFrame(gamepadLoop);
-    }
+            console.log("Ignored buttons initially:", ignoredButtons);
 
-    window.addEventListener("gamepadconnected", gamepadLoop);
-    requestAnimationFrame(gamepadLoop);
-
-    // --- Config Logic ---
-
-    // Load cabin media packages from API (includes plugins)
-    let cabinMediaPackages = [];
-
-    async function loadCabinMediaPackages() {
-        try {
-            const response = await fetch('/get_cabin_media_packages');
-            const data = await response.json();
-            cabinMediaPackages = data.packages || [];
-            populateCabinMediaDropdown();
-        } catch (e) {
-            console.error('Failed to load cabin media packages:', e);
-        }
-    }
-
-    function populateCabinMediaDropdown() {
-        const select = document.getElementById('conf-cabin-media-package');
-        if (!select) return;
-
-        // Clear existing options except the first one (auto-match)
-        while (select.options.length > 1) {
-            select.remove(1);
-        }
-
-        // Add options from API response (includes plugins)
-        for (const pkg of cabinMediaPackages) {
-            const option = document.createElement('option');
-            option.value = pkg.id;
-            // Display name: use Chinese name if available and language is zh, otherwise use English name
+            const btn = document.getElementById('btn-bind-ptt');
+            // i18n support for dynamic text
             const lang = localStorage.getItem('language') || 'en';
-            const displayName = (lang === 'zh' && pkg.name_zh) ? pkg.name_zh : pkg.name;
-            option.textContent = `${pkg.id} - ${displayName}`;
-            select.appendChild(option);
+            btn.innerText = (lang === 'zh') ? "按下摇杆按键..." : "PRESS ANY JOYSTICK BUTTON...";
+            btn.classList.add('active');
         }
-    }
 
-    // Cabin media auto-matching based on callsign
-    function autoMatchCabinMedia() {
-        const callsignInput = document.getElementById('conf-callsign');
-        const cabinMediaSelect = document.getElementById('conf-cabin-media-package');
-        if (!callsignInput || !cabinMediaSelect) return;
+        function clearBindingPTT() {
+            gamepadIndex = -1;
+            pttButtonIndex = -1;
+            isBinding = false;
+            ignoredButtons.clear();
 
-        const callsign = (callsignInput.value || '').toUpperCase().trim();
-        if (callsign.length >= 3) {
-            const airlineCode = callsign.substring(0, 3);
-            // Find matching package by id
-            const matchingPackage = cabinMediaPackages.find(pkg => pkg.id === airlineCode);
-            if (matchingPackage) {
-                // Only auto-select if user hasn't manually set a different value
-                if (cabinMediaSelect.value === '' || cabinMediaSelect.dataset.autoMatched === 'true') {
-                    cabinMediaSelect.value = airlineCode;
-                    cabinMediaSelect.dataset.autoMatched = 'true';
+            document.getElementById('btn-bind-ptt').innerText = "Click to Bind Button";
+            document.getElementById('btn-bind-ptt').classList.remove('active', 'btn-outline-success');
+            document.getElementById('btn-bind-ptt').classList.add('btn-outline-warning');
+
+            const statusEl = document.getElementById('ptt-bind-status');
+            statusEl.innerText = "Unbound";
+            statusEl.className = "badge bg-secondary";
+
+            // Trigger update
+            const lang = localStorage.getItem('language') || 'en';
+            if (window.applyLanguage) window.applyLanguage(lang);
+
+            // Clear storage
+            localStorage.removeItem('ptt_binding');
+        }
+
+        function gamepadLoop() {
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            if (!gamepads) return;
+
+            for (let i = 0; i < gamepads.length; i++) {
+                const gp = gamepads[i];
+                if (gp && isBinding) {
+                    for (let b = 0; b < gp.buttons.length; b++) {
+                        const btnId = `${i}-${b}`;
+                        if (gp.buttons[b].pressed) {
+                            // If this button was already pressed when we started, ignore it
+                            if (ignoredButtons.has(btnId)) {
+                                continue;
+                            }
+
+                            // Start Binding
+                            gamepadIndex = i;
+                            pttButtonIndex = b;
+                            isBinding = false;
+
+                            // UI Update
+                            const lang = localStorage.getItem('language') || 'en';
+                            const prefix = (lang === 'zh') ? `已绑定: 设备${i} 按键${b}` : `Bound: Pad ${i} Btn ${b}`;
+
+                            const btn = document.getElementById('btn-bind-ptt');
+                            btn.innerText = prefix;
+                            btn.classList.remove('active');
+                            btn.classList.replace('btn-outline-warning', 'btn-outline-success');
+
+                            const statusEl = document.getElementById('ptt-bind-status');
+                            statusEl.innerText = "Active";
+                            statusEl.className = "badge bg-success";
+
+                            localStorage.setItem('ptt_binding', JSON.stringify({ gp: i, btn: b }));
+                            return;
+                        } else {
+                            // Button released, remove from ignore list
+                            if (ignoredButtons.has(btnId)) {
+                                ignoredButtons.delete(btnId);
+                            }
+                        }
+                    }
                 }
-            } else {
-                // No match found, use Generic as fallback
-                if (cabinMediaSelect.value === '' || cabinMediaSelect.dataset.autoMatched === 'true') {
-                    cabinMediaSelect.value = 'Generic';
-                    cabinMediaSelect.dataset.autoMatched = 'true';
+            }
+            requestAnimationFrame(gamepadLoop);
+        }
+
+        window.addEventListener("gamepadconnected", gamepadLoop);
+        requestAnimationFrame(gamepadLoop);
+
+        // --- Config Logic ---
+
+        // Load cabin media packages from API (includes plugins)
+        let cabinMediaPackages = [];
+
+        async function loadCabinMediaPackages() {
+            try {
+                const response = await fetch('/get_cabin_media_packages');
+                const data = await response.json();
+                cabinMediaPackages = data.packages || [];
+                populateCabinMediaDropdown();
+            } catch (e) {
+                console.error('Failed to load cabin media packages:', e);
+            }
+        }
+
+        function populateCabinMediaDropdown() {
+            const select = document.getElementById('conf-cabin-media-package');
+            if (!select) return;
+
+            // Clear existing options except the first one (auto-match)
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+
+            // Add options from API response (includes plugins)
+            for (const pkg of cabinMediaPackages) {
+                const option = document.createElement('option');
+                option.value = pkg.id;
+                // Display name: use Chinese name if available and language is zh, otherwise use English name
+                const lang = localStorage.getItem('language') || 'en';
+                const displayName = (lang === 'zh' && pkg.name_zh) ? pkg.name_zh : pkg.name;
+                option.textContent = `${pkg.id} - ${displayName}`;
+                select.appendChild(option);
+            }
+        }
+
+        // Cabin media auto-matching based on callsign
+        function autoMatchCabinMedia() {
+            const callsignInput = document.getElementById('conf-callsign');
+            const cabinMediaSelect = document.getElementById('conf-cabin-media-package');
+            if (!callsignInput || !cabinMediaSelect) return;
+
+            const callsign = (callsignInput.value || '').toUpperCase().trim();
+            if (callsign.length >= 3) {
+                const airlineCode = callsign.substring(0, 3);
+                // Find matching package by id
+                const matchingPackage = cabinMediaPackages.find(pkg => pkg.id === airlineCode);
+                if (matchingPackage) {
+                    // Only auto-select if user hasn't manually set a different value
+                    if (cabinMediaSelect.value === '' || cabinMediaSelect.dataset.autoMatched === 'true') {
+                        cabinMediaSelect.value = airlineCode;
+                        cabinMediaSelect.dataset.autoMatched = 'true';
+                    }
+                } else {
+                    // No match found, use Generic as fallback
+                    if (cabinMediaSelect.value === '' || cabinMediaSelect.dataset.autoMatched === 'true') {
+                        cabinMediaSelect.value = 'Generic';
+                        cabinMediaSelect.dataset.autoMatched = 'true';
+                    }
                 }
             }
         }
-    }
 
-    // Listen for callsign changes to auto-match cabin media
-    document.getElementById('conf-callsign')?.addEventListener('input', function() {
-        const cabinMediaSelect = document.getElementById('conf-cabin-media-package');
-        if (cabinMediaSelect) {
-            cabinMediaSelect.dataset.autoMatched = 'false'; // User is manually editing
-        }
-        setTimeout(autoMatchCabinMedia, 500);
-    });
-
-    // Listen for manual cabin media selection to disable auto-match
-    document.getElementById('conf-cabin-media-package')?.addEventListener('change', function() {
-        this.dataset.autoMatched = 'false';
-    });
-
-    async function loadConfig() {
-        try {
-            const response = await fetch('/get_config');
-            if (!response.ok) {
-                const errText = await response.text().catch(() => response.statusText);
-                console.error('loadConfig: server error', response.status, errText);
-                const lang = localStorage.getItem('language') || 'zh';
-                document.getElementById('conf-callsign').placeholder =
-                    lang === 'zh' ? `配置加载失败 (${response.status})` : `Config load failed (${response.status})`;
-                return;
+        // Listen for callsign changes to auto-match cabin media
+        document.getElementById('conf-callsign')?.addEventListener('input', function () {
+            const cabinMediaSelect = document.getElementById('conf-cabin-media-package');
+            if (cabinMediaSelect) {
+                cabinMediaSelect.dataset.autoMatched = 'false'; // User is manually editing
             }
-            const data = await response.json();
+            setTimeout(autoMatchCabinMedia, 500);
+        });
 
-            const csInput    = document.getElementById('conf-callsign');
-            const csLockIcon = document.getElementById('callsign-lock-icon');
-            const csLockHint = document.getElementById('callsign-lock-hint');
-            const csLocked   = data._callsign_locked || false;
-            csInput.value    = data.user_profile?.callsign || 'N/A';
-            csInput.readOnly = csLocked;
-            csInput.classList.toggle('text-muted', csLocked);
-            csLockIcon?.classList.toggle('d-none', !csLocked);
-            csLockHint?.classList.toggle('d-none', !csLocked);
-            document.getElementById('conf-simbrief-user').value = data.simbrief?.username || '';
-            document.getElementById('conf-fp-origin').value = data.flight_plan?.origin || '';
-            document.getElementById('conf-fp-destination').value = data.flight_plan?.destination || '';
-            document.getElementById('conf-fp-alternate').value = data.flight_plan?.alternate || '';
-            document.getElementById('conf-fp-cruise').value = data.flight_plan?.cruise_alt || '';
-            document.getElementById('conf-fp-route').value = data.flight_plan?.route || '';
-            document.getElementById('conf-provider').value = data.connection?.provider || 'gemini';
-            document.getElementById('conf-api-key').value = data.connection?.api_key || '';
-            document.getElementById('conf-model').value = data.connection?.model || '';
-            document.getElementById('conf-model-fast').value = data.connection?.model_fast || data.connection?.model || '';
-            document.getElementById('conf-model-thinking').value = data.connection?.model_thinking || '';
-            document.getElementById('conf-base-url').value = data.connection?.base_url || '';
-            // TTS backend
-            document.getElementById('conf-tts-backend').value = data.audio?.tts_backend || 'edge';
-            document.getElementById('conf-tts-local-engine').value = data.audio?.tts_local_engine || 'kokoro';
-            document.getElementById('conf-tts-local-model').value = data.audio?.tts_local_model || '';
-            document.getElementById('conf-tts-local-voices').value = data.audio?.tts_local_voices || '';
-            toggleLocalTtsFields();
-            document.getElementById('conf-sim-provider').value = data.simulator?.provider || 'auto';
-            document.getElementById('conf-xplane-host').value = data.simulator?.xplane_host || '127.0.0.1';
-            document.getElementById('conf-xplane-port').value = data.simulator?.xplane_web_port || data.simulator?.xplane_port || 8086;
-            document.getElementById('conf-frequency-source').value = data.navdata?.frequency_source || 'third_party';
-            document.getElementById('conf-ground-source').value = data.navdata?.ground_source || 'simulator';
-            document.getElementById('conf-osm-overpass-url').value = data.navdata?.osm_overpass_url || 'https://overpass-api.de/api/interpreter';
-            document.getElementById('conf-radio-effect').checked = data.audio?.radio_effect ?? false;
-            document.getElementById('conf-stt-path').value = data.audio?.stt_model_path || '';
-            document.getElementById('conf-stt-language').value = data.audio?.stt_language || 'en';
-            document.getElementById('conf-busy-level').value = data.immersion?.busy_level || 'medium';
-            const autoBusy = data.immersion?.auto_busy_level !== false;
-            document.getElementById('conf-auto-busy').checked = autoBusy;
-            document.getElementById('busy-level-row').style.display = autoBusy ? 'none' : 'block';
-            document.getElementById('conf-allow-intl-non-english').checked = data.immersion?.allow_non_english_intl || false;
-            // Security Mode from Config
-            if (data.security && data.security.mode) {
-                document.getElementById('conf-security-mode').value = data.security.mode;
-            } else {
-                document.getElementById('conf-security-mode').value = 'doorbell';
-            }
+        // Listen for manual cabin media selection to disable auto-match
+        document.getElementById('conf-cabin-media-package')?.addEventListener('change', function () {
+            this.dataset.autoMatched = 'false';
+        });
 
-            // Emergency Level
-            if (data.emergency && data.emergency.level) {
-                document.getElementById('conf-emergency-level').value = data.emergency.level;
-            } else {
-                document.getElementById('conf-emergency-level').value = 'low';
-            }
-
-            // Dark Mode state
-            const darkModeCheckbox = document.getElementById('conf-dark-mode');
-            if (darkModeCheckbox) {
-                const isDark = localStorage.getItem('dark_mode') === '1' || (data.ui && data.ui.dark_mode);
-                darkModeCheckbox.checked = isDark;
-            }
-
-            // Theme selector state (stored in localStorage; 'apple' disabled until implemented)
-            const savedTheme = localStorage.getItem('ui_theme') || 'classic';
-            const themeRadio = document.querySelector(`input[name="ui-theme"][value="${savedTheme}"]`);
-            if (themeRadio && !themeRadio.disabled) themeRadio.checked = true;
-
-            // Cloud / Privacy
-            document.getElementById('conf-telemetry-enabled').checked = data.cloud?.telemetry_enabled || false;
-            document.getElementById('conf-telemetry-sim-info').checked = data.cloud?.include_sim_info !== false;
-            // Hoppie ACARS
-            document.getElementById('conf-hoppie-logon').value = data.hoppie?.logon_code || '';
-            document.getElementById('conf-hoppie-poll-interval').value = Math.max(65, data.hoppie?.poll_interval || 65);
-            // Cabin media package
-            document.getElementById('conf-cabin-media-package').value = data.cabin?.media_package || '';
-            // Pre-fill latest crash ID into feedback form
-            fetchRecentCrashId();
-
-            toggleBaseUrl();
-            toggleSimulatorFields();
-            toggleGroundSourceFields();
-
-            // Restore PTT binding from storage if exists
-            const savedBind = localStorage.getItem('ptt_binding');
-            if (savedBind) {
-                const btn = document.getElementById('btn-bind-ptt');
-                const statusEl = document.getElementById('ptt-bind-status');
-                if (btn) btn.classList.replace('btn-outline-warning', 'btn-outline-success');
-                if (statusEl) { statusEl.innerText = "Active"; statusEl.className = "badge bg-success"; }
-            }
-
-        } catch (e) {
-            console.error("Failed to load config:", e);
-        }
-    }
-
-    async function saveConfig() {
-        try {
-            const newConfig = {
-                user_profile: { callsign: document.getElementById('conf-callsign').value },
-                simbrief: { username: document.getElementById('conf-simbrief-user').value },
-                flight_plan: {
-                    origin: document.getElementById('conf-fp-origin').value.trim().toUpperCase(),
-                    destination: document.getElementById('conf-fp-destination').value.trim().toUpperCase(),
-                    alternate: document.getElementById('conf-fp-alternate').value.trim().toUpperCase(),
-                    cruise_alt: parseInt(document.getElementById('conf-fp-cruise').value || '0', 10),
-                    route: document.getElementById('conf-fp-route').value.trim()
-                },
-                connection: {
-                    provider: document.getElementById('conf-provider').value,
-                    api_key: document.getElementById('conf-api-key').value,
-                    model: document.getElementById('conf-model-fast').value || document.getElementById('conf-model').value,
-                    model_fast: document.getElementById('conf-model-fast').value,
-                    model_thinking: document.getElementById('conf-model-thinking').value,
-                    base_url: document.getElementById('conf-base-url').value
-                },
-                simulator: {
-                    provider: document.getElementById('conf-sim-provider').value,
-                    xplane_host: document.getElementById('conf-xplane-host').value.trim() || '127.0.0.1',
-                    xplane_web_port: parseInt(document.getElementById('conf-xplane-port').value || '8086', 10)
-                },
-                navdata: {
-                    frequency_source: document.getElementById('conf-frequency-source').value,
-                    ground_source: document.getElementById('conf-ground-source').value,
-                    osm_overpass_url: document.getElementById('conf-osm-overpass-url').value.trim() || 'https://overpass-api.de/api/interpreter'
-                },
-                audio: {
-                    radio_effect: document.getElementById('conf-radio-effect').checked,
-                    stt_model_path: document.getElementById('conf-stt-path').value,
-                    stt_language: document.getElementById('conf-stt-language').value,
-                    tts_backend: document.getElementById('conf-tts-backend').value,
-                    tts_local_engine: document.getElementById('conf-tts-local-engine').value,
-                    tts_local_model: document.getElementById('conf-tts-local-model').value,
-                    tts_local_voices: document.getElementById('conf-tts-local-voices').value
-                },
-                immersion: {
-                    busy_level: document.getElementById('conf-busy-level').value,
-                    auto_busy_level: document.getElementById('conf-auto-busy').checked,
-                    allow_non_english_intl: document.getElementById('conf-allow-intl-non-english').checked,
-                },
-                security: { mode: document.getElementById('conf-security-mode').value },
-                emergency: {
-                    level: document.getElementById('conf-emergency-level').value,
-                    enabled: true
-                },
-                hoppie: {
-                    logon_code: document.getElementById('conf-hoppie-logon').value.trim(),
-                    poll_interval: Math.max(65, parseInt(document.getElementById('conf-hoppie-poll-interval').value) || 65)
-                },
-                cabin: {
-                    media_package: document.getElementById('conf-cabin-media-package').value
-                },
-                ui: { dark_mode: document.getElementById('conf-dark-mode')?.checked || false },
-                cloud: {
-                    telemetry_enabled: document.getElementById('conf-telemetry-enabled').checked,
-                    include_sim_info: document.getElementById('conf-telemetry-sim-info').checked
+        async function loadConfig() {
+            try {
+                const response = await fetch('/get_config');
+                if (!response.ok) {
+                    const errText = await response.text().catch(() => response.statusText);
+                    console.error('loadConfig: server error', response.status, errText);
+                    const lang = localStorage.getItem('language') || 'zh';
+                    document.getElementById('conf-callsign').placeholder =
+                        lang === 'zh' ? `配置加载失败 (${response.status})` : `Config load failed (${response.status})`;
+                    return;
                 }
-            };
+                const data = await response.json();
 
-            console.log("Saving config:", newConfig);
-
-            // Save Main Config (Includes Security)
-            const response = await fetch('/save_settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newConfig)
-            });
-
-            const result = await response.json();
-            console.log("Save response:", response.status, result);
-
-            if (!response.ok) {
-                alert("Error: " + (result.message || response.statusText));
-                return;
-            }
-
-            alert("Settings Saved!");
-            loadConfig();
-        } catch (e) {
-            console.error("Save error:", e);
-            alert("Error saving settings: " + e.message);
-        }
-    }
-
-    async function importSimBrief() {
-        const username = document.getElementById('conf-simbrief-user').value;
-        if (!username) return alert("Enter username");
-
-        try {
-            const resp = await fetch('/import_simbrief', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: username })
-            });
-            const result = await resp.json();
-            if (result.status === 'success') {
-                document.getElementById('conf-fp-origin').value = result.data.origin || '';
-                document.getElementById('conf-fp-destination').value = result.data.destination || '';
-                document.getElementById('conf-fp-alternate').value = result.data.alternate || '';
-                document.getElementById('conf-fp-cruise').value = result.data.cruise_alt || '';
-                document.getElementById('conf-fp-route').value = result.data.route || '';
-                if (result.callsign) {
-                    document.getElementById('conf-callsign').value = result.callsign;
+                const csInput = document.getElementById('conf-callsign');
+                const csLockIcon = document.getElementById('callsign-lock-icon');
+                const csLockHint = document.getElementById('callsign-lock-hint');
+                const csLocked = data._callsign_locked || false;
+                csInput.value = data.user_profile?.callsign || 'N/A';
+                csInput.readOnly = csLocked;
+                csInput.classList.toggle('text-muted', csLocked);
+                csLockIcon?.classList.toggle('d-none', !csLocked);
+                csLockHint?.classList.toggle('d-none', !csLocked);
+                document.getElementById('conf-simbrief-user').value = data.simbrief?.username || '';
+                document.getElementById('conf-fp-origin').value = data.flight_plan?.origin || '';
+                document.getElementById('conf-fp-destination').value = data.flight_plan?.destination || '';
+                document.getElementById('conf-fp-alternate').value = data.flight_plan?.alternate || '';
+                document.getElementById('conf-fp-cruise').value = data.flight_plan?.cruise_alt || '';
+                document.getElementById('conf-fp-route').value = data.flight_plan?.route || '';
+                document.getElementById('conf-provider').value = data.connection?.provider || 'gemini';
+                document.getElementById('conf-api-key').value = data.connection?.api_key || '';
+                document.getElementById('conf-model').value = data.connection?.model || '';
+                document.getElementById('conf-model-fast').value = data.connection?.model_fast || data.connection?.model || '';
+                document.getElementById('conf-model-thinking').value = data.connection?.model_thinking || '';
+                document.getElementById('conf-base-url').value = data.connection?.base_url || '';
+                // TTS backend
+                document.getElementById('conf-tts-backend').value = data.audio?.tts_backend || 'edge';
+                document.getElementById('conf-tts-local-engine').value = data.audio?.tts_local_engine || 'kokoro';
+                document.getElementById('conf-tts-local-model').value = data.audio?.tts_local_model || '';
+                document.getElementById('conf-tts-local-voices').value = data.audio?.tts_local_voices || '';
+                toggleLocalTtsFields();
+                document.getElementById('conf-sim-provider').value = data.simulator?.provider || 'auto';
+                document.getElementById('conf-xplane-host').value = data.simulator?.xplane_host || '127.0.0.1';
+                document.getElementById('conf-xplane-port').value = data.simulator?.xplane_web_port || data.simulator?.xplane_port || 8086;
+                document.getElementById('conf-frequency-source').value = data.navdata?.frequency_source || 'third_party';
+                document.getElementById('conf-ground-source').value = data.navdata?.ground_source || 'simulator';
+                document.getElementById('conf-osm-overpass-url').value = data.navdata?.osm_overpass_url || 'https://overpass-api.de/api/interpreter';
+                document.getElementById('conf-radio-effect').checked = data.audio?.radio_effect ?? false;
+                document.getElementById('conf-stt-path').value = data.audio?.stt_model_path || '';
+                document.getElementById('conf-stt-language').value = data.audio?.stt_language || 'en';
+                document.getElementById('conf-busy-level').value = data.immersion?.busy_level || 'medium';
+                const autoBusy = data.immersion?.auto_busy_level !== false;
+                document.getElementById('conf-auto-busy').checked = autoBusy;
+                document.getElementById('busy-level-row').style.display = autoBusy ? 'none' : 'block';
+                document.getElementById('conf-allow-intl-non-english').checked = data.immersion?.allow_non_english_intl || false;
+                // Security Mode from Config
+                if (data.security && data.security.mode) {
+                    document.getElementById('conf-security-mode').value = data.security.mode;
+                } else {
+                    document.getElementById('conf-security-mode').value = 'doorbell';
                 }
-                const routeText = "Imported: " + result.data.origin + " -> " + result.data.destination;
-                const planText = result.data.route && result.data.route !== 'N/A' ? (" | Route: " + result.data.route) : "";
-                const callsignText = result.callsign ? (" | Callsign: " + result.callsign) : "";
-                document.getElementById('simbrief-status').textContent = routeText + planText + callsignText;
-                alert(routeText + planText + callsignText);
-            } else {
-                document.getElementById('simbrief-status').textContent = "Error: " + result.message;
-                alert("Error: " + result.message);
+
+                // Emergency Level
+                if (data.emergency && data.emergency.level) {
+                    document.getElementById('conf-emergency-level').value = data.emergency.level;
+                } else {
+                    document.getElementById('conf-emergency-level').value = 'low';
+                }
+
+                // Dark Mode state
+                const darkModeCheckbox = document.getElementById('conf-dark-mode');
+                if (darkModeCheckbox) {
+                    const isDark = localStorage.getItem('dark_mode') === '1' || (data.ui && data.ui.dark_mode);
+                    darkModeCheckbox.checked = isDark;
+                }
+
+                // Theme selector state (stored in localStorage; 'apple' disabled until implemented)
+                const savedTheme = localStorage.getItem('ui_theme') || 'classic';
+                const themeRadio = document.querySelector(`input[name="ui-theme"][value="${savedTheme}"]`);
+                if (themeRadio && !themeRadio.disabled) themeRadio.checked = true;
+                const liquidEffects = document.getElementById('conf-apple-liquid-effects');
+                if (liquidEffects) {
+                    const storedLiquid = localStorage.getItem('apple_liquid_effects');
+                    liquidEffects.checked = storedLiquid === null
+                        ? !!data.ui?.apple_liquid_effects
+                        : storedLiquid === '1';
+                }
+
+                // Cloud / Privacy
+                document.getElementById('conf-telemetry-enabled').checked = data.cloud?.telemetry_enabled || false;
+                document.getElementById('conf-telemetry-sim-info').checked = data.cloud?.include_sim_info !== false;
+                // Hoppie ACARS
+                document.getElementById('conf-hoppie-logon').value = data.hoppie?.logon_code || '';
+                document.getElementById('conf-hoppie-poll-interval').value = Math.max(65, data.hoppie?.poll_interval || 65);
+                // Cabin media package
+                document.getElementById('conf-cabin-media-package').value = data.cabin?.media_package || '';
+                // Pre-fill latest crash ID into feedback form
+                fetchRecentCrashId();
+
+                toggleBaseUrl();
+                toggleSimulatorFields();
+                toggleGroundSourceFields();
+
+                // Restore PTT binding from storage if exists
+                const savedBind = localStorage.getItem('ptt_binding');
+                if (savedBind) {
+                    const btn = document.getElementById('btn-bind-ptt');
+                    const statusEl = document.getElementById('ptt-bind-status');
+                    if (btn) btn.classList.replace('btn-outline-warning', 'btn-outline-success');
+                    if (statusEl) { statusEl.innerText = "Active"; statusEl.className = "badge bg-success"; }
+                }
+
+            } catch (e) {
+                console.error("Failed to load config:", e);
             }
-        } catch (e) {
-            document.getElementById('simbrief-status').textContent = "Network Error";
-            alert("Network Error");
         }
-    }
 
-    document.getElementById('conf-provider').addEventListener('change', toggleBaseUrl);
-    document.getElementById('conf-sim-provider').addEventListener('change', toggleSimulatorFields);
-    document.getElementById('conf-ground-source').addEventListener('change', toggleGroundSourceFields);
-    function toggleBaseUrl() {
-        const val = document.getElementById('conf-provider').value;
-        document.getElementById('base-url-group').style.display = (val === 'openai_compatible') ? 'block' : 'none';
-    }
+        async function saveConfig() {
+            try {
+                const newConfig = {
+                    user_profile: { callsign: document.getElementById('conf-callsign').value },
+                    simbrief: { username: document.getElementById('conf-simbrief-user').value },
+                    flight_plan: {
+                        origin: document.getElementById('conf-fp-origin').value.trim().toUpperCase(),
+                        destination: document.getElementById('conf-fp-destination').value.trim().toUpperCase(),
+                        alternate: document.getElementById('conf-fp-alternate').value.trim().toUpperCase(),
+                        cruise_alt: parseInt(document.getElementById('conf-fp-cruise').value || '0', 10),
+                        route: document.getElementById('conf-fp-route').value.trim()
+                    },
+                    connection: {
+                        provider: document.getElementById('conf-provider').value,
+                        api_key: document.getElementById('conf-api-key').value,
+                        model: document.getElementById('conf-model-fast').value || document.getElementById('conf-model').value,
+                        model_fast: document.getElementById('conf-model-fast').value,
+                        model_thinking: document.getElementById('conf-model-thinking').value,
+                        base_url: document.getElementById('conf-base-url').value
+                    },
+                    simulator: {
+                        provider: document.getElementById('conf-sim-provider').value,
+                        xplane_host: document.getElementById('conf-xplane-host').value.trim() || '127.0.0.1',
+                        xplane_web_port: parseInt(document.getElementById('conf-xplane-port').value || '8086', 10)
+                    },
+                    navdata: {
+                        frequency_source: document.getElementById('conf-frequency-source').value,
+                        ground_source: document.getElementById('conf-ground-source').value,
+                        osm_overpass_url: document.getElementById('conf-osm-overpass-url').value.trim() || 'https://overpass-api.de/api/interpreter'
+                    },
+                    audio: {
+                        radio_effect: document.getElementById('conf-radio-effect').checked,
+                        stt_model_path: document.getElementById('conf-stt-path').value,
+                        stt_language: document.getElementById('conf-stt-language').value,
+                        tts_backend: document.getElementById('conf-tts-backend').value,
+                        tts_local_engine: document.getElementById('conf-tts-local-engine').value,
+                        tts_local_model: document.getElementById('conf-tts-local-model').value,
+                        tts_local_voices: document.getElementById('conf-tts-local-voices').value
+                    },
+                    immersion: {
+                        busy_level: document.getElementById('conf-busy-level').value,
+                        auto_busy_level: document.getElementById('conf-auto-busy').checked,
+                        allow_non_english_intl: document.getElementById('conf-allow-intl-non-english').checked,
+                    },
+                    security: { mode: document.getElementById('conf-security-mode').value },
+                    emergency: {
+                        level: document.getElementById('conf-emergency-level').value,
+                        enabled: true
+                    },
+                    hoppie: {
+                        logon_code: document.getElementById('conf-hoppie-logon').value.trim(),
+                        poll_interval: Math.max(65, parseInt(document.getElementById('conf-hoppie-poll-interval').value) || 65)
+                    },
+                    cabin: {
+                        media_package: document.getElementById('conf-cabin-media-package').value
+                    },
+                    ui: {
+                        dark_mode: document.getElementById('conf-dark-mode')?.checked || false,
+                        apple_liquid_effects: document.getElementById('conf-apple-liquid-effects')?.checked || false
+                    },
+                    cloud: {
+                        telemetry_enabled: document.getElementById('conf-telemetry-enabled').checked,
+                        include_sim_info: document.getElementById('conf-telemetry-sim-info').checked
+                    }
+                };
 
-    function toggleSimulatorFields() {
-        const val = document.getElementById('conf-sim-provider').value;
-        document.getElementById('xplane-config-group').style.display = (val === 'xplane') ? 'block' : 'none';
-    }
+                console.log("Saving config:", newConfig);
+                localStorage.setItem('apple_liquid_effects', newConfig.ui.apple_liquid_effects ? '1' : '0');
 
-    function toggleGroundSourceFields() {
-        const val = document.getElementById('conf-ground-source').value;
-        document.getElementById('osm-config-group').style.display = (val === 'osm') ? 'block' : 'none';
-    }
+                // Save Main Config (Includes Security)
+                const response = await fetch('/save_settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newConfig)
+                });
 
-    function toggleLocalTtsFields() {
-        const val = document.getElementById('conf-tts-backend').value;
-        document.getElementById('local-tts-group').style.display = (val === 'local') ? 'block' : 'none';
-    }
+                const result = await response.json();
+                console.log("Save response:", response.status, result);
 
-    function testAudio() {
-        // Stop any currently playing audio before starting new request
-        _stopAllAudio();
+                if (!response.ok) {
+                    alert("Error: " + (result.message || response.statusText));
+                    return;
+                }
 
-        // Unlock audio context on user interaction
-        if (!window.audioContext) {
-            window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (window.audioContext.state === 'suspended') {
-            window.audioContext.resume();
-        }
-        
-        const btn = document.querySelector('[onclick="testAudio()"]');
-        const lang = localStorage.getItem('language') || 'zh';
-        if (btn) {
-            btn.textContent = lang === 'zh' ? '⏳ 合成中...' : '⏳ Testing...';
-            btn.disabled = true;
-        }
-        socket.emit('test_tts_trigger');
-        setTimeout(() => {
-            if (btn) {
-                btn.textContent = lang === 'zh' ? '🔊 测试音频' : '🔊 Test Audio';
-                btn.disabled = false;
+                alert("Settings Saved!");
+                loadConfig();
+            } catch (e) {
+                console.error("Save error:", e);
+                alert("Error saving settings: " + e.message);
             }
-        }, 6000);
-    }
-
-    // Sequential audio queue — prevents ATIS segments from overlapping
-    let _audioQueue = [];
-    let _audioPlaying = false;
-    let _currentAudio = null;
-
-    function _playNextAudio() {
-        if (_audioPlaying || _audioQueue.length === 0) return;
-        const { url, onDone } = _audioQueue.shift();
-        _audioPlaying = true;
-        const audio = new Audio(url);
-        _currentAudio = audio;
-        audio.onended = () => {
-            URL.revokeObjectURL(url);
-            _currentAudio = null;
-            _audioPlaying = false;
-            if (onDone) onDone();
-            _playNextAudio();
-        };
-        audio.onerror = () => {
-            URL.revokeObjectURL(url);
-            _currentAudio = null;
-            _audioPlaying = false;
-            if (onDone) onDone(true);
-            _playNextAudio();
-        };
-        const resume = () => audio.play().catch(err => console.error('Audio play failed:', err));
-        if (window.audioContext && window.audioContext.state === 'suspended') {
-            window.audioContext.resume().then(resume);
-        } else {
-            resume();
         }
-    }
 
-    function _enqueueAudio(url, onDone) {
-        _audioQueue.push({ url, onDone });
-        _playNextAudio();
-    }
+        async function importSimBrief() {
+            const username = document.getElementById('conf-simbrief-user').value;
+            if (!username) return alert("Enter username");
 
-    function _stopAllAudio() {
-        if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
-        _audioQueue = [];
-        _audioPlaying = false;
-    }
+            try {
+                const resp = await fetch('/import_simbrief', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username })
+                });
+                const result = await resp.json();
+                if (result.status === 'success') {
+                    document.getElementById('conf-fp-origin').value = result.data.origin || '';
+                    document.getElementById('conf-fp-destination').value = result.data.destination || '';
+                    document.getElementById('conf-fp-alternate').value = result.data.alternate || '';
+                    document.getElementById('conf-fp-cruise').value = result.data.cruise_alt || '';
+                    document.getElementById('conf-fp-route').value = result.data.route || '';
+                    if (result.callsign) {
+                        document.getElementById('conf-callsign').value = result.callsign;
+                    }
+                    const routeText = "Imported: " + result.data.origin + " -> " + result.data.destination;
+                    const planText = result.data.route && result.data.route !== 'N/A' ? (" | Route: " + result.data.route) : "";
+                    const callsignText = result.callsign ? (" | Callsign: " + result.callsign) : "";
+                    document.getElementById('simbrief-status').textContent = routeText + planText + callsignText;
+                    alert(routeText + planText + callsignText);
+                } else {
+                    document.getElementById('simbrief-status').textContent = "Error: " + result.message;
+                    alert("Error: " + result.message);
+                }
+            } catch (e) {
+                document.getElementById('simbrief-status').textContent = "Network Error";
+                alert("Network Error");
+            }
+        }
 
-    // Play audio received from TTS engine on this page
-    if (socket) socket.on('audio_stream', (data) => {
-        if (data.is_atis) return; // ATIS audio only plays on the dashboard
-        try {
-            const raw = atob(data.data);
-            const bytes = new Uint8Array(raw.length);
-            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-            const blob = new Blob([bytes], { type: 'audio/mpeg' });
-            const url = URL.createObjectURL(blob);
+        async function testHoppieAcars() {
+            const status = document.getElementById('hoppie-test-status');
+            const logon = document.getElementById('conf-hoppie-logon')?.value.trim() || '';
+            const callsign = document.getElementById('conf-callsign')?.value.trim() || '';
+            if (status) {
+                status.textContent = 'Testing...';
+                status.className = 'small text-muted';
+            }
+            try {
+                const response = await fetch('/api/hoppie/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ logon_code: logon, callsign })
+                });
+                const result = await response.json();
+                if (status) {
+                    status.textContent = result.message || (result.ok ? 'OK' : 'Failed');
+                    status.className = result.ok ? 'small text-success' : 'small text-danger';
+                }
+            } catch (e) {
+                if (status) {
+                    status.textContent = 'Test failed: ' + e.message;
+                    status.className = 'small text-danger';
+                }
+            }
+        }
+
+        document.getElementById('conf-provider').addEventListener('change', toggleBaseUrl);
+        document.getElementById('conf-sim-provider').addEventListener('change', toggleSimulatorFields);
+        document.getElementById('conf-ground-source').addEventListener('change', toggleGroundSourceFields);
+        function toggleBaseUrl() {
+            const val = document.getElementById('conf-provider').value;
+            document.getElementById('base-url-group').style.display = (val === 'openai_compatible') ? 'block' : 'none';
+        }
+
+        function toggleSimulatorFields() {
+            const val = document.getElementById('conf-sim-provider').value;
+            document.getElementById('xplane-config-group').style.display = (val === 'xplane') ? 'block' : 'none';
+        }
+
+        function toggleGroundSourceFields() {
+            const val = document.getElementById('conf-ground-source').value;
+            document.getElementById('osm-config-group').style.display = (val === 'osm') ? 'block' : 'none';
+        }
+
+        function toggleLocalTtsFields() {
+            const val = document.getElementById('conf-tts-backend').value;
+            document.getElementById('local-tts-group').style.display = (val === 'local') ? 'block' : 'none';
+        }
+
+        function testAudio() {
+            // Stop any currently playing audio before starting new request
+            _stopAllAudio();
+
+            // Unlock audio context on user interaction
+            if (!window.audioContext) {
+                window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (window.audioContext.state === 'suspended') {
+                window.audioContext.resume();
+            }
+
             const btn = document.querySelector('[onclick="testAudio()"]');
             const lang = localStorage.getItem('language') || 'zh';
-            if (btn && btn.disabled) btn.textContent = lang === 'zh' ? '🔊 播放中...' : '🔊 Playing...';
-            _enqueueAudio(url, (err) => {
-                // Only reset button after last segment finishes (queue empty)
-                if (_audioQueue.length === 0) {
-                    const b = document.querySelector('[onclick="testAudio()"]');
-                    const l = localStorage.getItem('language') || 'zh';
-                    if (b) {
-                        b.textContent = err
-                            ? (l === 'zh' ? '❌ 播放失败' : '❌ Play Failed')
-                            : (l === 'zh' ? '🔊 测试音频' : '🔊 Test Audio');
-                        b.disabled = false;
-                    }
+            if (btn) {
+                btn.textContent = lang === 'zh' ? '⏳ 合成中...' : '⏳ Testing...';
+                btn.disabled = true;
+            }
+            socket.emit('test_tts_trigger');
+            setTimeout(() => {
+                if (btn) {
+                    btn.textContent = lang === 'zh' ? '🔊 测试音频' : '🔊 Test Audio';
+                    btn.disabled = false;
                 }
-            });
-        } catch (e) { console.error('Test audio error:', e); }
-    });  // end socket.on audio_stream
-
-    function goBackToDashboard() {
-        if (window.history.length > 1) {
-            window.history.back();
-            return;
+            }, 6000);
         }
-        window.location.href = '/dashboard';
-    }
 
-    // ── Privacy & Updates helpers ─────────────────────────────────────────────
+        // Sequential audio queue — prevents ATIS segments from overlapping
+        let _audioQueue = [];
+        let _audioPlaying = false;
+        let _currentAudio = null;
 
-    async function fetchRecentCrashId() {
-        try {
-            const res = await fetch('/api/telemetry/recent_crashes');
-            if (!res.ok) return;
-            const crashes = await res.json();
-            if (crashes.length > 0) {
-                const c = crashes[0];
-                document.getElementById('fb-crash-id').value = c.crash_id || '';
-                document.getElementById('recent-crash-info').textContent =
-                    `Recent crash: ${c.exception_type || 'Error'} at ${c.timestamp_utc ? c.timestamp_utc.slice(0,19).replace('T',' ') : '?'} UTC`;
-            }
-        } catch (e) { /* no crash logs, ignore */ }
-    }
-
-    async function uploadRecentCrash() {
-        const btn = event.target;
-        const statusEl = document.getElementById('crash-upload-status');
-        btn.disabled = true;
-        statusEl.textContent = 'Uploading…';
-        try {
-            const res = await fetch('/api/telemetry/upload_recent', { method: 'POST' });
-            const data = await res.json();
-            if (res.ok && data.ok) {
-                statusEl.className = 'small text-success';
-                statusEl.textContent = data.message || 'Uploaded successfully.';
+        function _playNextAudio() {
+            if (_audioPlaying || _audioQueue.length === 0) return;
+            const { url, onDone } = _audioQueue.shift();
+            _audioPlaying = true;
+            const audio = new Audio(url);
+            _currentAudio = audio;
+            audio.onended = () => {
+                URL.revokeObjectURL(url);
+                _currentAudio = null;
+                _audioPlaying = false;
+                if (onDone) onDone();
+                _playNextAudio();
+            };
+            audio.onerror = () => {
+                URL.revokeObjectURL(url);
+                _currentAudio = null;
+                _audioPlaying = false;
+                if (onDone) onDone(true);
+                _playNextAudio();
+            };
+            const resume = () => audio.play().catch(err => console.error('Audio play failed:', err));
+            if (window.audioContext && window.audioContext.state === 'suspended') {
+                window.audioContext.resume().then(resume);
             } else {
-                statusEl.className = 'small text-danger';
-                statusEl.textContent = data.message || 'Upload failed.';
+                resume();
             }
-        } catch (e) {
-            statusEl.className = 'small text-danger';
-            statusEl.textContent = 'Network error.';
-        } finally {
-            btn.disabled = false;
         }
-    }
 
-    async function checkForUpdates() {
-        const btn = event.target;
-        const statusEl = document.getElementById('update-check-status');
-        const infoBox = document.getElementById('update-info-box');
-        btn.disabled = true;
-        statusEl.textContent = 'Checking…';
-        infoBox.className = 'alert alert-info alert-sm mt-2 d-none p-2';
-        try {
-            const res = await fetch('/api/update/check', { method: 'POST' });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || res.statusText);
-            if (data.update_available) {
-                statusEl.className = 'small text-primary fw-semibold';
-                statusEl.textContent = `v${data.latest} available!`;
-                infoBox.className = 'alert alert-success alert-sm mt-2 p-2';
-                const notes = (localStorage.getItem('language') === 'zh' ? data.release_notes_zh : data.release_notes_en) || data.release_notes_en || '';
-                infoBox.innerHTML = `
-                    <strong>New version: v${data.latest}</strong><br>
+        function _enqueueAudio(url, onDone) {
+            _audioQueue.push({ url, onDone });
+            _playNextAudio();
+        }
+
+        function _stopAllAudio() {
+            if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
+            _audioQueue = [];
+            _audioPlaying = false;
+        }
+
+        // Play audio received from TTS engine on this page
+        if (socket) socket.on('audio_stream', (data) => {
+            if (data.is_atis) return; // ATIS audio only plays on the dashboard
+            try {
+                const raw = atob(data.data);
+                const bytes = new Uint8Array(raw.length);
+                for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+                const blob = new Blob([bytes], { type: 'audio/mpeg' });
+                const url = URL.createObjectURL(blob);
+                const btn = document.querySelector('[onclick="testAudio()"]');
+                const lang = localStorage.getItem('language') || 'zh';
+                if (btn && btn.disabled) btn.textContent = lang === 'zh' ? '🔊 播放中...' : '🔊 Playing...';
+                _enqueueAudio(url, (err) => {
+                    // Only reset button after last segment finishes (queue empty)
+                    if (_audioQueue.length === 0) {
+                        const b = document.querySelector('[onclick="testAudio()"]');
+                        const l = localStorage.getItem('language') || 'zh';
+                        if (b) {
+                            b.textContent = err
+                                ? (l === 'zh' ? '❌ 播放失败' : '❌ Play Failed')
+                                : (l === 'zh' ? '🔊 测试音频' : '🔊 Test Audio');
+                            b.disabled = false;
+                        }
+                    }
+                });
+            } catch (e) { console.error('Test audio error:', e); }
+        });  // end socket.on audio_stream
+
+        function goBackToDashboard() {
+            if (window.history.length > 1) {
+                window.history.back();
+                return;
+            }
+            window.location.href = '/dashboard';
+        }
+
+        // ── Privacy & Updates helpers ─────────────────────────────────────────────
+
+        async function fetchRecentCrashId() {
+            try {
+                const res = await fetch('/api/telemetry/recent_crashes');
+                if (!res.ok) return;
+                const crashes = await res.json();
+                if (crashes.length > 0) {
+                    const c = crashes[0];
+                    document.getElementById('fb-crash-id').value = c.crash_id || '';
+                    document.getElementById('recent-crash-info').textContent =
+                        `Recent crash: ${c.exception_type || 'Error'} at ${c.timestamp_utc ? c.timestamp_utc.slice(0, 19).replace('T', ' ') : '?'} UTC`;
+                }
+            } catch (e) { /* no crash logs, ignore */ }
+        }
+
+        async function uploadRecentCrash() {
+            const btn = event.target;
+            const statusEl = document.getElementById('crash-upload-status');
+            btn.disabled = true;
+            statusEl.textContent = 'Uploading…';
+            try {
+                const res = await fetch('/api/telemetry/upload_recent', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    statusEl.className = 'small text-success';
+                    statusEl.textContent = data.message || 'Uploaded successfully.';
+                } else {
+                    statusEl.className = 'small text-danger';
+                    statusEl.textContent = data.message || 'Upload failed.';
+                }
+            } catch (e) {
+                statusEl.className = 'small text-danger';
+                statusEl.textContent = 'Network error.';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function checkForUpdates() {
+            const btn = event.target;
+            const statusEl = document.getElementById('update-check-status');
+            const infoBox = document.getElementById('update-info-box');
+            const lang = localStorage.getItem('language') || 'en';
+            const ui = ({
+                en: { checking: 'Checking...', available: '{version} available!', latest: 'New version: {version}', download: 'Download & Install', current: 'Up to date ({version})', failed: 'Check failed: ' },
+                zh: { checking: '正在检查...', available: '发现新版本 {version}', latest: '新版本：{version}', download: '下载并安装', current: '已是最新版本（{version}）', failed: '检查失败：' },
+                ja: { checking: '確認中...', available: '新しいバージョン {version} があります', latest: '新バージョン：{version}', download: 'ダウンロードしてインストール', current: '最新版です（{version}）', failed: '確認に失敗しました：' },
+            })[lang] || ({ checking: 'Checking...', available: '{version} available!', latest: 'New version: {version}', download: 'Download & Install', current: 'Up to date ({version})', failed: 'Check failed: ' });
+            const fmtVersion = v => {
+                const s = String(v || '').trim();
+                return s ? (s.startsWith('v') ? s : `v${s}`) : '';
+            };
+            btn.disabled = true;
+            statusEl.textContent = ui.checking;
+            infoBox.className = 'alert alert-info alert-sm mt-2 d-none p-2';
+            try {
+                const res = await fetch('/api/update/check', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || res.statusText);
+                if (data.update_available) {
+                    const latestVersion = fmtVersion(data.latest);
+                    statusEl.className = 'small text-primary fw-semibold';
+                    statusEl.textContent = ui.available.replace('{version}', latestVersion);
+                    infoBox.className = 'alert alert-success alert-sm mt-2 p-2';
+                    const notes = (lang === 'zh' ? data.release_notes_zh : data.release_notes_en) || data.release_notes_en || '';
+                    infoBox.innerHTML = `
+                    <strong>${ui.latest.replace('{version}', latestVersion)}</strong><br>
                     <small>${notes.slice(0, 300).replace(/\n/g, '<br>')}${notes.length > 300 ? '…' : ''}</small><br>
                     <div class="mt-2 d-flex gap-2">
-                        <button class="btn btn-sm btn-success" onclick="startDownloadUpdate()">⬇️ Download &amp; Install</button>
+                        <button class="btn btn-sm btn-success" onclick="startDownloadUpdate()">${ui.download}</button>
                     </div>`;
-                infoBox.style.fontSize = '0.82rem';
-            } else {
-                statusEl.className = 'small text-success';
-                statusEl.textContent = `Up to date (v${data.current})`;
+                    infoBox.style.fontSize = '0.82rem';
+                } else {
+                    statusEl.className = 'small text-success';
+                    statusEl.textContent = ui.current.replace('{version}', fmtVersion(data.current));
+                }
+            } catch (e) {
+                statusEl.className = 'small text-danger';
+                statusEl.textContent = ui.failed + e.message;
+            } finally {
+                btn.disabled = false;
             }
-        } catch (e) {
-            statusEl.className = 'small text-danger';
-            statusEl.textContent = 'Check failed: ' + e.message;
-        } finally {
-            btn.disabled = false;
         }
-    }
 
-    async function startDownloadUpdate() {
-        const infoBox = document.getElementById('update-info-box');
-        infoBox.innerHTML = `
+        async function startDownloadUpdate() {
+            const infoBox = document.getElementById('update-info-box');
+            infoBox.innerHTML = `
             <strong>Downloading update…</strong>
             <div class="progress mt-2" style="height:8px;">
                 <div id="update-dl-bar" class="progress-bar progress-bar-striped progress-bar-animated"
@@ -1122,176 +1250,178 @@
             </div>
             <small id="update-dl-label" class="text-muted">0%</small>`;
 
-        // Wire socket events for progress
-        const s = window.socket;
-        s.on('update_download_progress', d => {
-            const pct = Math.round(d.percent || 0);
-            document.getElementById('update-dl-bar').style.width = pct + '%';
-            const speed = d.speed_kbps ? ` · ${(d.speed_kbps/1024).toFixed(1)} MB/s` : '';
-            const eta = d.eta_seconds ? ` · ETA ${d.eta_seconds}s` : '';
-            document.getElementById('update-dl-label').textContent = `${pct}%${speed}${eta}`;
-        });
-        s.once('update_download_complete', d => {
-            infoBox.innerHTML = `<strong>✅ Download complete!</strong> Launching installer…<br>
-                <small class="text-muted">${d.filename}</small>`;
-            s.emit('install_update', {});
-        });
-        s.once('update_download_failed', d => {
-            infoBox.className = 'alert alert-danger alert-sm mt-2 p-2';
-            infoBox.innerHTML = `<strong>❌ Download failed:</strong> ${d.reason || 'Unknown error'}`;
-        });
-
-        s.emit('start_update_download', {});
-    }
-
-    async function submitFeedback() {
-        const statusEl = document.getElementById('fb-status');
-        const title = document.getElementById('fb-title').value.trim();
-        if (!title) {
-            statusEl.className = 'small text-danger';
-            statusEl.textContent = 'Title is required.';
-            return;
-        }
-        statusEl.className = 'small text-muted';
-        statusEl.textContent = 'Sending…';
-        try {
-            const res = await fetch('/api/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: document.getElementById('fb-type').value,
-                    title,
-                    description: document.getElementById('fb-description').value.trim(),
-                    crash_id: document.getElementById('fb-crash-id').value.trim(),
-                    contact: document.getElementById('fb-contact').value.trim(),
-                    include_log: document.getElementById('fb-include-log').checked,
-                    include_config: document.getElementById('fb-include-config').checked
-                })
+            // Wire socket events for progress
+            const s = window.socket;
+            s.on('update_download_progress', d => {
+                const pct = Math.round(d.percent || 0);
+                document.getElementById('update-dl-bar').style.width = pct + '%';
+                const speed = d.speed_kbps ? ` · ${(d.speed_kbps / 1024).toFixed(1)} MB/s` : '';
+                const eta = d.eta_seconds ? ` · ETA ${d.eta_seconds}s` : '';
+                document.getElementById('update-dl-label').textContent = `${pct}%${speed}${eta}`;
             });
-            const data = await res.json();
-            if (res.ok && data.ok) {
-                statusEl.className = 'small text-success';
-                statusEl.textContent = `Sent! Feedback ID: ${data.feedback_id}`;
-                document.getElementById('fb-title').value = '';
-                document.getElementById('fb-description').value = '';
-            } else {
+            s.once('update_download_complete', d => {
+                infoBox.innerHTML = `<strong>✅ Download complete!</strong> Launching installer…<br>
+                <small class="text-muted">${d.filename}</small>`;
+                s.emit('install_update', {});
+            });
+            s.once('update_download_failed', d => {
+                infoBox.className = 'alert alert-danger alert-sm mt-2 p-2';
+                infoBox.innerHTML = `<strong>❌ Download failed:</strong> ${d.reason || 'Unknown error'}`;
+            });
+
+            s.emit('start_update_download', {});
+        }
+
+        async function submitFeedback() {
+            const statusEl = document.getElementById('fb-status');
+            const title = document.getElementById('fb-title').value.trim();
+            if (!title) {
                 statusEl.className = 'small text-danger';
-                statusEl.textContent = data.message || 'Failed to send.';
+                statusEl.textContent = 'Title is required.';
+                return;
             }
-        } catch (e) {
-            statusEl.className = 'small text-danger';
-            statusEl.textContent = 'Network error.';
-        }
-    }
-
-    function updateTtsModelPlaceholder() {
-        const engine = document.getElementById('conf-tts-local-engine')?.value || 'kokoro';
-        const modelInput = document.getElementById('conf-tts-local-model');
-        if (modelInput) {
-            modelInput.placeholder = engine === 'kokoro' ? './models/kokoro-v0_19.onnx' : './models/en_US-arctic-medium.onnx';
-        }
-    }
-
-    function downloadModelWithProgress(modelType) {
-        const btn      = document.getElementById(`btn-dl-${modelType}`);
-        const status   = document.getElementById(`${modelType}-dl-status`);
-        const progWrap = document.getElementById(`${modelType}-dl-progress`);
-        const label    = document.getElementById(`${modelType}-dl-label`);
-        const fill     = document.getElementById(`${modelType}-dl-fill`);
-        const manual   = document.getElementById(`${modelType}-dl-manual`);
-
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>下载中…';
-        status.textContent = '';
-        progWrap.style.display = 'block';
-        fill.style.background = '#0d6efd';
-        fill.style.width = '0%';
-        label.textContent = '正在连接…';
-        if (manual) manual.style.display = 'none';
-
-        const es = new EventSource(`/api/model/download/${modelType}`);
-
-        es.onmessage = function(e) {
-            const d = JSON.parse(e.data);
-            const pct = d.progress;
-            if (pct >= 0) fill.style.width = Math.max(2, pct) + '%';
-            if (d.message) label.textContent = d.message;
-
-            if (d.done) {
-                es.close();
-                if (d.success) {
-                    fill.style.width = '100%';
-                    fill.style.background = '#198754';
-                    label.textContent = d.message;
-                    btn.disabled = false;
-                    btn.innerHTML = '✅ 下载完成';
-                    btn.classList.replace('btn-outline-primary', 'btn-outline-success');
-                    status.textContent = '';
+            statusEl.className = 'small text-muted';
+            statusEl.textContent = 'Sending…';
+            try {
+                const res = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: document.getElementById('fb-type').value,
+                        title,
+                        description: document.getElementById('fb-description').value.trim(),
+                        crash_id: document.getElementById('fb-crash-id').value.trim(),
+                        contact: document.getElementById('fb-contact').value.trim(),
+                        include_log: document.getElementById('fb-include-log').checked,
+                        include_config: document.getElementById('fb-include-config').checked
+                    })
+                });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    statusEl.className = 'small text-success';
+                    statusEl.textContent = `Sent! Feedback ID: ${data.feedback_id}`;
+                    document.getElementById('fb-title').value = '';
+                    document.getElementById('fb-description').value = '';
                 } else {
-                    fill.style.background = '#dc3545';
-                    fill.style.width = '100%';
-                    label.textContent = '下载失败 — 请查看手动下载说明';
-                    btn.disabled = false;
-                    btn.innerHTML = '🔄 重试';
-                    // Show manual instructions
-                    fetchManualInstructions(modelType, manual);
+                    statusEl.className = 'small text-danger';
+                    statusEl.textContent = data.message || 'Failed to send.';
                 }
+            } catch (e) {
+                statusEl.className = 'small text-danger';
+                statusEl.textContent = 'Network error.';
             }
-        };
+        }
 
-        es.onerror = function() {
-            es.close();
-            fill.style.background = '#dc3545';
-            fill.style.width = '100%';
-            label.textContent = '连接中断，请检查网络后重试';
-            btn.disabled = false;
-            btn.innerHTML = '🔄 重试';
-            fetchManualInstructions(modelType, manual);
-        };
-    }
-
-    function fetchManualInstructions(modelType, el) {
-        if (!el) return;
-        const instructions = {
-            stt: '自动下载失败。请手动下载以下文件并放入 models/sherpa-onnx-whisper-small/ 目录：\n'
-               + '• small-encoder.int8.onnx（约 49 MB）\n'
-               + '• small-decoder.int8.onnx（约 96 MB）\n'
-               + '• small-tokens.txt\n\n'
-               + '下载地址（任选一个）：\n'
-               + '① HuggingFace：https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small\n'
-               + '② ModelScope（国内）：https://modelscope.cn/models/csukuangfj/sherpa-onnx-whisper-small',
-            tts: '自动下载失败。请手动下载以下文件并放入 models/ 目录：\n'
-               + '• kokoro-v0_19.onnx（约 310 MB）\n'
-               + '• voices.bin（约 10 MB）\n\n'
-               + '下载地址（任选一个）：\n'
-               + '① HuggingFace：https://huggingface.co/hexgrad/Kokoro-82M\n'
-               + '② GitHub Release：https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0',
-        };
-        el.textContent = instructions[modelType] || '';
-        el.style.display = 'block';
-    }
-
-    // Live auto-busy status from server
-    if (window.socket) {
-        window.socket.on('busy_level_update', d => {
-            const el = document.getElementById('auto-busy-status');
-        const lang = localStorage.getItem('language') || 'en';
-            if (el) el.textContent = lang === 'zh'
-                ? `当前：${d.level}（自动）· 附近 ${d.count} 架飞机`
-                : `Current: ${d.level} (auto) · ${d.count} aircraft nearby`;
-        });
-    }
-
-    loadConfig();
-    loadCabinMediaPackages();
-
-    // ── Theme selector event binding ──────────────────────────────────────────
-    document.querySelectorAll('input[name="ui-theme"]').forEach(radio => {
-        radio.addEventListener('change', () => {
-            if (!radio.disabled && radio.checked && window.applyTheme) {
-                window.applyTheme(radio.value);
+        function updateTtsModelPlaceholder() {
+            const engine = document.getElementById('conf-tts-local-engine')?.value || 'kokoro';
+            const modelInput = document.getElementById('conf-tts-local-model');
+            if (modelInput) {
+                modelInput.placeholder = engine === 'kokoro' ? './models/kokoro-v1.0.onnx' : './models/en_US-arctic-medium.onnx';
             }
+        }
+
+        function downloadModelWithProgress(modelType) {
+            const btn = document.getElementById(`btn-dl-${modelType}`);
+            const status = document.getElementById(`${modelType}-dl-status`);
+            const progWrap = document.getElementById(`${modelType}-dl-progress`);
+            const label = document.getElementById(`${modelType}-dl-label`);
+            const fill = document.getElementById(`${modelType}-dl-fill`);
+            const manual = document.getElementById(`${modelType}-dl-manual`);
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>下载中…';
+            status.textContent = '';
+            progWrap.style.display = 'block';
+            fill.style.background = '#0d6efd';
+            fill.style.width = '0%';
+            label.textContent = '正在连接…';
+            if (manual) manual.style.display = 'none';
+
+            const es = new EventSource(`/api/model/download/${modelType}`);
+
+            es.onmessage = function (e) {
+                const d = JSON.parse(e.data);
+                const pct = d.progress;
+                if (pct >= 0) fill.style.width = Math.max(2, pct) + '%';
+                if (d.message) label.textContent = d.message;
+
+                if (d.done) {
+                    es.close();
+                    if (d.success) {
+                        fill.style.width = '100%';
+                        fill.style.background = '#198754';
+                        label.textContent = d.message;
+                        btn.disabled = false;
+                        btn.innerHTML = '✅ 下载完成';
+                        btn.classList.replace('btn-outline-primary', 'btn-outline-success');
+                        status.textContent = '';
+                    } else {
+                        fill.style.background = '#dc3545';
+                        fill.style.width = '100%';
+                        label.textContent = '下载失败 — 请查看手动下载说明';
+                        btn.disabled = false;
+                        btn.innerHTML = '🔄 重试';
+                        // Show manual instructions
+                        fetchManualInstructions(modelType, manual);
+                    }
+                }
+            };
+
+            es.onerror = function () {
+                es.close();
+                fill.style.background = '#dc3545';
+                fill.style.width = '100%';
+                label.textContent = '连接中断，请检查网络后重试';
+                btn.disabled = false;
+                btn.innerHTML = '🔄 重试';
+                fetchManualInstructions(modelType, manual);
+            };
+        }
+
+        function fetchManualInstructions(modelType, el) {
+            if (!el) return;
+            const instructions = {
+                stt: '自动下载失败。请手动下载以下文件并放入 models/sherpa-onnx-whisper-small/ 目录：\n'
+                    + '• small-encoder.int8.onnx（约 112 MB）\n'
+                    + '• small-decoder.int8.onnx（约 262 MB）\n'
+                    + '• small-tokens.txt\n\n'
+                    + '下载地址（任选一个）：\n'
+                    + '① 国内镜像：https://hf-mirror.com/csukuangfj/sherpa-onnx-whisper-small/tree/main\n'
+                    + '② HuggingFace：https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/tree/main',
+                tts: '自动下载失败。请手动下载以下文件并放入 models/ 目录：\n'
+                    + '• kokoro-v1.0.onnx（约 310 MB）\n'
+                    + '• voices-v1.0.bin（约 10 MB）\n\n'
+                    + '下载地址：\n'
+                    + 'GitHub Release：https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0',
+            };
+            el.textContent = instructions[modelType] || '';
+            el.style.display = 'block';
+        }
+
+        // Live auto-busy status from server
+        if (window.socket) {
+            window.socket.on('busy_level_update', d => {
+                const el = document.getElementById('auto-busy-status');
+                const lang = localStorage.getItem('language') || 'en';
+                if (el) el.textContent = lang === 'zh'
+                    ? `当前：${d.level}（自动）· 附近 ${d.count} 架飞机`
+                    : `Current: ${d.level} (auto) · ${d.count} aircraft nearby`;
+            });
+        }
+
+        loadConfig();
+        loadCabinMediaPackages();
+
+        // ── Theme selector event binding ──────────────────────────────────────────
+        document.querySelectorAll('input[name="ui-theme"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (!radio.disabled && radio.checked && window.applyTheme) {
+                    window.applyTheme(radio.value);
+                }
+            });
         });
-    });
-</script>
-{% endblock %}
+        document.getElementById('conf-apple-liquid-effects')?.addEventListener('change', (e) => {
+            localStorage.setItem('apple_liquid_effects', e.target.checked ? '1' : '0');
+        });
+    </script>
+    {% endblock %}

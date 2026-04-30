@@ -35,7 +35,7 @@ $VersionFile = Join-Path $RepoRoot "version.txt"
 if (Test-Path $VersionFile) {
     $env:OF_VERSION = (Get-Content $VersionFile -Raw).Trim()
 } else {
-    $env:OF_VERSION = "v3.9-beta"
+    $env:OF_VERSION = "v3.9-beta-ef"
 }
 $OutputMsi = Join-Path $RepoRoot "dist\OpenFrequency-$($env:OF_VERSION)-Setup.msi"
 $MsiVersion = ($env:OF_VERSION -replace '[^0-9.]', '') -replace '\.+$', ''

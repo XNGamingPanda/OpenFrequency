@@ -20,8 +20,8 @@
         "stt_language": "en",
         "tts_backend": "edge",
         "tts_local_engine": "kokoro",
-        "tts_local_model": "./models/kokoro-v0_19.onnx",
-        "tts_local_voices": "./models/voices.bin"
+        "tts_local_model": "./models/kokoro-v1.0.onnx",
+        "tts_local_voices": "./models/voices-v1.0.bin"
     },
     "simbrief": {
         "username": ""

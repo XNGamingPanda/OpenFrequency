@@ -123,9 +123,17 @@ class TTSEngine:
             try:
                 import os as _os
                 _models_dir = _os.path.join(_os.environ.get('APPDATA') or _os.path.expanduser('~'), 'OpenFrequency', 'models')
-                _default_model = _os.path.join(_models_dir, 'kokoro-v0_19.onnx')
-                _default_voices = _os.path.join(_models_dir, 'voices.bin')
+                _default_model = _os.path.join(_models_dir, 'kokoro-v1.0.onnx')
+                _default_voices = _os.path.join(_models_dir, 'voices-v1.0.bin')
+                if not _os.path.exists(_default_model):
+                    _default_model = _os.path.join(_models_dir, 'kokoro-v0_19.onnx')
+                if not _os.path.exists(_default_voices):
+                    _default_voices = _os.path.join(_models_dir, 'voices.bin')
                 voices_bin = audio_cfg.get('tts_local_voices') or _default_voices
+                if model_path and not _os.path.exists(model_path):
+                    model_path = _default_model
+                if voices_bin and not _os.path.exists(voices_bin):
+                    voices_bin = _default_voices
                 self._local_engine = _Kokoro(model_path or _default_model, voices_bin)
                 self._local_engine_name = 'kokoro'
                 print(f"TTSEngine: Kokoro local TTS loaded from '{model_path}'.")
@@ -475,6 +483,19 @@ class TTSEngine:
     def _expand_chinese_digits_for_speech(self, text):
         if not text:
             return text
+
+        # China ATIS local convention: keep display as "3000米/3600米",
+        # but read transition altitude/level as "三千米/三千六米".
+        text = re.sub(
+            r'(\u8fc7\u6e21\u9ad8\u5ea6)\s*3000\u7c73',
+            lambda m: m.group(1) + '\u4e09\u5343\u7c73',
+            text,
+        )
+        text = re.sub(
+            r'(\u8fc7\u6e21\u9ad8\u5ea6\u5c42)\s*3600\u7c73',
+            lambda m: m.group(1) + '\u4e09\u5343\u516d\u7c73',
+            text,
+        )
 
         digit_map = {
             '0': '洞', '1': '幺', '2': '两', '3': '三', '4': '四',

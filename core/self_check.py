@@ -26,24 +26,24 @@ STT_FILES = [
     {
         "name":  "small-encoder.int8.onnx",
         "urls": [
+            "https://hf-mirror.com/csukuangfj/sherpa-onnx-whisper-small/resolve/main/small-encoder.int8.onnx",
             "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main/small-encoder.int8.onnx",
-            "https://modelscope.cn/models/csukuangfj/sherpa-onnx-whisper-small/resolve/master/small-encoder.int8.onnx",
         ],
-        "size_mb": 49,
+        "size_mb": 112,
     },
     {
         "name":  "small-decoder.int8.onnx",
         "urls": [
+            "https://hf-mirror.com/csukuangfj/sherpa-onnx-whisper-small/resolve/main/small-decoder.int8.onnx",
             "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main/small-decoder.int8.onnx",
-            "https://modelscope.cn/models/csukuangfj/sherpa-onnx-whisper-small/resolve/master/small-decoder.int8.onnx",
         ],
-        "size_mb": 96,
+        "size_mb": 262,
     },
     {
         "name":  "small-tokens.txt",
         "urls": [
+            "https://hf-mirror.com/csukuangfj/sherpa-onnx-whisper-small/resolve/main/small-tokens.txt",
             "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main/small-tokens.txt",
-            "https://modelscope.cn/models/csukuangfj/sherpa-onnx-whisper-small/resolve/master/small-tokens.txt",
         ],
         "size_mb": 0.1,
     },
@@ -51,18 +51,16 @@ STT_FILES = [
 
 KOKORO_FILES = [
     {
-        "name":  "kokoro-v0_19.onnx",
+        "name":  "kokoro-v1.0.onnx",
         "urls": [
-            "https://huggingface.co/hexgrad/Kokoro-82M/resolve/main/kokoro-v0_19.onnx",
-            "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v0_19.onnx",
+            "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx",
         ],
         "size_mb": 310,
     },
     {
-        "name":  "voices.bin",
+        "name":  "voices-v1.0.bin",
         "urls": [
-            "https://huggingface.co/hexgrad/Kokoro-82M/resolve/main/voices.bin",
-            "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices.bin",
+            "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin",
         ],
         "size_mb": 10,
     },
@@ -72,23 +70,22 @@ KOKORO_FILES = [
 STT_MANUAL_INSTRUCTIONS = {
     "zh": (
         "自动下载失败。请手动下载以下文件并放入 <code>models/sherpa-onnx-whisper-small/</code> 目录：\n"
-        "• small-encoder.int8.onnx（约 49 MB）\n"
-        "• small-decoder.int8.onnx（约 96 MB）\n"
+        "• small-encoder.int8.onnx（约 112 MB）\n"
+        "• small-decoder.int8.onnx（约 262 MB）\n"
         "• small-tokens.txt\n\n"
         "下载地址（任选一个）：\n"
-        "① HuggingFace：https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small\n"
-        "② ModelScope（国内）：https://modelscope.cn/models/csukuangfj/sherpa-onnx-whisper-small"
+        "① 国内镜像：https://hf-mirror.com/csukuangfj/sherpa-onnx-whisper-small/tree/main\n"
+        "② HuggingFace：https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/tree/main"
     ),
 }
 
 KOKORO_MANUAL_INSTRUCTIONS = {
     "zh": (
         "自动下载失败。请手动下载以下文件并放入 <code>models/</code> 目录：\n"
-        "• kokoro-v0_19.onnx（约 310 MB）\n"
-        "• voices.bin（约 10 MB）\n\n"
-        "下载地址（任选一个）：\n"
-        "① HuggingFace：https://huggingface.co/hexgrad/Kokoro-82M\n"
-        "② GitHub Release：https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0"
+        "• kokoro-v1.0.onnx（约 310 MB）\n"
+        "• voices-v1.0.bin（约 10 MB）\n\n"
+        "下载地址：\n"
+        "GitHub Release：https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0"
     ),
 }
 
@@ -120,7 +117,7 @@ def _download_file(
     ctx.verify_mode = ssl.CERT_NONE
 
     for i, url in enumerate(urls):
-        mirror = "HuggingFace" if "huggingface" in url else ("ModelScope" if "modelscope" in url else "GitHub")
+        mirror = "HF Mirror" if "hf-mirror" in url else ("HuggingFace" if "huggingface" in url else ("ModelScope" if "modelscope" in url else "GitHub"))
         progress_cb(0, f"正在从 {mirror} 下载 {label}…")
         try:
             tmp_path = dest_path + ".tmp"
@@ -279,7 +276,13 @@ def _stt_model_present() -> bool:
 
 
 def _tts_model_present() -> bool:
-    return os.path.exists(os.path.join(KOKORO_DIR, "kokoro-v0_19.onnx"))
+    return (
+        os.path.exists(os.path.join(KOKORO_DIR, "kokoro-v1.0.onnx"))
+        and os.path.exists(os.path.join(KOKORO_DIR, "voices-v1.0.bin"))
+    ) or (
+        os.path.exists(os.path.join(KOKORO_DIR, "kokoro-v0_19.onnx"))
+        and os.path.exists(os.path.join(KOKORO_DIR, "voices.bin"))
+    )
 
 
 def self_check():

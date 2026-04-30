@@ -212,7 +212,8 @@ class LLMClient:
         2. Keep it brief and authoritative — one radio call only.
         3. Use {callsign} to address the pilot.
         4. Match the handoff/instruction to the actual flight phase above (climbing → Departure/Center; descending → Approach).
-        5. JSON Format: {{"text": "...", "action": "NONE"}}
+        5. In English, pronounce QNH digit-by-digit with ICAO radio numbers: 3 is "tree", 5 is "fife", 9 is "niner".
+        6. JSON Format: {{"text": "...", "action": "NONE"}}
 
         Generate the radio message now.
         """
@@ -526,7 +527,9 @@ class LLMClient:
            Clearance example: "CCA1024, cleared to Beijing via PIKAS departure, runway 36L. Squawk 2341."
            Tower example:     "CCA1024, wind 310 at 8 knots, runway 36L, cleared for takeoff."
            Handoff example:   "CCA1024, contact Departure on 119.1, good day."
+           QNH example:       "QNH one zero one tree."
            - Do NOT reply in Chinese, Japanese, or any other language.
+           - If you say QNH in English, write it digit-by-digit using radio numbers: 3 is "tree", 5 is "fife", 9 is "niner".
         """
         
         # VFR-specific guidance rules

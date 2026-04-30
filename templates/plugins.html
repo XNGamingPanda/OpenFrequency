@@ -1,83 +1,82 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="container-fluid px-3 py-3" style="max-width:1100px;">
 
-  <!-- Header -->
+{% block content %}
+<div class="container-fluid px-3 py-3 plugin-manager-page" style="max-width:1100px;">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-      <h4 class="mb-0" data-i18n="plugin_manager_title">馃З 鎻掍欢绠＄悊鍣?/h4>
-      <small class="text-muted" data-i18n="plugin_manager_subtitle">绀惧尯鎻掍欢涓庡畼鏂?DLC</small>
+      <h4 class="mb-0" data-i18n="plugin_manager_title">Plugin Manager</h4>
+      <small class="text-muted" data-i18n="plugin_manager_subtitle">Community plugins & official DLC</small>
     </div>
-    <div class="d-flex gap-2">
-      <a href="/dashboard" class="btn btn-sm btn-outline-secondary" data-i18n="back_dashboard">鈫?杩斿洖浠〃鐩?/a>
-    </div>
+    <a href="/dashboard" class="btn btn-sm btn-outline-secondary" data-i18n="back_dashboard">Back to Dashboard</a>
   </div>
 
-  <!-- Tabs -->
-  <ul class="nav nav-tabs mb-3" id="pm-tabs">
-    <li class="nav-item">
-      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-installed" data-i18n="tab_installed_plugins">
-        宸插畨瑁呮彃浠?        <span class="badge bg-secondary ms-1" id="installed-count">鈥?/span>
+  <ul class="nav nav-tabs mb-3" id="pm-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="installed-tab" data-bs-toggle="tab" data-bs-target="#tab-installed"
+        type="button" role="tab" data-i18n="tab_installed_plugins">
+        Installed Plugins
       </button>
     </li>
-    <li class="nav-item">
-      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dlc" data-i18n="tab_official_dlc">
-        瀹樻柟 DLC 涓庢墿灞?      </button>
-    </li>
-    <li class="nav-item">
-      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-install" data-i18n="tab_install_zip">
-        浠?ZIP 瀹夎
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="dlc-tab" data-bs-toggle="tab" data-bs-target="#tab-dlc"
+        type="button" role="tab" data-i18n="tab_official_dlc">
+        Official DLC
       </button>
     </li>
-    <li class="nav-item">
-      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dev" data-i18n="tab_dev_guide">
-        寮€鍙戣€呮寚鍗?      </button>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="install-tab" data-bs-toggle="tab" data-bs-target="#tab-install"
+        type="button" role="tab" data-i18n="tab_install_zip">
+        Install ZIP
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="dev-tab" data-bs-toggle="tab" data-bs-target="#tab-dev"
+        type="button" role="tab" data-i18n="tab_dev_guide">
+        Developer Guide
+      </button>
     </li>
   </ul>
 
   <div class="tab-content">
-
-    <!-- 鈹€鈹€ Installed Plugins tab 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ -->
-    <div class="tab-pane fade show active" id="tab-installed">
+    <div class="tab-pane fade show active" id="tab-installed" role="tabpanel">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="small text-muted">
+          <span data-i18n="tab_installed_plugins">Installed Plugins</span>
+          <span class="badge bg-secondary ms-1" id="installed-count">0</span>
+        </span>
+        <button class="btn btn-sm btn-outline-primary" onclick="reloadPlugins()" data-i18n="reload_all_plugins">
+          Reload All Plugins
+        </button>
+      </div>
       <div id="plugins-list">
         <div class="text-center text-muted py-5">
-          <div class="spinner-border spinner-border-sm me-2"></div>Loading plugins鈥?        </div>
+          <div class="spinner-border spinner-border-sm me-2"></div>Loading plugins...
+        </div>
       </div>
     </div>
 
-    <!-- 鈹€鈹€ Official DLC tab 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ -->
-    <div class="tab-pane fade" id="tab-dlc">
-
-      <!-- MSFS community folder configuration -->
+    <div class="tab-pane fade" id="tab-dlc" role="tabpanel">
       <div class="card mb-3 border-warning">
         <div class="card-body py-2">
-          <div class="d-flex align-items-center gap-3 flex-wrap">
-            <div class="flex-grow-1">
-              <label class="form-label small fw-semibold mb-0">MSFS Community Folder</label>
-              <div class="input-group input-group-sm mt-1">
-                <input type="text" id="msfs-community-path" class="form-control"
-                  placeholder="e.g. C:\鈥Microsoft Flight Simulator\Community"
-                  value="">
-                <button class="btn btn-outline-secondary" onclick="autoDetectCommunity()">
-                  Auto-detect
-                </button>
-                <button class="btn btn-outline-primary" onclick="saveCommunityPath()">
-                  Save
-                </button>
-              </div>
-              <div class="form-text" data-i18n="msfs_community_hint">瀹夎 DLC 鍒?MSFS 蹇呴』璁剧疆姝よ矾寰勶紝淇濆瓨鍚庣敓鏁堛€?/div>
-            </div>
-            <div id="community-status" class="small text-muted"></div>
+          <label class="form-label small fw-semibold mb-1">MSFS Community Folder</label>
+          <div class="input-group input-group-sm">
+            <input type="text" id="msfs-community-path" class="form-control"
+              placeholder="e.g. C:\Microsoft Flight Simulator\Community">
+            <button class="btn btn-outline-secondary" onclick="autoDetectCommunity()">Auto-detect</button>
+            <button class="btn btn-outline-primary" onclick="saveCommunityPath()">Save</button>
           </div>
+          <div class="form-text" data-i18n="msfs_community_hint">
+            Set this path before installing MSFS DLC. Save to apply.
+          </div>
+          <div id="community-status" class="small text-muted mt-1"></div>
         </div>
       </div>
 
-      <!-- DLC progress bar (shown during install) -->
       <div id="dlc-progress-area" style="display:none;" class="mb-3">
         <div class="card border-primary">
           <div class="card-body py-2">
             <div class="d-flex justify-content-between small mb-1">
-              <span id="dlc-progress-label">Installing鈥?/span>
+              <span id="dlc-progress-label">Installing...</span>
               <span id="dlc-progress-pct">0%</span>
             </div>
             <div class="progress" style="height:8px;">
@@ -88,44 +87,43 @@
         </div>
       </div>
 
-      <!-- DLC catalog cards -->
       <div id="dlc-list" class="row g-3">
         <div class="col-12 text-center text-muted py-5">
-          <div class="spinner-border spinner-border-sm me-2"></div>Loading catalog鈥?        </div>
+          <div class="spinner-border spinner-border-sm me-2"></div>Loading catalog...
+        </div>
       </div>
     </div>
 
-    <!-- 鈹€鈹€ Install from ZIP tab 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ -->
-    <div class="tab-pane fade" id="tab-install">
+    <div class="tab-pane fade" id="tab-install" role="tabpanel">
       <div class="card">
         <div class="card-body">
-          <h6 data-i18n="install_zip_title">浠?ZIP 瀹夎绀惧尯鎻掍欢</h6>
+          <h6 data-i18n="install_zip_title">Install Community Plugin from ZIP</h6>
           <p class="text-muted small mb-3" data-i18n="install_zip_hint">
-            鎻掍欢 ZIP 鏍圭洰褰曢』鍖呭惈 <code>manifest.json</code> 鍜?Python 鍏ュ彛鏂囦欢銆?          </p>
+            A plugin ZIP must contain a manifest.json at its root and a Python entry-point file.
+          </p>
           <div class="mb-3">
             <input type="file" class="form-control" id="plugin-zip-file" accept=".zip">
           </div>
           <button class="btn btn-primary" onclick="installFromZip()" data-i18n="install_plugin_btn">
-            馃摝 瀹夎鎻掍欢
+            Install Plugin
           </button>
           <div id="install-result" class="mt-3"></div>
         </div>
       </div>
     </div>
 
-    <!-- 鈹€鈹€ Developer Guide tab 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ -->
-    <div class="tab-pane fade" id="tab-dev">
+    <div class="tab-pane fade" id="tab-dev" role="tabpanel">
       <div class="card">
         <div class="card-body">
-          <h5 data-i18n="dev_guide_title"></h5>
+          <h5 data-i18n="dev_guide_title">OpenFrequency Plugin Development Guide</h5>
 
           <h6 class="mt-4" data-i18n="dev_guide_section1_title"></h6>
           <p class="small" data-i18n="dev_guide_section1_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section1_subsection1_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section1_subsection1_title"></h6>
           <p class="small" data-i18n="dev_guide_section1_subsection1_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section1_subsection2_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section1_subsection2_title"></h6>
           <p class="small" data-i18n="dev_guide_section1_subsection2_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section1_subsection3_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section1_subsection3_title"></h6>
           <p class="small" data-i18n="dev_guide_section1_subsection3_content"></p>
           <ul class="small">
             <li data-i18n="dev_guide_section1_item1"></li>
@@ -135,50 +133,46 @@
 
           <h6 class="mt-4" data-i18n="dev_guide_section2_title"></h6>
           <p class="small" data-i18n="dev_guide_section2_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section2_subsection1_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section2_subsection1_title"></h6>
           <p class="small" data-i18n="dev_guide_section2_subsection1_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section2_subsection2_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section2_subsection2_title"></h6>
           <p class="small" data-i18n="dev_guide_section2_subsection2_content"></p>
           <p class="small" data-i18n="dev_guide_section2_desc"></p>
-<pre class="bg-light p-2 rounded mb-2" style="font-size:0.75em;">OpenFrequency/
-鈹斺攢鈹€ plugins/
-    鈹斺攢鈹€ community/
-        鈹斺攢鈹€ my_plugin/          // Your plugin ID
-            鈹溾攢鈹€ manifest.json   // Plugin manifest
-            鈹溾攢鈹€ plugin.py       // Entry point
-            鈹溾攢鈹€ media/          // (optional) Media files
-            鈹斺攢鈹€ cabin/          // (optional) Cabin scripts
-                鈹斺攢鈹€ scripts.json</pre>
+<pre class="bg-light p-2 rounded mb-2 small">OpenFrequency/
+  plugins/
+    community/
+      my_plugin/
+        manifest.json
+        plugin.py
+        media/
+        cabin/
+          scripts.json</pre>
 
           <h6 class="mt-4" data-i18n="dev_guide_section3_title"></h6>
           <p class="small" data-i18n="dev_guide_section3_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section3_subsection1_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section3_subsection1_title"></h6>
           <p class="small" data-i18n="dev_guide_section3_subsection1_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section3_subsection2_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section3_subsection2_title"></h6>
           <p class="small" data-i18n="dev_guide_section3_subsection2_content"></p>
           <p class="small" data-i18n="dev_guide_section3_desc"></p>
-<pre class="bg-light p-2 rounded mt-1 mb-2" style="font-size:0.75em;">{
-  "id":              "my_plugin",              // Unique ID (snake_case)
-  "name":            "My Plugin",              // Display name
-  "version":         "1.0.0",                  // Version (semver)
-  "author":          "Your Name",              // Author
-  "description":     "Brief description",     // Description
-  "min_app_version": "3.9.0",                 // (optional) Min OF version
-  "entry":           "plugin.py",              // Entry point file
-  "hooks": [                                  // Hooks to use
-    "on_load",
-    "on_atc_response",
-    "on_telemetry"
-  ],
-  "settings_schema": {},                       // (optional) Plugin settings JSON-Schema
-  "cabin_scripts": {                          // (optional) Cabin scripts (follows data/cabin/scripts.json format)
-    "MYA": {                                  // Airline code key (e.g., CCA, UAL, ANA)
-      "voice": "en-US-JennyNeural",           // TTS voice
-      "welcome": "Welcome aboard...",          // Simple string or object with "text" field
+<pre class="bg-light p-2 rounded mt-1 mb-2 small">{
+  "id": "my_plugin",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "author": "Your Name",
+  "description": "Brief description",
+  "min_app_version": "3.9.0",
+  "entry": "plugin.py",
+  "hooks": ["on_load", "on_atc_response", "on_telemetry"],
+  "settings_schema": {},
+  "cabin_scripts": {
+    "MYA": {
+      "voice": "en-US-JennyNeural",
+      "welcome": "Welcome aboard...",
       "door_close": "Flight attendants, doors to arrival and cross check.",
-      "safety_demo": {                        // Can be object with text and optional video
+      "safety_demo": {
         "text": "Please watch the safety demonstration.",
-        "video": "media/safety.mp4"           // Optional video file path
+        "video": "media/safety.mp4"
       },
       "takeoff_prep": "Cabin crew, seats for takeoff.",
       "climb_service": "We will now begin our inflight service.",
@@ -202,121 +196,95 @@
 
           <h6 class="mt-4" data-i18n="dev_guide_section4_title"></h6>
           <p class="small" data-i18n="dev_guide_section4_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section4_subsection1_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section4_subsection1_title"></h6>
           <p class="small" data-i18n="dev_guide_section4_subsection1_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section4_subsection2_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section4_subsection2_title"></h6>
           <p class="small" data-i18n="dev_guide_section4_subsection2_content"></p>
           <p class="small" data-i18n="dev_guide_section4_desc"></p>
-<pre class="bg-light p-2 rounded mt-1 mb-2" style="font-size:0.75em;">from core.plugin_api import OpenFrequencyPlugin
+<pre class="bg-light p-2 rounded mt-1 mb-2 small">from core.plugin_api import OpenFrequencyPlugin
 
 class Plugin(OpenFrequencyPlugin):
-    """
-    Main plugin class
-    Must inherit from OpenFrequencyPlugin
-    """
-
     def on_load(self):
-        """Called when plugin loads"""
         self.log("Plugin loaded successfully!")
-
-        # Read plugin config
-        my_setting = self.config.get("my_setting", "default")
-
-        # Subscribe to events
         self.subscribe("custom_event", self.handle_custom_event)
 
     def on_unload(self):
-        """Called when plugin unloads"""
         self.log("Plugin unloading...")
 
     def on_atc_response(self, text, action):
-        """
-        ATC response hook
-        Can modify ATC text
-        Return None to keep original
-        """
-        # Example: modify specific instructions
         if "cleared" in text.lower():
-            return f"鉁?{text}"
+            return f"[PLUGIN] {text}"
         return None
 
     def on_telemetry(self, data):
-        """
-        Telemetry hook
-        ~10Hz frequency
-        """
         aircraft = data.get("aircraft", {})
         altitude = aircraft.get("altitude", 0)
         speed = aircraft.get("airspeed", 0)
-
-        # Example: log altitude changes
         if altitude > 10000:
             self.log(f"Cruising at {altitude} FT, {speed} KTS")
 
     def handle_custom_event(self, data):
-        """Custom event handler"""
-        self.log(f"Custom event received: {data}")
-</pre>
+        self.log(f"Custom event received: {data}")</pre>
 
           <h6 class="mt-4" data-i18n="dev_guide_section5_title"></h6>
           <p class="small" data-i18n="dev_guide_section5_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section5_subsection1_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section5_subsection1_title"></h6>
           <p class="small" data-i18n="dev_guide_section5_subsection1_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section5_subsection2_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section5_subsection2_title"></h6>
           <p class="small" data-i18n="dev_guide_section5_subsection2_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section5_subsection3_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section5_subsection3_title"></h6>
           <p class="small" data-i18n="dev_guide_section5_subsection3_content"></p>
           <table class="table table-sm table-bordered small">
             <thead class="table-light"><tr><th>Hook</th><th>Params</th><th>Called when</th><th>Can return</th></tr></thead>
             <tbody>
-              <tr><td><code>on_load()</code></td><td>鈥?/td><td>Plugin enabled</td><td>鈥?/td></tr>
-              <tr><td><code>on_unload()</code></td><td>鈥?/td><td>Plugin disabled</td><td>鈥?/td></tr>
-              <tr><td><code>on_app_start()</code></td><td>鈥?/td><td>App started</td><td>鈥?/td></tr>
-              <tr><td><code>on_app_shutdown()</code></td><td>鈥?/td><td>App shutting down</td><td>鈥?/td></tr>
-              <tr><td><code>on_sim_connected(sim_type)</code></td><td>sim_type: str</td><td>Sim connected</td><td>鈥?/td></tr>
-              <tr><td><code>on_sim_disconnected()</code></td><td>鈥?/td><td>Sim disconnected</td><td>鈥?/td></tr>
+              <tr><td><code>on_load()</code></td><td>-</td><td>Plugin enabled</td><td>-</td></tr>
+              <tr><td><code>on_unload()</code></td><td>-</td><td>Plugin disabled</td><td>-</td></tr>
+              <tr><td><code>on_app_start()</code></td><td>-</td><td>App started</td><td>-</td></tr>
+              <tr><td><code>on_app_shutdown()</code></td><td>-</td><td>App shutting down</td><td>-</td></tr>
+              <tr><td><code>on_sim_connected(sim_type)</code></td><td>sim_type</td><td>Sim connected</td><td>-</td></tr>
+              <tr><td><code>on_sim_disconnected()</code></td><td>-</td><td>Sim disconnected</td><td>-</td></tr>
               <tr><td><code>on_atc_response(text, action)</code></td><td>text, action</td><td>Every ATC reply</td><td>str or None</td></tr>
               <tr><td><code>on_pilot_input(text)</code></td><td>text</td><td>Before LLM</td><td>str or None</td></tr>
-              <tr><td><code>on_telemetry(data)</code></td><td>data: dict</td><td>Telemetry snapshot (~10Hz)</td><td>鈥?/td></tr>
-              <tr><td><code>on_frequency_change(freq)</code></td><td>freq: float</td><td>COM1 change</td><td>鈥?/td></tr>
-              <tr><td><code>on_radio_transmit(freq, text)</code></td><td>freq, text</td><td>Radio transmit</td><td>鈥?/td></tr>
-              <tr><td><code>on_radio_receive(freq, text)</code></td><td>freq, text</td><td>Radio receive</td><td>鈥?/td></tr>
-              <tr><td><code>on_tts_request(text)</code></td><td>text</td><td>TTS request</td><td>鈥?/td></tr>
-              <tr><td><code>on_audio_play(audio_id)</code></td><td>audio_id</td><td>Audio play</td><td>鈥?/td></tr>
-              <tr><td><code>on_config_change(config)</code></td><td>config: dict</td><td>Config changed</td><td>鈥?/td></tr>
-              <tr><td><code>on_flight_phase_change(phase)</code></td><td>phase: str</td><td>Phase change</td><td>鈥?/td></tr>
-              <tr><td><code>on_cabin_event(event_type, data)</code></td><td>event_type, data</td><td>Cabin event</td><td>鈥?/td></tr>
-              <tr><td><code>on_emergency(level, info)</code></td><td>level, info</td><td>Emergency</td><td>鈥?/td></tr>
+              <tr><td><code>on_telemetry(data)</code></td><td>data</td><td>Telemetry snapshot</td><td>-</td></tr>
+              <tr><td><code>on_frequency_change(freq)</code></td><td>freq</td><td>COM1 change</td><td>-</td></tr>
+              <tr><td><code>on_radio_transmit(freq, text)</code></td><td>freq, text</td><td>Radio transmit</td><td>-</td></tr>
+              <tr><td><code>on_radio_receive(freq, text)</code></td><td>freq, text</td><td>Radio receive</td><td>-</td></tr>
+              <tr><td><code>on_tts_request(text)</code></td><td>text</td><td>TTS request</td><td>-</td></tr>
+              <tr><td><code>on_audio_play(audio_id)</code></td><td>audio_id</td><td>Audio play</td><td>-</td></tr>
+              <tr><td><code>on_config_change(config)</code></td><td>config</td><td>Config changed</td><td>-</td></tr>
+              <tr><td><code>on_flight_phase_change(phase)</code></td><td>phase</td><td>Phase change</td><td>-</td></tr>
+              <tr><td><code>on_cabin_event(event_type, data)</code></td><td>event_type, data</td><td>Cabin event</td><td>-</td></tr>
+              <tr><td><code>on_emergency(level, info)</code></td><td>level, info</td><td>Emergency</td><td>-</td></tr>
             </tbody>
           </table>
 
           <h6 class="mt-4" data-i18n="dev_guide_section6_title"></h6>
           <p class="small" data-i18n="dev_guide_section6_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section6_subsection1_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section6_subsection1_title"></h6>
           <p class="small" data-i18n="dev_guide_section6_subsection1_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section6_subsection2_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section6_subsection2_title"></h6>
           <p class="small" data-i18n="dev_guide_section6_subsection2_content"></p>
           <table class="table table-sm table-bordered small">
             <thead class="table-light"><tr><th>Method</th><th>Params</th><th>Description</th></tr></thead>
             <tbody>
-              <tr><td><code>self.log(msg)</code></td><td>msg: str</td><td>Log with plugin prefix</td></tr>
+              <tr><td><code>self.log(msg)</code></td><td>msg</td><td>Log with plugin prefix</td></tr>
               <tr><td><code>self.emit(event, data)</code></td><td>event, data</td><td>Emit to dashboard via socket.io</td></tr>
               <tr><td><code>self.subscribe(event, cb)</code></td><td>event, callback</td><td>Subscribe to EventBus events</td></tr>
               <tr><td><code>self.speak(text, priority)</code></td><td>text, priority</td><td>Trigger TTS playback</td></tr>
               <tr><td><code>self.notify(title, body, level)</code></td><td>title, body, level</td><td>Send dashboard notification</td></tr>
               <tr><td><code>self.inject_atc_message(text)</code></td><td>text</td><td>Inject synthetic ATC message</td></tr>
               <tr><td><code>self.schedule(interval, fn)</code></td><td>interval, function</td><td>Scheduled task</td></tr>
-              <tr><td><code>self.shared_context</code></td><td>鈥?/td><td>Shared context snapshot (read-only)</td></tr>
-              <tr><td><code>self.config</code></td><td>鈥?/td><td>Plugin config dict</td></tr>
-              <tr><td><code>self.save_config()</code></td><td>鈥?/td><td>Save plugin config to disk</td></tr>
+              <tr><td><code>self.shared_context</code></td><td>-</td><td>Shared context snapshot</td></tr>
+              <tr><td><code>self.config</code></td><td>-</td><td>Plugin config dict</td></tr>
+              <tr><td><code>self.save_config()</code></td><td>-</td><td>Save plugin config to disk</td></tr>
             </tbody>
           </table>
 
           <h6 class="mt-4" data-i18n="dev_guide_section7_title"></h6>
           <p class="small" data-i18n="dev_guide_section7_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section7_subsection1_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section7_subsection1_title"></h6>
           <p class="small" data-i18n="dev_guide_section7_subsection1_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section7_subsection2_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section7_subsection2_title"></h6>
           <p class="small" data-i18n="dev_guide_section7_subsection2_content"></p>
           <ol class="small">
             <li data-i18n="dev_guide_section7_item1"></li>
@@ -328,9 +296,9 @@ class Plugin(OpenFrequencyPlugin):
 
           <h6 class="mt-4" data-i18n="dev_guide_section8_title"></h6>
           <p class="small" data-i18n="dev_guide_section8_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section8_subsection1_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section8_subsection1_title"></h6>
           <p class="small" data-i18n="dev_guide_section8_subsection1_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section8_subsection2_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section8_subsection2_title"></h6>
           <p class="small" data-i18n="dev_guide_section8_subsection2_content"></p>
           <p class="small" data-i18n="dev_guide_section8_desc"></p>
           <ol class="small">
@@ -338,7 +306,7 @@ class Plugin(OpenFrequencyPlugin):
             <li data-i18n="dev_guide_section8_item2"></li>
             <li data-i18n="dev_guide_section8_item3"></li>
           </ol>
-<pre class="bg-light p-2 rounded mb-2" style="font-size:0.75em;"># Windows PowerShell
+<pre class="bg-light p-2 rounded mb-2 small"># Windows PowerShell
 Compress-Archive -Path plugins\community\my_plugin -DestinationPath my_plugin.zip
 
 # Linux/Mac
@@ -349,9 +317,9 @@ zip -r my_plugin.zip my_plugin/</pre>
 
           <h6 class="mt-4" data-i18n="dev_guide_section9_title"></h6>
           <p class="small" data-i18n="dev_guide_section9_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section9_subsection1_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section9_subsection1_title"></h6>
           <p class="small" data-i18n="dev_guide_section9_subsection1_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section9_subsection2_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section9_subsection2_title"></h6>
           <p class="small" data-i18n="dev_guide_section9_subsection2_content"></p>
           <ul class="small">
             <li data-i18n="dev_guide_section9_item1"></li>
@@ -362,9 +330,9 @@ zip -r my_plugin.zip my_plugin/</pre>
 
           <h6 class="mt-4" data-i18n="dev_guide_section10_title"></h6>
           <p class="small" data-i18n="dev_guide_section10_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section10_subsection1_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section10_subsection1_title"></h6>
           <p class="small" data-i18n="dev_guide_section10_subsection1_content"></p>
-          <h7 class="small fw-semibold" data-i18n="dev_guide_section10_subsection2_title"></h7>
+          <h6 class="small fw-semibold" data-i18n="dev_guide_section10_subsection2_title"></h6>
           <p class="small" data-i18n="dev_guide_section10_subsection2_content"></p>
           <ul class="small">
             <li><strong data-i18n="dev_guide_section10_q1"></strong> <span data-i18n="dev_guide_section10_a1"></span></li>
@@ -372,183 +340,171 @@ zip -r my_plugin.zip my_plugin/</pre>
             <li><strong data-i18n="dev_guide_section10_q3"></strong> <span data-i18n="dev_guide_section10_a3"></span></li>
             <li><strong data-i18n="dev_guide_section10_q4"></strong> <span data-i18n="dev_guide_section10_a4"></span></li>
           </ul>
-
           <button class="btn btn-sm btn-outline-primary mt-3" onclick="reloadPlugins()" data-i18n="reload_all_plugins">
-            馃攧 Reload All Plugins
+            Reload All Plugins
           </button>
         </div>
       </div>
     </div>
-
-  </div><!-- /.tab-content -->
+  </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-  // 鈹€鈹€ Installed plugins 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  function currentLang() {
+    return localStorage.getItem('language') || 'en';
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[ch]));
+  }
+
   async function loadPlugins() {
-    const r = await fetch('/api/plugins');
-    const plugins = await r.json();
     const el = document.getElementById('plugins-list');
-    document.getElementById('installed-count').textContent = plugins.length;
+    try {
+      const r = await fetch('/api/plugins');
+      if (!r.ok) throw new Error(await r.text());
+      const plugins = await r.json();
+      document.getElementById('installed-count').textContent = plugins.length;
 
-    if (!plugins.length) {
-      const lang = localStorage.getItem('language') || 'en';
-      el.innerHTML = `<div class="text-center text-muted py-5">
-        ${lang === 'zh' ? '灏氭湭瀹夎浠讳綍绀惧尯鎻掍欢銆? : 'No community plugins installed yet.'}<br>
-        <small>${lang === 'zh' ? '浠?ZIP 鏂囦欢瀹夎锛屾垨鑷寮€鍙戔€斺€旀煡鐪嬪紑鍙戣€呮寚鍗椼€? : 'Install one from a ZIP file or create your own 鈥?see the Developer Guide tab.'}</small>
-      </div>`;
-      return;
-    }
+      if (!plugins.length) {
+        el.innerHTML = `<div class="text-center text-muted py-5">
+          ${currentLang() === 'zh' ? '尚未安装任何社区插件。' : 'No community plugins installed yet.'}<br>
+          <small>${currentLang() === 'zh' ? '可以从 ZIP 文件安装，或参考开发指南创建插件。' : 'Install one from a ZIP file or create your own from the Developer Guide tab.'}</small>
+        </div>`;
+        return;
+      }
 
-    el.innerHTML = plugins.map(p => `
-      <div class="card mb-2">
-        <div class="card-body py-2 d-flex align-items-center gap-3">
-          <div class="flex-grow-1">
-            <div class="fw-semibold">${p.name}
-              <span class="badge ${p.loaded ? 'bg-success' : (p.error ? 'bg-danger' : 'bg-secondary')} ms-1" style="font-size:0.65em;">
-                ${(() => { const l = localStorage.getItem('language')||'en'; if(p.loaded) return l==='zh'?'杩愯涓?:'Active'; if(p.error) return l==='zh'?'閿欒':'Error'; return p.enabled?(l==='zh'?'鍔犺浇涓€?:'Loading鈥?):(l==='zh'?'宸茬鐢?:'Disabled'); })()}
-              </span>
-              <span class="text-muted small ms-1">v${p.version}</span>
+      el.innerHTML = plugins.map(p => {
+        const statusClass = p.loaded ? 'bg-success' : (p.error ? 'bg-danger' : 'bg-secondary');
+        const statusText = p.loaded ? 'Active' : (p.error ? 'Error' : (p.enabled ? 'Loading' : 'Disabled'));
+        return `
+          <div class="card mb-2">
+            <div class="card-body py-2 d-flex align-items-center gap-3 flex-wrap">
+              <div class="flex-grow-1">
+                <div class="fw-semibold">
+                  ${escapeHtml(p.name || p.id)}
+                  <span class="badge ${statusClass} ms-1" style="font-size:0.65em;">${statusText}</span>
+                  <span class="text-muted small ms-1">v${escapeHtml(p.version || '')}</span>
+                </div>
+                <div class="small text-muted">${p.author ? 'by ' + escapeHtml(p.author) + ' - ' : ''}${escapeHtml(p.description || '')}</div>
+                ${p.error ? `<div class="small text-danger mt-1">${escapeHtml(p.error)}</div>` : ''}
+                ${p.hooks?.length ? `<div class="small text-muted mt-1">Hooks: ${p.hooks.map(escapeHtml).join(', ')}</div>` : ''}
+              </div>
+              <div class="d-flex gap-2 flex-shrink-0">
+                ${p.enabled
+                  ? `<button class="btn btn-sm btn-outline-warning" onclick="togglePlugin('${escapeHtml(p.id)}', false)">Disable</button>`
+                  : `<button class="btn btn-sm btn-outline-success" onclick="togglePlugin('${escapeHtml(p.id)}', true)">Enable</button>`}
+                <button class="btn btn-sm btn-outline-danger" onclick="uninstallPlugin('${escapeHtml(p.id)}', '${escapeHtml(p.name || p.id)}')">Uninstall</button>
+              </div>
             </div>
-            <div class="small text-muted">${p.author ? 'by ' + p.author + ' 鈥?' : ''}${p.description}</div>
-            ${p.error ? `<div class="small text-danger mt-1">鈿?${p.error}</div>` : ''}
-            ${p.hooks && p.hooks.length ? `<div class="small text-muted mt-1">Hooks: ${p.hooks.join(', ')}</div>` : ''}
-          </div>
-          <div class="d-flex gap-2 flex-shrink-0">
-            ${(() => { const l = localStorage.getItem('language')||'en'; return p.enabled
-              ? `<button class="btn btn-sm btn-outline-warning" onclick="togglePlugin('${p.id}', false)">${l==='zh'?'绂佺敤':'Disable'}</button>`
-              : `<button class="btn btn-sm btn-outline-success" onclick="togglePlugin('${p.id}', true)">${l==='zh'?'鍚敤':'Enable'}</button>`; })()}
-            <button class="btn btn-sm btn-outline-danger" onclick="uninstallPlugin('${p.id}', '${p.name}')">${localStorage.getItem('language')==='zh'?'鍗歌浇':'Uninstall'}</button>
-          </div>
-        </div>
-      </div>
-    `).join('');
+          </div>`;
+      }).join('');
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-danger small">Failed to load plugins: ${escapeHtml(e.message)}</div>`;
+    }
   }
 
   async function togglePlugin(id, enable) {
-    await fetch(`/api/plugins/${id}/${enable ? 'enable' : 'disable'}`, { method: 'POST' });
+    await fetch(`/api/plugins/${encodeURIComponent(id)}/${enable ? 'enable' : 'disable'}`, { method: 'POST' });
     loadPlugins();
   }
 
   async function uninstallPlugin(id, name) {
-    const l = localStorage.getItem('language')||'en';
-    if (!confirm(l==='zh'?`纭畾瑕佸嵏杞?${name}"鍚楋紵杩欏皢鍒犻櫎鎻掍欢鏂囦欢澶广€俙:`Uninstall "${name}"? This will delete its folder.`)) return;
-    await fetch(`/api/plugins/${id}`, { method: 'DELETE' });
+    if (!confirm(`Uninstall "${name}"? This will delete its folder.`)) return;
+    await fetch(`/api/plugins/${encodeURIComponent(id)}`, { method: 'DELETE' });
     loadPlugins();
   }
 
-  async function reloadPlugins() {
-    // Reload page to re-run discover()
+  function reloadPlugins() {
     window.location.reload();
   }
 
-  // 鈹€鈹€ ZIP install 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
   async function installFromZip() {
     const fileInput = document.getElementById('plugin-zip-file');
-    if (!fileInput.files.length) { alert('Select a ZIP file first.'); return; }
+    const res = document.getElementById('install-result');
+    if (!fileInput.files.length) {
+      res.innerHTML = '<div class="alert alert-warning py-2 small">Select a ZIP file first.</div>';
+      return;
+    }
     const form = new FormData();
     form.append('file', fileInput.files[0]);
-    const r    = await fetch('/api/plugins/install', { method: 'POST', body: form });
+    const r = await fetch('/api/plugins/install', { method: 'POST', body: form });
     const data = await r.json();
-    const res  = document.getElementById('install-result');
-
-    let html = '';
-    if (data.ok) {
-      html = `<div class="alert alert-success py-2 small">${data.message}</div>`;
-      if (data.warning) {
-        html += `<div class="alert alert-warning py-2 small mt-2">鈿狅笍 ${data.warning}</div>`;
-      }
-      loadPlugins();
-      // Show toast notification
-      const l = localStorage.getItem('language') || 'en';
-      const msg = l === 'zh' ? '鎻掍欢瀹夎鎴愬姛锛? : 'Plugin installed successfully!';
-      showToast(msg, 'success');
-    } else {
-      html = `<div class="alert alert-danger py-2 small">${data.message}</div>`;
-      // Show error toast
-      const l = localStorage.getItem('language') || 'en';
-      const msg = l === 'zh' ? '鎻掍欢瀹夎澶辫触锛? + data.message : 'Plugin installation failed: ' + data.message;
-      showToast(msg, 'danger');
-    }
-    res.innerHTML = html;
+    res.innerHTML = `<div class="alert alert-${data.ok ? 'success' : 'danger'} py-2 small">${escapeHtml(data.message || '')}</div>`
+      + (data.warning ? `<div class="alert alert-warning py-2 small mt-2">${escapeHtml(data.warning)}</div>` : '');
+    if (data.ok) loadPlugins();
   }
 
-  function showToast(message, type = 'info') {
-    // Create toast element
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type} py-2 px-3`;
-    toast.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; animation: slideIn 0.3s ease-out;';
-    toast.innerHTML = message;
-    document.body.appendChild(toast);
-
-    // Remove after 3 seconds
-    setTimeout(() => {
-      toast.style.animation = 'slideOut 0.3s ease-in';
-      setTimeout(() => toast.remove(), 300);
-    }, 3000);
-  }
-
-  // 鈹€鈹€ DLC catalog 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
   async function loadDlcCatalog() {
-    const r = await fetch('/api/dlc/catalog');
-    const items = await r.json();
     const el = document.getElementById('dlc-list');
-    el.innerHTML = items.map(item => `
-      <div class="col-md-6 col-lg-4">
-        <div class="card h-100 ${item.installed ? 'border-success' : ''}">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-              <span style="font-size:2rem;">${item.icon || '馃摝'}</span>
-              ${item.installed === true
-                ? '<span class="badge bg-success">Installed</span>'
-                : item.installed === false
-                  ? '<span class="badge bg-secondary">Not installed</span>'
-                  : '<span class="badge bg-light text-muted border">Path not set</span>'}
+    try {
+      const r = await fetch('/api/dlc/catalog');
+      if (!r.ok) throw new Error(await r.text());
+      const items = await r.json();
+      el.innerHTML = items.map(item => `
+        <div class="col-md-6 col-lg-4">
+          <div class="card h-100 ${item.installed ? 'border-success' : ''}">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <span style="font-size:2rem;">${escapeHtml(item.icon || '📦')}</span>
+                ${item.installed === true
+                  ? '<span class="badge bg-success">Installed</span>'
+                  : item.installed === false
+                    ? '<span class="badge bg-secondary">Not installed</span>'
+                    : '<span class="badge bg-light text-muted border">Path not set</span>'}
+              </div>
+              <h6 class="card-title mb-0">${escapeHtml(item.name)}</h6>
+              <div class="small text-muted mb-1">${escapeHtml(item.author)}</div>
+              <p class="card-text small">${escapeHtml(item.description)}</p>
+              <div class="d-flex flex-wrap gap-1 mb-2">
+                ${(item.tags || []).map(t => `<span class="badge bg-light text-secondary border">${escapeHtml(t)}</span>`).join('')}
+              </div>
+              <div class="small text-muted mb-2">~${escapeHtml(item.size_mb || '?')} MB - ${escapeHtml(item.simulator?.toUpperCase() || 'MSFS')}</div>
             </div>
-            <h6 class="card-title mb-0">${item.name}</h6>
-            <div class="small text-muted mb-1">${item.author}</div>
-            <p class="card-text small">${item.description}</p>
-            <div class="d-flex flex-wrap gap-1 mb-2">
-              ${(item.tags||[]).map(t => `<span class="badge bg-light text-secondary border">${t}</span>`).join('')}
+            <div class="card-footer bg-white d-flex gap-2">
+              <button class="btn btn-sm btn-primary flex-grow-1" onclick="installDlc('${escapeHtml(item.id)}','${escapeHtml(item.name)}')"
+                ${item.installed === null ? 'disabled title="Set community folder first"' : ''}>
+                ${item.installed ? 'Reinstall' : 'Install'}
+              </button>
+              ${item.homepage ? `<a href="${escapeHtml(item.homepage)}" target="_blank" class="btn btn-sm btn-outline-secondary">Info</a>` : ''}
             </div>
-            <div class="small text-muted mb-2">~${item.size_mb || '?'} MB 路 ${item.simulator?.toUpperCase() || 'MSFS'}</div>
-          </div>
-          <div class="card-footer bg-white d-flex gap-2">
-            <button class="btn btn-sm btn-primary flex-grow-1" onclick="installDlc('${item.id}','${item.name.replace(/'/g,'\\\'')}')"
-              ${item.installed === null ? 'disabled title="Set community folder first"' : ''}>
-              ${item.installed ? '馃攧 Reinstall' : '猬?Install'}
-            </button>
-            ${item.homepage ? `<a href="${item.homepage}" target="_blank" class="btn btn-sm btn-outline-secondary">鈩?/a>` : ''}
           </div>
         </div>
-      </div>
-    `).join('');
+      `).join('');
+    } catch (e) {
+      el.innerHTML = `<div class="col-12"><div class="alert alert-danger small">Failed to load catalog: ${escapeHtml(e.message)}</div></div>`;
+    }
   }
 
   async function installDlc(id, name) {
-    const l = localStorage.getItem('language')||'en';
-    if (!confirm(l==='zh'?`纭畾瀹夎"${name}"锛焅n杩欏皢涓嬭浇绾?1GB 鏁版嵁锛岃纭繚宸茶缃?MSFS Community 鏂囦欢澶广€俙:`Install "${name}"?\nThis will download ~1GB. Ensure the MSFS Community folder is set above.`)) return;
-    const r = await fetch(`/api/dlc/install/${id}`, { method: 'POST' });
+    if (!confirm(`Install "${name}"? This may download a large package.`)) return;
+    const r = await fetch(`/api/dlc/install/${encodeURIComponent(id)}`, { method: 'POST' });
     const data = await r.json();
     if (data.ok) {
       document.getElementById('dlc-progress-area').style.display = 'block';
       pollDlcProgress();
     } else {
-      alert(data.message);
+      alert(data.message || 'DLC install failed');
     }
   }
 
   let _pollTimer = null;
   function pollDlcProgress() {
+    clearInterval(_pollTimer);
     _pollTimer = setInterval(async () => {
       const r = await fetch('/api/dlc/progress');
       const p = await r.json();
-      document.getElementById('dlc-progress-label').textContent = p.message || p.phase;
-      document.getElementById('dlc-progress-pct').textContent   = p.pct + '%';
-      document.getElementById('dlc-progress-bar').style.width   = p.pct + '%';
+      document.getElementById('dlc-progress-label').textContent = p.message || p.phase || '';
+      document.getElementById('dlc-progress-pct').textContent = (p.pct || 0) + '%';
+      document.getElementById('dlc-progress-bar').style.width = (p.pct || 0) + '%';
       if (p.phase === 'done' || p.phase === 'error') {
         clearInterval(_pollTimer);
         const bar = document.getElementById('dlc-progress-bar');
@@ -559,17 +515,17 @@ zip -r my_plugin.zip my_plugin/</pre>
     }, 800);
   }
 
-  // 鈹€鈹€ MSFS community path 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
   async function autoDetectCommunity() {
     const r = await fetch('/api/browse_msfs_community', { method: 'POST' });
     const d = await r.json();
+    const status = document.getElementById('community-status');
     if (d.found) {
       document.getElementById('msfs-community-path').value = d.path;
-      document.getElementById('community-status').textContent = '鉁?Detected';
-      document.getElementById('community-status').className   = 'small text-success';
+      status.textContent = 'Detected';
+      status.className = 'small text-success mt-1';
     } else {
-      document.getElementById('community-status').textContent = '鉁?Not found 鈥?enter path manually';
-      document.getElementById('community-status').className   = 'small text-danger';
+      status.textContent = 'Not found. Enter path manually.';
+      status.className = 'small text-danger mt-1';
     }
   }
 
@@ -578,27 +534,33 @@ zip -r my_plugin.zip my_plugin/</pre>
     const r = await fetch('/save_settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ simulator: { msfs_community: path } })
+      body: JSON.stringify({ simulator: { msfs_community_path: path } })
     });
-    const d = await r.json();
-    document.getElementById('community-status').textContent = d.status === 'success' ? '鉁?Saved' : '鉁?Error';
-    document.getElementById('community-status').className   =
-      d.status === 'success' ? 'small text-success' : 'small text-danger';
-    loadDlcCatalog();   // refresh install status
+    const status = document.getElementById('community-status');
+    if (r.ok) {
+      status.textContent = 'Saved';
+      status.className = 'small text-success mt-1';
+      loadDlcCatalog();
+    } else {
+      status.textContent = 'Save failed';
+      status.className = 'small text-danger mt-1';
+    }
   }
 
-  async function loadCurrentCommunityPath() {
+  async function loadCommunityPath() {
     try {
       const r = await fetch('/get_config');
       const cfg = await r.json();
-      const path = cfg.simulator?.msfs_community || '';
-      document.getElementById('msfs-community-path').value = path;
-    } catch (e) {}
+      document.getElementById('msfs-community-path').value = cfg.simulator?.msfs_community_path || '';
+    } catch (_) {
+      /* optional */
+    }
   }
 
-  // 鈹€鈹€ Init 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-  loadPlugins();
-  loadCurrentCommunityPath();
-  loadDlcCatalog();
+  document.addEventListener('DOMContentLoaded', () => {
+    loadPlugins();
+    loadCommunityPath();
+    loadDlcCatalog();
+  });
 </script>
 {% endblock %}

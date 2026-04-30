@@ -15,6 +15,8 @@
   'use strict';
 
   if (!document.documentElement.classList.contains('theme-apple')) return;
+  if (localStorage.getItem('apple_liquid_effects') !== '1') return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   /* ─────────────────────────────────────────────────────────────
      参数（与 liquid-glass-react 默认值一致）
@@ -249,14 +251,18 @@
   let _instanceCount = 0;
   const _instances = new WeakMap();
   const mouse = { x: 0, y: 0 };
-
-  document.addEventListener('mousemove', function (e) {
-    mouse.x = e.clientX;
-    mouse.y = e.clientY;
-    _instances._allEls && _instances._allEls.forEach(el => tickEl(el));
-  }, { passive: true });
   // Track all registered elements globally
   const _allEls = new Set();
+  let _rafPending = false;
+
+  function scheduleTickAll() {
+    if (_rafPending) return;
+    _rafPending = true;
+    requestAnimationFrame(() => {
+      _rafPending = false;
+      _allEls.forEach(el => tickEl(el));
+    });
+  }
 
   function initGlassElement(el) {
     if (_instances.has(el)) return;
@@ -359,8 +365,10 @@
     watchLogContainer();
 
     // 鼠标全局追踪 → 所有元素实时更新
-    document.addEventListener('mousemove', () => {
-      _allEls.forEach(el => tickEl(el));
+    document.addEventListener('mousemove', (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+      scheduleTickAll();
     }, { passive: true });
 
     // 动态新增元素

@@ -2,6 +2,72 @@
 
 ---
 
+# v3.9-beta-ef (Emergency Fix) - 2026-04-30
+
+> **Release Date**: 2026-04-30
+> **Version**: **v3.9-beta-ef**
+> **Status**: **Emergency Fix**
+
+This emergency release stabilizes the v3.9 beta line after the MSI rollout. It focuses on installer write permissions, IFR/VFR crash fixes, simulator metadata reliability, model discovery under `%APPDATA%`, plugin-manager recovery, speech/ATIS correctness, and urgent download/update fixes.
+
+## Critical Fixes
+
+| Area | Fix |
+|------|-----|
+| MSI Installer | Fixed missing write permissions after MSI installation by keeping runtime config, logs, cache, and model files under the writable `%APPDATA%\OpenFrequency` runtime directory. |
+| IFR/VFR Rules | Fixed crashes triggered by IFR/VFR rule switching and clearance handling. |
+| Simulator Metadata | Fixed simulator properties reporting as `Unknown` where runtime provider metadata was available. |
+| Usage Telemetry | Added UUID-based de-duplication for privacy-preserving user counting instead of relying only on IP fallback. |
+| Model Discovery | STT/TTS model lookup now recognizes model files stored under `%APPDATA%\OpenFrequency\models`. |
+| Plugin Manager | Repaired corrupted Plugin Manager HTML, restored access in both Classic and Apple themes, and restored the detailed 1-10 section plugin development guide. |
+| App Startup | Fixed `_plugin_manager` global initialization syntax error. |
+
+## ATIS, Radio Phraseology & STT/TTS
+
+- Fixed Chinese quick-reply matching so Chinese pilot input receives Chinese template replies.
+- Fixed quick-reply controller names so replies use display names such as `Gaoqi Tower` instead of raw ICAO labels such as `ZSAM Tower`.
+- Added callsigns, airport names, and local place names such as Gaoqi/Xiamen to Whisper/STT hotword context.
+- Fixed Chinese ATIS visibility display so 9700 metres is shown numerically instead of as Chinese grouped numerals.
+- Kept transition altitude display numeric while Chinese TTS uses the local CAAC-style reading for 3000 m and 3600 m.
+- Fixed English QNH phraseology to read digit-by-digit with radio pronunciation, e.g. `QNH 1013` -> `QNH one zero one tree`.
+- Normalized English LLM output containing `QNH 1013` before display/TTS.
+- Reworked local STT to use a persistent Sherpa worker process instead of reloading the model for every utterance.
+- Fixed broken STT/TTS automatic and manual download links:
+  - STT uses Sherpa-ONNX Whisper small from HuggingFace / hf-mirror.
+  - Kokoro TTS uses `kokoro-v1.0.onnx` and `voices-v1.0.bin`.
+- Updated Kokoro defaults to v1.0 while retaining fallback support for legacy v0.19 files.
+
+## UI, Update & Plugin Fixes
+
+- Optimized Apple style performance by disabling high-cost live backdrop blur and SVG displacement effects by default.
+- Added an Apple Liquid Glass Effects switch under Interface Settings.
+- Fixed Apple theme background split/gradient artifacts.
+- Added localized update-check strings for Chinese and Japanese.
+- Fixed version formatting that could show `vv3.9-beta`.
+- Improved prerelease version comparison for beta/rc style versions.
+- Added a Hoppie ACARS test button in Settings plus `/api/hoppie/test`.
+
+## Navigation & Airport Data
+
+- Fixed preferred runway selection to avoid reciprocal runway ends and obvious tailwind choices.
+- Imported SimBrief `navlog.fix` route waypoints and used them for the dashboard planned-route prediction line instead of drawing only a straight origin-destination segment.
+
+## Build / Release Notes
+
+- Release tag: `v3.9-beta-ef`
+- ZIP artifact: `OpenFrequency-v3.9-beta-ef.zip`
+- MSI artifact: `OpenFrequency-v3.9-beta-ef-Setup.msi`
+- SHA-256:
+  - `OpenFrequency-v3.9-beta-ef.zip`: `A43AA5AAC8941A810AC025C31B6EA7D9EEEEE49DB1164A11CC2EB14E955A393F`
+  - `OpenFrequency-v3.9-beta-ef-Setup.msi`: `1EF47DE74E5F84C1E8E9689E0F689575DFC5C33E25574FC25DF245B19EEB9ACA`
+- Build command:
+
+```powershell
+.\build.bat msi
+```
+
+---
+
 # v3.9-beta — 2026-04-29
 
 > **Release Date**: 2026-04-29

@@ -168,7 +168,7 @@ def _extract_simbrief_callsign(data):
 def _normalize_flight_plan(raw_flight_plan):
     """Normalize a flight plan payload/config block into the runtime shape."""
     raw_flight_plan = raw_flight_plan or {}
-    return {
+    plan = {
         "origin": _first_non_empty(raw_flight_plan.get('origin')).upper() or "N/A",
         "destination": _first_non_empty(raw_flight_plan.get('destination')).upper() or "N/A",
         "alternate": _first_non_empty(raw_flight_plan.get('alternate')).upper() or "N/A",
@@ -176,6 +176,10 @@ def _normalize_flight_plan(raw_flight_plan):
         "cruise_alt": int(raw_flight_plan.get('cruise_alt', 0) or 0),
         "flight_number": _first_non_empty(raw_flight_plan.get('flight_number')).upper() or "N/A"
     }
+    route_waypoints = raw_flight_plan.get('route_waypoints')
+    if isinstance(route_waypoints, list):
+        plan["route_waypoints"] = route_waypoints
+    return plan
 
 
 def _active_career_job():
@@ -456,10 +460,22 @@ def resolve_route_waypoints():
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        tokens = [t for t in route_str.split() if t and t != 'N/A']
+        import re
+        skip_tokens = {'DCT', 'DIRECT', 'SID', 'STAR', 'TOC', 'TOD'}
+        tokens = [
+            t.strip().upper()
+            for t in re.split(r'[\s,./]+', route_str)
+            if t.strip() and t.strip().upper() not in skip_tokens and t.strip().upper() != 'N/A'
+        ]
         results = []
         for tok in tokens:
             ident = tok.upper()
+            coord = re.match(r'^(\d{2})([NS])(\d{3})([EW])$', ident)
+            if coord:
+                lat = float(coord.group(1)) * (1 if coord.group(2) == 'N' else -1)
+                lon = float(coord.group(3)) * (1 if coord.group(4) == 'E' else -1)
+                results.append({'ident': ident, 'lat': lat, 'lon': lon})
+                continue
             # Skip SID/STAR/airway fragments that are clearly not fix names (length > 7)
             if len(ident) > 7:
                 continue
@@ -886,20 +902,12 @@ def api_upload_recent_crash():
 def api_download_stt():
     import threading
     def _dl():
-        import urllib.request
-        url = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.en.tar.bz2'
-        models_dir = os.path.join(os.path.dirname(__file__), 'models')
-        os.makedirs(models_dir, exist_ok=True)
         try:
-            dest = os.path.join(models_dir, 'sherpa-onnx-whisper-tiny.en.tar.bz2')
-            urllib.request.urlretrieve(url, dest)
-            import tarfile
-            with tarfile.open(dest) as tf:
-                tf.extractall(models_dir)
+            download_stt_model()
         except Exception as e:
             print(f'STT download error: {e}')
     threading.Thread(target=_dl, daemon=True).start()
-    return jsonify({'status': 'ok', 'message': 'Downloading Whisper tiny.en model to ./models/ ...'})
+    return jsonify({'status': 'ok', 'message': 'Downloading Sherpa-ONNX Whisper small model ...'})
 
 @app.route('/api/models/download_tts', methods=['POST'])
 def api_download_tts():
@@ -907,17 +915,13 @@ def api_download_tts():
     data = request.json or {}
     engine = data.get('engine', 'kokoro')
     def _dl():
-        models_dir = os.path.join(os.path.dirname(__file__), 'models')
-        os.makedirs(models_dir, exist_ok=True)
         try:
-            import urllib.request
             if engine == 'kokoro':
-                for name, url in [
-                    ('kokoro-v0_19.onnx', 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/kokoro-v0_19.onnx'),
-                    ('voices.bin', 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/voices.bin'),
-                ]:
-                    urllib.request.urlretrieve(url, os.path.join(models_dir, name))
+                download_tts_model()
             elif engine == 'piper':
+                import urllib.request
+                models_dir = os.path.join(os.path.dirname(__file__), 'models')
+                os.makedirs(models_dir, exist_ok=True)
                 for name, url in [
                     ('en_US-arctic-medium.onnx', 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/arctic/medium/en_US-arctic-medium.onnx'),
                     ('en_US-arctic-medium.onnx.json', 'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/arctic/medium/en_US-arctic-medium.onnx.json'),
@@ -978,10 +982,16 @@ def plugins_page():
     return render_template('plugins.html')
 
 def _pm():
-    """Return the plugin manager, or raise a 503 if it isn't initialised yet."""
+    """Return the plugin manager, lazily initialising it for early web requests."""
+    global _plugin_manager
     if _plugin_manager is None:
-        from flask import abort
-        abort(503, description="Plugin manager not yet initialized")
+        _plugin_manager = PluginManager(config, socketio, event_bus, context_lock, shared_context)
+        _plugin_manager.discover()
+        try:
+            if logic_manager is not None:
+                logic_manager._plugin_manager = _plugin_manager
+        except NameError:
+            pass
     return _plugin_manager
 
 @app.route('/api/plugins')
@@ -1228,6 +1238,28 @@ def save_settings():
 
     return jsonify({"status": "success"})
 
+
+@app.route('/api/hoppie/test', methods=['POST'])
+def api_hoppie_test():
+    """Test Hoppie ACARS credentials without starting the polling loop."""
+    data = request.get_json(silent=True) or {}
+    logon = (data.get('logon_code') or (config.get('hoppie', {}) or {}).get('logon_code') or '').strip()
+    callsign = (data.get('callsign') or config.get('user_profile', {}).get('callsign') or '').strip().upper()
+    if not logon:
+        return jsonify({'ok': False, 'message': 'Missing Hoppie logon code'}), 400
+    if not callsign or callsign == 'N/A':
+        callsign = 'OPENFREQ'
+    try:
+        from core.hoppie_acars import HoppieClient
+        client = HoppieClient()
+        ok = client.logon(logon, callsign)
+        client.logoff()
+        if ok:
+            return jsonify({'ok': True, 'message': f'Hoppie ACARS test succeeded for {callsign}'})
+        return jsonify({'ok': False, 'message': 'Hoppie rejected the logon code or callsign'}), 400
+    except Exception as e:
+        return jsonify({'ok': False, 'message': str(e)}), 502
+
 @app.route('/api/tutorial/status', methods=['GET'])
 def tutorial_status():
     return jsonify({"completed": bool(config.get('ui', {}).get('tutorial_completed', False))})
@@ -1282,13 +1314,31 @@ def import_simbrief():
         flight_number = general.get('flight_number', 'N/A')
         airline = general.get('icao_airline', 'N/A')
         callsign = _extract_simbrief_callsign(data)
+        route_waypoints = []
+        navlog_fixes = (data.get('navlog') or {}).get('fix') or []
+        if isinstance(navlog_fixes, dict):
+            navlog_fixes = [navlog_fixes]
+        for fix in navlog_fixes:
+            if not isinstance(fix, dict):
+                continue
+            ident = fix.get('ident') or fix.get('name') or fix.get('id')
+            lat = fix.get('pos_lat') or fix.get('lat') or fix.get('latitude')
+            lon = fix.get('pos_long') or fix.get('lon') or fix.get('longitude')
+            try:
+                lat = float(lat)
+                lon = float(lon)
+            except (TypeError, ValueError):
+                continue
+            if ident and -90 <= lat <= 90 and -180 <= lon <= 180:
+                route_waypoints.append({'ident': str(ident).upper(), 'lat': lat, 'lon': lon})
         flight_plan = _normalize_flight_plan({
             "origin": origin,
             "destination": dest,
             "alternate": alt_icao,
             "route": route,
             "cruise_alt": cruise_alt,
-            "flight_number": f"{airline}{flight_number}"
+            "flight_number": f"{airline}{flight_number}",
+            "route_waypoints": route_waypoints,
         })
         
         # Update Shared Context
@@ -1722,7 +1772,7 @@ if __name__ == '__main__':
     port = int(os.environ.get("OPENFREQUENCY_PORT", "5000"))
 
     # Read version from version.txt for unified version management
-    version = "v3.9-beta"
+    version = "v3.9-beta-ef"
     try:
         with open("version.txt", "r", encoding="utf-8") as f:
             version = f.read().strip()
@@ -1770,7 +1820,6 @@ if __name__ == '__main__':
     event_bus.on('callsign_changed', _on_callsign_change)
 
     # ── Plugin Manager ────────────────────────────────────────────────────────
-    global _plugin_manager
     _plugin_manager = PluginManager(config, socketio, event_bus, context_lock, shared_context)
     _plugin_manager.discover()
     logic_manager._plugin_manager = _plugin_manager

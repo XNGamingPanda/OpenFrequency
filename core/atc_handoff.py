@@ -226,16 +226,22 @@ class ATCHandoffManager:
     
     def get_current_controller(self):
         """获取当前应该联系的管制单位"""
+        short_names = {
+            'ZSAM': 'Gaoqi', 'ZBAA': 'Capital', 'ZBAD': 'Daxing',
+            'ZSPD': 'Pudong', 'ZSSS': 'Hongqiao', 'ZSHC': 'Xiaoshan',
+        }
+        origin = short_names.get((self.origin_icao or '').upper(), self.origin_icao or 'Airport')
+        dest = short_names.get((self.dest_icao or '').upper(), self.dest_icao or 'Airport')
         controller_map = {
             ATCPhase.ATIS: "ATIS",
             ATCPhase.CLEARANCE: "Clearance Delivery",
-            ATCPhase.GROUND_DEP: f"{self.origin_icao or 'Airport'} Ground",
-            ATCPhase.TOWER_DEP: f"{self.origin_icao or 'Airport'} Tower",
+            ATCPhase.GROUND_DEP: f"{origin} Ground",
+            ATCPhase.TOWER_DEP: f"{origin} Tower",
             ATCPhase.DEPARTURE: "Departure Control",
             ATCPhase.CENTER: "Center Control",
-            ATCPhase.APPROACH: f"{self.dest_icao or 'Airport'} Approach",
-            ATCPhase.TOWER_ARR: f"{self.dest_icao or 'Airport'} Tower",
-            ATCPhase.GROUND_ARR: f"{self.dest_icao or 'Airport'} Ground",
+            ATCPhase.APPROACH: f"{dest} Approach",
+            ATCPhase.TOWER_ARR: f"{dest} Tower",
+            ATCPhase.GROUND_ARR: f"{dest} Ground",
             ATCPhase.PARKED: "Parked"
         }
         return controller_map.get(self.current_phase, "Unknown")

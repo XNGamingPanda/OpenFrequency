@@ -312,18 +312,21 @@ class AirportFrequencyService:
         if not runways:
             return []
 
+        def angle_diff(a, b):
+            delta = abs(float(a) - float(b)) % 360
+            return min(delta, 360 - delta)
+
         if wind_dir is None:
+            reference_heading = runways[0]["heading"]
             unique = []
             seen = set()
             for runway in runways:
+                if angle_diff(runway["heading"], reference_heading) > 45:
+                    continue
                 if runway['ident'] not in seen:
                     unique.append(runway['ident'])
                     seen.add(runway['ident'])
             return unique[:limit]
-
-        def angle_diff(a, b):
-            delta = abs(float(a) - float(b)) % 360
-            return min(delta, 360 - delta)
 
         sorted_runways = sorted(
             runways,
@@ -333,6 +336,8 @@ class AirportFrequencyService:
         selected = []
         seen = set()
         for runway in sorted_runways:
+            if angle_diff(runway['heading'], wind_dir) > 90:
+                continue
             ident = runway['ident']
             if ident not in seen:
                 selected.append(ident)

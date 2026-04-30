@@ -272,7 +272,7 @@ class ATISGenerator:
         return ' '.join(parts)
 
     def _format_visibility_zh(self, weather_data):
-        """中文ATIS能见度（显示用数字，TTS转换朗读）。"""
+        """中文ATIS能见度（显示用数字，避免“9千7百米”这类中文大写读法）。"""
         visib = (weather_data or {}).get('visib', '')
         def _meters(raw) -> int:
             if isinstance(raw, (int, float)):
@@ -290,16 +290,12 @@ class ATISGenerator:
         if m >= 9990:
             return "能见度10千米或以上"
         if m >= 1000:
-            km = m / 1000
-            if km == int(km):
-                return f"能见度{int(km)}千米"
-            # 非整数：取整到最近百米
             m_rounded = int(round(m / 100)) * 100
-            km_part = m_rounded // 1000
-            bai_part = (m_rounded % 1000) // 100
-            if bai_part:
-                return f"能见度{km_part}千{bai_part}百米"
-            return f"能见度{km_part}千米"
+            if m_rounded >= 10000:
+                return "能见度10千米或以上"
+            if m_rounded % 1000 == 0:
+                return f"能见度{m_rounded // 1000}千米"
+            return f"能见度{m_rounded}米"
         return f"能见度{m}米"
 
     def _format_temp_dew_zh(self, weather_data):
@@ -345,14 +341,7 @@ class ATISGenerator:
         ta, tl = self._TRANSITION_TABLE.get((icao or '').upper(), self._TRANSITION_TABLE['DEFAULT'])
 
         def _fmt_m(m):
-            """格式化米数（阿拉伯数字+中文单位，例：3000→3千米，3600→3千6米）。"""
-            if m % 1000 == 0:
-                return f"{m // 1000}千米"
-            q, r = divmod(m, 1000)
-            bai = r // 100
-            if r % 100 == 0:
-                return f"{q}千{bai}米"
-            return f"{q}千{bai}百米"
+            return f"{int(m)}米"
 
         return f"过渡高度 {_fmt_m(ta)}\n过渡高度层 {_fmt_m(tl)}"
 
@@ -370,7 +359,19 @@ class ATISGenerator:
         if altim is None:
             return "QNH unknown.", "QNH不详。"
         qnh = str(int(float(altim)))
-        return f"QNH {qnh}.", f"QNH {qnh}。"
+        qnh_spoken = ' '.join({
+            '0': 'zero',
+            '1': 'one',
+            '2': 'two',
+            '3': 'tree',
+            '4': 'four',
+            '5': 'five',
+            '6': 'six',
+            '7': 'seven',
+            '8': 'eight',
+            '9': 'niner',
+        }.get(ch, ch) for ch in qnh)
+        return f"QNH {qnh_spoken}.", f"QNH {qnh}。"
 
     def _format_runway(self, icao, weather_data):
         if not self.airport_frequency_service:
