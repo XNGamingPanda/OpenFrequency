@@ -148,7 +148,20 @@ Step "Creating ZIP archive"
 
 INFO "Compressing dist\OpenFrequency\ → $ZipPath ..."
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
-Compress-Archive -Path "$DistDir\*" -DestinationPath $ZipPath -CompressionLevel Optimal
+
+$sevenZip = @('7z','7za') | ForEach-Object { Get-Command $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+if (-not $sevenZip) {
+    $candidate = 'C:\Program Files\7-Zip\7z.exe'
+    if (Test-Path $candidate) { $sevenZip = $candidate }
+}
+if ($sevenZip) {
+    INFO "Using 7-Zip for maximum compression (level 9, deflate64)..."
+    & ($sevenZip.Source ?? $sevenZip) a -tzip -mx=9 -mmt=on $ZipPath "$DistDir\*"
+    if ($LASTEXITCODE -ne 0) { Write-Error "7-Zip failed."; exit 1 }
+} else {
+    INFO "7-Zip not found — falling back to Compress-Archive (Optimal)..."
+    Compress-Archive -Path "$DistDir\*" -DestinationPath $ZipPath -CompressionLevel Optimal
+}
 
 $SizeMB  = [math]::Round((Get-Item $ZipPath).Length / 1MB, 1)
 $Sha256  = (Get-FileHash $ZipPath -Algorithm SHA256).Hash.ToLower()
