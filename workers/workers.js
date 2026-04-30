@@ -79,15 +79,6 @@ export default {
         return handlePublicDownload(request, env, ctx);
       }
 
-      if (request.method === "GET" && path === "/debug/release") {
-        try {
-          const rel = await fetchLatestRelease(env);
-          return corsJSON({ id: rel.id, tag: rel.tag_name, draft: rel.draft, prerelease: rel.prerelease, assets: (rel.assets||[]).map(a=>({name:a.name,size:a.size,state:a.state})) }, 200);
-        } catch(e) {
-          return corsJSON({ error: e.message }, 502);
-        }
-      }
-
       if (request.method === "GET" && path === "/api/version") {
         return handleVersion(request, env, ctx);
       }
