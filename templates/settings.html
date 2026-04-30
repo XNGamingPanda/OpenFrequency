@@ -1004,6 +1004,7 @@
 
     // Play audio received from TTS engine on this page
     if (socket) socket.on('audio_stream', (data) => {
+        if (data.is_atis) return; // ATIS audio only plays on the dashboard
         try {
             const raw = atob(data.data);
             const bytes = new Uint8Array(raw.length);

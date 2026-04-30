@@ -97,15 +97,27 @@ class STTLocal:
             
             wav_path = tmp_path + ".wav"
             
-            # Convert using ffmpeg without spawning a visible CMD window
+            # Resolve ffmpeg: prefer bundled copy inside PyInstaller package
+            _ffmpeg = 'ffmpeg'
+            if getattr(sys, 'frozen', False):
+                _bundled = os.path.join(sys._MEIPASS, 'ffmpeg', 'ffmpeg.exe')
+                if os.path.exists(_bundled):
+                    _ffmpeg = _bundled
+                else:
+                    _bundled2 = os.path.join(sys._MEIPASS, 'ffmpeg.exe')
+                    if os.path.exists(_bundled2):
+                        _ffmpeg = _bundled2
+
             kwargs = {}
             if sys.platform == 'win32':
                 kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW
-            subprocess.run(
-                ['ffmpeg', '-y', '-i', tmp_path, '-ar', '16000', '-ac', '1', wav_path],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            result = subprocess.run(
+                [_ffmpeg, '-y', '-i', tmp_path, '-ar', '16000', '-ac', '1', wav_path],
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                 **kwargs
             )
+            if result.returncode != 0:
+                print(f"STTLocal: FFmpeg error: {result.stderr.decode(errors='replace')[:300]}")
             
             if os.path.exists(wav_path):
                 # Pass aviation hotwords to bias Whisper decoding

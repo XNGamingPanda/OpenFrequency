@@ -1301,6 +1301,12 @@ def import_simbrief():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # --- SocketIO Handlers ---
+@socketio.on('disconnect')
+def handle_disconnect():
+    if 'logic_manager' in globals():
+        event_bus.emit('atis_stop')
+
+
 @socketio.on('connect')
 @socketio.on('connect')
 def handle_connect():
