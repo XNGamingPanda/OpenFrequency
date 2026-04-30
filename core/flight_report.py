@@ -15,11 +15,9 @@ class FlightReport:
         self.socketio = socketio
         self.black_box = black_box
         
-        # Report directory
-        self.report_dir = "data/reports"
-        self.img_dir = os.path.join(self.report_dir, "img")
-        os.makedirs(self.report_dir, exist_ok=True)
-        os.makedirs(self.img_dir, exist_ok=True)
+        from .paths import writable_data_path
+        self.report_dir = writable_data_path("reports")
+        self.img_dir = writable_data_path("reports", "img")
         
         # Subscribe to flight end event
         event_bus.on('flight_ended', self.on_flight_ended)

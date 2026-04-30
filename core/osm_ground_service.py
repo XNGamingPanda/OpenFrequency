@@ -15,8 +15,8 @@ class OSMGroundService:
     def __init__(self, config: dict, airport_lookup: Optional[Callable[[str], Optional[dict]]] = None):
         self.config = config or {}
         self.airport_lookup = airport_lookup
-        self.cache_dir = os.path.join("data", "ground_cache", "osm")
-        os.makedirs(self.cache_dir, exist_ok=True)
+        from .paths import writable_data_path
+        self.cache_dir = writable_data_path("ground_cache", "osm")
 
     def update_config(self, config: dict):
         self.config = config or {}

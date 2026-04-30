@@ -38,13 +38,12 @@ class CareerProfile:
         "last_flight": None
     }
     
-    def __init__(self, data_dir="data/career"):
-        self.data_dir = data_dir
-        self.profile_path = os.path.join(data_dir, "profile.json")
+    def __init__(self, data_dir=None):
+        from core.paths import writable_data_path
+        self.data_dir = data_dir or writable_data_path("career")
+        self.profile_path = os.path.join(self.data_dir, "profile.json")
         self.profile = None
         self.lock = threading.RLock()
-        
-        os.makedirs(data_dir, exist_ok=True)
         self._load_profile()
         
         print(f"CareerProfile: Loaded - {self.profile['callsign']} ({self.profile['rank']})")

@@ -50,11 +50,10 @@ class BlackBox:
         self._last_record_time = 0
         self._record_interval = 0.5  # 2Hz
 
-        # Data directory
-        self.data_dir = "data/reports"
-        self.img_dir = os.path.join(self.data_dir, "img")
-        os.makedirs(self.data_dir, exist_ok=True)
-        os.makedirs(self.img_dir, exist_ok=True)
+        # Data directory (writable; may be APPDATA in packaged builds)
+        from .paths import writable_data_path
+        self.data_dir = writable_data_path("reports")
+        self.img_dir = writable_data_path("reports", "img")
 
         print("BlackBox: Initialized (2Hz extended recording)")
 

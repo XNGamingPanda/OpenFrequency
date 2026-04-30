@@ -1691,7 +1691,9 @@ def model_download_sse(model_type):
 def report_latest():
     """Serve the latest flight report."""
     import glob
-    reports = glob.glob('data/reports/report_*.html')
+    from core.paths import writable_data_path
+    report_dir = writable_data_path("reports")
+    reports = glob.glob(os.path.join(report_dir, 'report_*.html'))
     if reports:
         latest = max(reports, key=os.path.getctime)
         with open(latest, 'r', encoding='utf-8') as f:
@@ -1703,14 +1705,14 @@ def report_latest():
 def serve_report(filename):
     """Serve generated flight reports."""
     from flask import send_from_directory
-    # Ensure we look in the correct absolute path
-    report_dir = os.path.join(os.getcwd(), 'data', 'reports')
-    return send_from_directory(report_dir, filename)
+    from core.paths import writable_data_path
+    return send_from_directory(writable_data_path("reports"), filename)
 
 def report_image(filename):
     """Serve report images."""
     from flask import send_from_directory
-    return send_from_directory('data/reports/img', filename)
+    from core.paths import writable_data_path
+    return send_from_directory(writable_data_path("reports", "img"), filename)
 
 
 if __name__ == '__main__':
