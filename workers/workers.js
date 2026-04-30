@@ -274,13 +274,25 @@ function githubHeaders(env) {
 }
 
 async function fetchLatestRelease(env) {
-  const url = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/releases/latest`;
-  const res = await fetch(url, { headers: githubHeaders(env) });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`GitHub API error ${res.status}: ${body}`);
+  // /releases/latest only returns fully-tagged published releases.
+  // Fall back to /releases list so untagged/draft releases are also found.
+  let url = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/releases/latest`;
+  let res = await fetch(url, { headers: githubHeaders(env) });
+  if (res.ok) return res.json();
+
+  // 404 means no published release yet — try the full list instead
+  if (res.status === 404) {
+    url = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/releases?per_page=10`;
+    res = await fetch(url, { headers: githubHeaders(env) });
+    if (res.ok) {
+      const list = await res.json();
+      if (Array.isArray(list) && list.length > 0) return list[0];
+      throw new Error("No releases found in repository");
+    }
   }
-  return res.json();
+
+  const body = await res.text();
+  throw new Error(`GitHub API error ${res.status}: ${body}`);
 }
 
 async function fetchReleaseByTag(env, tag) {
