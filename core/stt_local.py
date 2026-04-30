@@ -90,7 +90,20 @@ class STTLocal:
     def __init__(self, config, bus):
         self.config = config
         self.bus = bus
-        _default_models = os.path.join(os.environ.get('APPDATA') or os.path.expanduser('~'), 'OpenFrequency', 'models', 'sherpa-onnx-whisper-small')
+        # Search order:
+        #   1. Next to the exe / sys._MEIPASS (compiled build — models shipped with installer)
+        #   2. Next to this source file's project root (development)
+        #   3. %APPDATA%\OpenFrequency\models (user-installed models)
+        _appdata_models = os.path.join(os.environ.get('APPDATA') or os.path.expanduser('~'), 'OpenFrequency', 'models', 'sherpa-onnx-whisper-small')
+        _exe_models = os.path.join(os.path.dirname(sys.executable), 'models', 'sherpa-onnx-whisper-small')
+        _src_models = os.path.join(os.path.dirname(__file__), '..', 'models', 'sherpa-onnx-whisper-small')
+        _meipass_models = os.path.join(getattr(sys, '_MEIPASS', ''), 'models', 'sherpa-onnx-whisper-small')
+        for _candidate in (_meipass_models, _exe_models, _src_models, _appdata_models):
+            if os.path.isdir(os.path.normpath(_candidate)):
+                _default_models = os.path.normpath(_candidate)
+                break
+        else:
+            _default_models = _appdata_models
         self.model_path = config.get('audio', {}).get('stt_model_path', _default_models)
         self.current_language = config.get('audio', {}).get('stt_language', 'auto')
         self._hotwords: str = build_whisper_hotwords(config)
