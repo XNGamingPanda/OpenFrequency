@@ -39,7 +39,7 @@
     },
     {
       page: '/settings',
-      target: 'button[type="submit"]',
+      target: 'button[onclick="saveConfig()"]',
       i18n: 'tut_step_save',
       icon: '💾',
       autoAdvanceOnClick: true,
@@ -221,7 +221,8 @@
 
     const el = document.querySelector(step.target);
     if (!el) {
-      // element not on this page — skip render but persist state
+      // Target not in DOM — auto-advance to next step rather than silently stalling
+      advanceStep();
       return;
     }
 
