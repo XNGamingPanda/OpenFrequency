@@ -153,10 +153,11 @@ async function handlePublicDownload(request, env, ctx) {
     return corsJSON({ error: "Failed to resolve latest release", detail: err.message }, 502);
   }
 
-  // Find the first MSI or EXE asset
-  const msiAsset = (release.assets || []).find(
-    (a) => (a.name.endsWith(".msi") || a.name.endsWith(".exe")) && !a.name.endsWith(".sha256")
-  );
+  // Find installer asset: prefer MSI > EXE > ZIP
+  const assets = (release.assets || []).filter(a => !a.name.endsWith(".sha256"));
+  const msiAsset = assets.find(a => a.name.endsWith(".msi"))
+    || assets.find(a => a.name.endsWith(".exe"))
+    || assets.find(a => a.name.endsWith(".zip"));
 
   if (!msiAsset) {
     return corsJSON({ error: "No installer asset found in latest release" }, 404);
