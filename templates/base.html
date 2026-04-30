@@ -1067,7 +1067,9 @@
 
         function applyLanguage(lang) {
             localStorage.setItem('language', lang);
+            localStorage.setItem('of_lang', lang);
             document.documentElement.lang = lang; // Accessibility
+            document.dispatchEvent(new CustomEvent('of-lang-changed', { detail: lang }));
 
             const t = TRANSLATIONS[lang] || TRANSLATIONS['en'];
 
@@ -1279,6 +1281,8 @@
     {% block scripts %}{% endblock %}
     <!-- Apple Liquid Glass 运行时：仅在 html.theme-apple 时激活 -->
     <script src="{{ url_for('static', filename='js/liquid-glass.js') }}"></script>
+    <!-- Onboarding Tutorial -->
+    <script src="{{ url_for('static', filename='js/tutorial.js') }}"></script>
 </body>
 
 </html>
