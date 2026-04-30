@@ -1,4 +1,7 @@
-﻿import json
+﻿import multiprocessing
+multiprocessing.freeze_support()  # Must be called early for PyInstaller + Windows spawn
+
+import json
 import os
 import markdown
 import secrets
