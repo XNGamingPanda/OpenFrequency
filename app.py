@@ -1357,19 +1357,62 @@ def handle_request_sim_status():
         msg = 'Connected to Simulator' if is_connected else 'Searching for Simulator...'
         socketio.emit('sim_status', {'connected': is_connected, 'msg': msg}, room=request.sid)
 
+def _set_ptt_state(active):
+    event = 'ptt_active' if active else 'ptt_released'
+    event_bus.emit(event, {})
+    socketio.emit('ptt_state', {'active': bool(active)})
+
+def _dispatch_voice_data(audio_data, source='socket'):
+    if not audio_data:
+        print(f"PTT: Empty audio payload from {source}.")
+        return False, "empty_audio"
+    if 'stt_module' not in globals():
+        print("PTT: STT module is not ready.")
+        return False, "stt_unavailable"
+
+    print(f"PTT: Received {len(audio_data)} bytes from {source}; dispatching STT.")
+    socketio.emit('stt_status', {'status': 'processing', 'source': source})
+
+    def _run():
+        try:
+            stt_module.transcribe(audio_data)
+            socketio.emit('stt_status', {'status': 'done', 'source': source})
+        except Exception as e:
+            print(f"STT thread error: {e}")
+            socketio.emit('stt_status', {'status': 'error', 'message': str(e), 'source': source})
+
+    threading.Thread(target=_run, daemon=True).start()
+    return True, "queued"
+
 @socketio.on('voice_data')
 def handle_voice_data(blob):
     """Receives voice data from the client and dispatches STT in a daemon thread.
     Running in a thread prevents a Sherpa-ONNX segfault from killing the Flask worker.
     """
-    print("Received voice data from client.")
-    import threading as _threading
-    def _run():
-        try:
-            stt_module.transcribe(blob)
-        except Exception as e:
-            print(f"STT thread error: {e}")
-    _threading.Thread(target=_run, daemon=True).start()
+    _dispatch_voice_data(blob, source='socket')
+
+@socketio.on('ptt_active')
+def handle_socket_ptt_active():
+    _set_ptt_state(True)
+
+@socketio.on('ptt_released')
+def handle_socket_ptt_released():
+    _set_ptt_state(False)
+
+@app.route('/api/ptt_state', methods=['POST'])
+def api_ptt_state():
+    data = request.get_json(silent=True) or {}
+    active = bool(data.get('active'))
+    _set_ptt_state(active)
+    return jsonify({'success': True, 'active': active})
+
+@app.route('/api/voice_data', methods=['POST'])
+def api_voice_data():
+    audio_data = request.get_data(cache=False)
+    ok, status = _dispatch_voice_data(audio_data, source='http')
+    if not ok:
+        return jsonify({'success': False, 'error': status}), 400 if status == 'empty_audio' else 503
+    return jsonify({'success': True, 'status': status})
 
 @socketio.on('text_input')
 def handle_text_input(text):

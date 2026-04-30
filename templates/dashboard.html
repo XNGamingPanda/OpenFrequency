@@ -1890,34 +1890,78 @@
     });
 
     // PTT Recording
+    let isRecording = false;
+    let activeStream = null;
+
+    const getRecorderOptions = () => {
+        if (!window.MediaRecorder) return {};
+        const preferred = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/ogg;codecs=opus',
+            'audio/ogg'
+        ];
+        const mimeType = preferred.find(type => MediaRecorder.isTypeSupported(type));
+        return mimeType ? { mimeType } : {};
+    };
+
+    const resetPttButton = () => {
+        if (!pttBtn) return;
+        pttBtn.classList.add('btn-primary');
+        pttBtn.classList.remove('btn-danger');
+        const lang = localStorage.getItem('language') || 'en';
+        pttBtn.innerText = (lang === 'zh') ? "按住通话 (PTT)" : "PUSH TO TALK";
+    };
+
     const startRecording = () => {
         if (!pttBtn) return; // No PTT for readonly users
+        if (isRecording) return;
+        isRecording = true;
         navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.start();
+            if (!isRecording) {
+                stream.getTracks().forEach(track => track.stop());
+                return;
+            }
+            activeStream = stream;
+            mediaRecorder = new MediaRecorder(stream, getRecorderOptions());
             audioChunks = [];
-            mediaRecorder.addEventListener("dataavailable", event => audioChunks.push(event.data));
-            mediaRecorder.addEventListener("stop", () => socket.emit('voice_data', new Blob(audioChunks)));
+            mediaRecorder.addEventListener("dataavailable", event => {
+                if (event.data && event.data.size > 0) audioChunks.push(event.data);
+            });
+            mediaRecorder.addEventListener("stop", () => {
+                const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                if (audioBlob.size > 0) socket.emit('voice_data', audioBlob);
+                if (activeStream) activeStream.getTracks().forEach(track => track.stop());
+                activeStream = null;
+            }, { once: true });
+            mediaRecorder.start();
+            socket.emit('ptt_active');
 
             pttBtn.classList.remove('btn-primary');
             pttBtn.classList.add('btn-danger');
 
             const lang = localStorage.getItem('language') || 'en';
             pttBtn.innerText = (lang === 'zh') ? "正在传输..." : "TRANSMITTING...";
+        }).catch(error => {
+            console.error("Error accessing microphone:", error);
+            isRecording = false;
+            if (activeStream) activeStream.getTracks().forEach(track => track.stop());
+            activeStream = null;
+            resetPttButton();
         });
     };
 
     const stopRecording = () => {
+        if (!isRecording) return;
+        isRecording = false;
+        socket.emit('ptt_released');
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
-            if (pttBtn) {
-                pttBtn.classList.add('btn-primary');
-                pttBtn.classList.remove('btn-danger');
-
-                const lang = localStorage.getItem('language') || 'en';
-                pttBtn.innerText = (lang === 'zh') ? "按住通话 (PTT)" : "PUSH TO TALK";
-            }
+        } else if (activeStream) {
+            activeStream.getTracks().forEach(track => track.stop());
+            activeStream = null;
         }
+        resetPttButton();
     };
 
     // Events
@@ -1926,8 +1970,10 @@
     if (pttBtn) {
         pttBtn.addEventListener('mousedown', startRecording);
         pttBtn.addEventListener('mouseup', stopRecording);
+        pttBtn.addEventListener('mouseleave', stopRecording);
         pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); });
         pttBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopRecording(); });
+        pttBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); stopRecording(); });
     }
 
     document.addEventListener('keydown', (e) => {
@@ -1938,6 +1984,7 @@
         if (document.activeElement.tagName === 'INPUT') return;
         if (e.code === 'Space' && pttBtn) { e.preventDefault(); stopRecording(); }
     });
+    window.addEventListener('blur', stopRecording);
 
     // NOTE: Clear Track button handler moved to clearMapTrail() function above
 
