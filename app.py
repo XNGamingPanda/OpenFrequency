@@ -32,7 +32,7 @@ from core.self_check import self_check, download_ffmpeg, download_whisper_model,
 from core.career import CareerProfile  # Career Mode
 from core.crew_manager import CrewManager  # Crew Manager (FO + Purser)
 from core.plugin_manager import PluginManager
-_plugin_manager: PluginManager | None = None  # set during startup; guards against pre-init requests
+_plugin_manager = None  # set during startup; guards against pre-init requests
 from core.addon_installer import get_installer, load_dlc_catalog, current_progress
 from core import telemetry as _telemetry_mod
 from core import stats as _stats_mod
