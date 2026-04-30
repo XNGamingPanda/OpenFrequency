@@ -109,9 +109,14 @@ if (-not (Test-Path (Join-Path $DistDir "OpenFrequency.exe"))) {
 
 Write-Host "Building MSI from: $WxsFile"
 Write-Host "  OF_VERSION = $MsiVersion"
-wix build $WxsFile -out $OutputMsi -d "OF_VERSION=$MsiVersion"
-
-if ($LASTEXITCODE -ne 0) { Write-Error "WiX build failed."; exit 1 }
+# Run wix from installer\ so relative paths in the .wxs (e.g. ..\dist\...) resolve correctly
+Push-Location $InstallerDir
+try {
+    wix build $WxsFile -out $OutputMsi -d "OF_VERSION=$MsiVersion"
+    if ($LASTEXITCODE -ne 0) { Write-Error "WiX build failed."; exit 1 }
+} finally {
+    Pop-Location
+}
 
 # ── Done ───────────────────────────────────────────────────────────────────────
 Section "Build complete"
