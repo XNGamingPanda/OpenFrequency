@@ -575,7 +575,7 @@ class LLMClient:
             else:
                 _vfr_odd_even = "EVEN thousands + 500 ft (4500, 6500, 8500…) for westbound VFR"
 
-            clearance_rule = f"""4. VFR OPERATIONS (pilot is flying VFR):
+            clearance_rule = f"""VFR OPERATIONS (pilot is flying VFR):
            - Do NOT issue IFR clearance, squawk codes, SIDs, STARs, or instrument procedures (unless explicitly requested).
            - Use "VFR flight following" or "traffic advisories" phrasing instead of radar vectors.
            - INTENTIONS: If the pilot hasn't stated intentions, ask: "{callsign}, state intentions and destination."
@@ -597,7 +597,8 @@ class LLMClient:
            - IMC CHECK: If weather appears IMC or marginal VMC, proactively advise and offer IFR pickup:
              "Pilot reports VFR, current conditions appear marginal. Recommend IFR pickup if unable to maintain VMC."
            - Do NOT over-control VFR flights — advise, don't direct."""
-            clearance_rule = """4. IFR CLEARANCE RULE: When giving IFR clearance, ONLY say:
+        else:
+            clearance_rule = """IFR CLEARANCE RULE: When giving IFR clearance, ONLY say:
            - "Cleared to [DESTINATION] via [SID] departure, runway [RWY]. Squawk [CODE]."
            - Do NOT read out the full route waypoints. The SID name is enough."""
 

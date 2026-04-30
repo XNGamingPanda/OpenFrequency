@@ -730,20 +730,18 @@ async function handleFeedback(request, env, ctx) {
 // ---------------------------------------------------------------------------
 // Handler: POST /api/ping  - daily active user heartbeat
 // ---------------------------------------------------------------------------
-// Body: { app_version, os, sim_type, locale }
-// Privacy: IP is hashed (SHA-256 truncated 16 hex), never stored raw.
+// Body: { app_version, os, sim_type, locale, device_id? }
+// Privacy: IP is hashed (SHA-256, never stored raw). device_id is a random UUID
+//          generated client-side on first run — no PII, just install identity.
 // KV keys:
-//   ping:YYYY-MM-DD:<ip_hash>          -> "1"          (TTL 25h, uniqueness guard)
+//   ping:YYYY-MM-DD:did:<device_id>    -> "1"  (TTL 25h, device-stable dedup)
+//   ping:YYYY-MM-DD:ip:<ip_hash>       -> "1"  (TTL 25h, legacy IP dedup fallback)
 //   stats:daily:YYYY-MM-DD             -> JSON object  (TTL 8d, aggregate)
 
 async function handlePing(request, env, ctx) {
   const ip = getClientIP(request);
   const ipHash = await hashIP(ip);
   const date = todayUTC();
-
-  // Dedup: one counted ping per IP per day
-  const pingKey = `ping:${date}:${ipHash}`;
-  const alreadyCounted = await env.OF_KV.get(pingKey);
 
   let body = {};
   try {
@@ -756,11 +754,20 @@ async function handlePing(request, env, ctx) {
   const simType  = sanitizeEnum(body.sim_type, ["xplane", "msfs", "p3d", "fsx", "unknown"], "unknown");
   const locale_  = sanitizeString(body.locale, 16) || "unknown";
 
+  // Dedup key: prefer device_id (stable UUID per installation) over IP hash.
+  // device_id was added in v3.9-beta; older clients fall back to IP-based dedup.
+  const rawDeviceId = sanitizeString(body.device_id, 64);
+  const dedupId = rawDeviceId
+    ? `did:${rawDeviceId}`          // device-stable: unaffected by VPN/IP changes
+    : `ip:${ipHash}`;               // legacy fallback for old clients
+  const pingKey = `ping:${date}:${dedupId}`;
+  const alreadyCounted = await env.OF_KV.get(pingKey);
+
   if (!alreadyCounted) {
     // Rate-limit check (fire-and-forget style - we accept the ping regardless)
     await checkRateLimit(env, "ping", ip);
 
-    // Mark this IP as counted today
+    // Mark this device/IP as counted today
     ctx.waitUntil(env.OF_KV.put(pingKey, "1", { expirationTtl: KV_TTL.ping }));
 
     // Update daily aggregate
