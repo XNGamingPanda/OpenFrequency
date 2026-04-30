@@ -61,10 +61,9 @@ def _sherpa_worker(model_path, language, encoder, decoder, tokens, hotwords, aud
             debug=False
         )
 
-        try:
-            s = recognizer.create_stream(hotwords=hotwords)
-        except TypeError:
-            s = recognizer.create_stream()
+        # Whisper models don't support contextual biasing — hotwords only work
+        # with transducer/RNN-T models and cause a C++ crash if passed here.
+        s = recognizer.create_stream()
 
         audio, sample_rate = sf.read(wav_path, dtype='float32')
         s.accept_waveform(sample_rate, audio)
