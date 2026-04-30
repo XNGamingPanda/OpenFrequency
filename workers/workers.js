@@ -35,7 +35,7 @@ const CORS_HEADERS = {
 
 const RATE_LIMITS = {
   version:  { perIp: 300,   global: null  },
-  download: { perIp: 5,     global: 500   },
+  download: { perIp: 20,    global: 500   },
   crash:    { perIp: 30,    global: 10000 },
   feedback: { perIp: 15,    global: null  },
   ping:     { perIp: 3,     global: null  },  // 3 pings per IP per day
@@ -138,8 +138,13 @@ export default {
 
 async function handlePublicDownload(request, env, ctx) {
   const ip = getClientIP(request);
-  const rl = await checkRateLimit(env, "download", ip);
-  if (rl.limited) return rl.response;
+  // Admin token bypasses rate limit (for testing / internal use)
+  const reqToken = new URL(request.url).searchParams.get("token") || request.headers.get("X-Admin-Token");
+  const isAdmin = env.ADMIN_TOKEN && reqToken === env.ADMIN_TOKEN;
+  if (!isAdmin) {
+    const rl = await checkRateLimit(env, "download", ip);
+    if (rl.limited) return rl.response;
+  }
 
   let release;
   try {
