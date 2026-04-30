@@ -274,25 +274,42 @@ function githubHeaders(env) {
 }
 
 async function fetchLatestRelease(env) {
-  // /releases/latest only returns fully-tagged published releases.
-  // Fall back to /releases list so untagged/draft releases are also found.
+  // Try the canonical /releases/latest first (only works for fully-tagged published releases).
   let url = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/releases/latest`;
   let res = await fetch(url, { headers: githubHeaders(env) });
-  if (res.ok) return res.json();
+  if (res.ok) {
+    const rel = await res.json();
+    if (rel.assets && rel.assets.length > 0) return rel;
+    // Assets missing — re-fetch by ID for full detail
+    return fetchReleaseById(env, rel.id);
+  }
 
-  // 404 means no published release yet — try the full list instead
+  // 404 = no published release — fall back to listing all releases (includes drafts when authed)
   if (res.status === 404) {
     url = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/releases?per_page=10`;
     res = await fetch(url, { headers: githubHeaders(env) });
     if (res.ok) {
       const list = await res.json();
-      if (Array.isArray(list) && list.length > 0) return list[0];
-      throw new Error("No releases found in repository");
+      if (!Array.isArray(list) || list.length === 0) throw new Error("No releases found in repository");
+      // Draft releases in the list often have empty assets — re-fetch by ID for full detail
+      const first = list[0];
+      if (first.assets && first.assets.length > 0) return first;
+      return fetchReleaseById(env, first.id);
     }
   }
 
   const body = await res.text();
   throw new Error(`GitHub API error ${res.status}: ${body}`);
+}
+
+async function fetchReleaseById(env, id) {
+  const url = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/releases/${id}`;
+  const res = await fetch(url, { headers: githubHeaders(env) });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`GitHub API error ${res.status} fetching release ${id}: ${body}`);
+  }
+  return res.json();
 }
 
 async function fetchReleaseByTag(env, tag) {
