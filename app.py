@@ -1356,14 +1356,17 @@ def handle_request_sim_status():
 
 @socketio.on('voice_data')
 def handle_voice_data(blob):
+    """Receives voice data from the client and dispatches STT in a daemon thread.
+    Running in a thread prevents a Sherpa-ONNX segfault from killing the Flask worker.
     """
-    Receives voice data from the client and sends it to STT.
-    """
-    # This is a placeholder for where you'd pass the blob to the STT module
-    # The audio_listener is for server-side mic, so we trigger the event directly
-    # In a real scenario, stt.transcribe would be called here.
     print("Received voice data from client.")
-    stt_module.transcribe(blob)
+    import threading as _threading
+    def _run():
+        try:
+            stt_module.transcribe(blob)
+        except Exception as e:
+            print(f"STT thread error: {e}")
+    _threading.Thread(target=_run, daemon=True).start()
 
 @socketio.on('text_input')
 def handle_text_input(text):

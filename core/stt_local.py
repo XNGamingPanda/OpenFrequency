@@ -130,8 +130,12 @@ class STTLocal:
                 audio, sample_rate = sf.read(wav_path, dtype='float32')
                 
                 s.accept_waveform(sample_rate, audio)
-                
-                self.recognizer.decode_stream(s)
+
+                try:
+                    self.recognizer.decode_stream(s)
+                except Exception as infer_err:
+                    print(f"STTLocal: Sherpa inference error: {infer_err}")
+                    return
                 text = s.result.text.strip()
                 
                 print(f"STTLocal: Raw transcription: '{text}'")
