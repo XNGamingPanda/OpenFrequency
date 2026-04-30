@@ -32,6 +32,7 @@ from core.self_check import self_check, download_ffmpeg, download_whisper_model,
 from core.career import CareerProfile  # Career Mode
 from core.crew_manager import CrewManager  # Crew Manager (FO + Purser)
 from core.plugin_manager import PluginManager
+_plugin_manager: PluginManager | None = None  # set during startup; guards against pre-init requests
 from core.addon_installer import get_installer, load_dlc_catalog, current_progress
 from core import telemetry as _telemetry_mod
 from core import stats as _stats_mod
@@ -976,23 +977,30 @@ def api_update_check():
 def plugins_page():
     return render_template('plugins.html')
 
+def _pm():
+    """Return the plugin manager, or raise a 503 if it isn't initialised yet."""
+    if _plugin_manager is None:
+        from flask import abort
+        abort(503, description="Plugin manager not yet initialized")
+    return _plugin_manager
+
 @app.route('/api/plugins')
 def api_list_plugins():
-    return jsonify(_plugin_manager.list_plugins())
+    return jsonify(_pm().list_plugins())
 
 @app.route('/api/plugins/<plugin_id>/enable', methods=['POST'])
 def api_enable_plugin(plugin_id):
-    ok = _plugin_manager.enable(plugin_id)
+    ok = _pm().enable(plugin_id)
     return jsonify({'ok': ok})
 
 @app.route('/api/plugins/<plugin_id>/disable', methods=['POST'])
 def api_disable_plugin(plugin_id):
-    ok = _plugin_manager.disable(plugin_id)
+    ok = _pm().disable(plugin_id)
     return jsonify({'ok': ok})
 
 @app.route('/api/plugins/<plugin_id>', methods=['DELETE'])
 def api_delete_plugin(plugin_id):
-    ok = _plugin_manager.uninstall(plugin_id)
+    ok = _pm().uninstall(plugin_id)
     return jsonify({'ok': ok})
 
 @app.route('/api/plugins/install', methods=['POST'])
@@ -1001,17 +1009,29 @@ def api_install_plugin():
     f = request.files.get('file')
     if not f:
         return jsonify({'ok': False, 'message': 'No file uploaded'}), 400
-    import tempfile, os
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp:
-        f.save(tmp.name)
-        ok, msg = _plugin_manager.install_from_zip(tmp.name)
-        os.unlink(tmp.name)
-    response = {'ok': ok, 'message': msg}
-    # Include warning if present
-    if _plugin_manager._last_install_warning:
-        response['warning'] = _plugin_manager._last_install_warning
-        _plugin_manager._last_install_warning = None  # Clear after use
-    return jsonify(response)
+    import tempfile
+    # Close the temp file before saving on Windows — NamedTemporaryFile holds
+    # an exclusive lock; f.save() would fail with PermissionError if still open.
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp:
+            tmp_path = tmp.name
+        f.save(tmp_path)
+        pm = _pm()
+        ok, msg = pm.install_from_zip(tmp_path)
+        response = {'ok': ok, 'message': msg}
+        if pm._last_install_warning:
+            response['warning'] = pm._last_install_warning
+            pm._last_install_warning = None
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({'ok': False, 'message': str(e)}), 500
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
 
 # ── DLC catalog & installer ───────────────────────────────────────────────────
 
@@ -1748,6 +1768,7 @@ if __name__ == '__main__':
     event_bus.on('callsign_changed', _on_callsign_change)
 
     # ── Plugin Manager ────────────────────────────────────────────────────────
+    global _plugin_manager
     _plugin_manager = PluginManager(config, socketio, event_bus, context_lock, shared_context)
     _plugin_manager.discover()
     logic_manager._plugin_manager = _plugin_manager
