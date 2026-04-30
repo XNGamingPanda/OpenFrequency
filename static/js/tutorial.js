@@ -427,10 +427,10 @@
       btn.style.cssText = 'font-size:0.75rem;';
       navbar.insertBefore(btn, navbar.firstChild);
     } else {
-      // Standalone pages (main_menu): floating pill in top-right corner
+      // Standalone pages (main_menu): floating pill in top-left corner
       btn.className = 'btn btn-primary';
       Object.assign(btn.style, {
-        position: 'fixed', top: '16px', right: '16px', zIndex: '9000',
+        position: 'fixed', top: '16px', left: '16px', zIndex: '9000',
         borderRadius: '20px', padding: '6px 16px', fontSize: '0.8rem',
         boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
       });
