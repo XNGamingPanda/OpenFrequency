@@ -155,8 +155,9 @@ if (-not $sevenZip) {
     if (Test-Path $candidate) { $sevenZip = $candidate }
 }
 if ($sevenZip) {
-    INFO "Using 7-Zip for maximum compression (level 9, deflate64)..."
-    & ($sevenZip.Source ?? $sevenZip) a -tzip -mx=9 -mmt=on $ZipPath "$DistDir\*"
+    INFO "Using 7-Zip for maximum compression (level 9)..."
+    $sevExe = if ($sevenZip -is [string]) { $sevenZip } else { $sevenZip.Source }
+    & $sevExe a -tzip -mx=9 -mmt=on $ZipPath "$DistDir\*"
     if ($LASTEXITCODE -ne 0) { Write-Error "7-Zip failed."; exit 1 }
 } else {
     INFO "7-Zip not found — falling back to Compress-Archive (Optimal)..."
