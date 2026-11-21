@@ -1,0 +1,30 @@
+; 复制为 OpenATC_DataBridge.ini，与 win.xpl 放在同一目录
+; （X-Plane 11/12: Resources/plugins/OpenATC_DataBridge/64/）
+
+[OpenATC]
+; 本机控制通道（仅绑定 127.0.0.1）。WinUI 会向 ControlPort..ControlPort+8 广播。
+ControlPort=49031
+ControlEnabled=1
+
+; 数据端口段：WinUI/C++ 核心监听 DataPort..DataPort+DataPortCount-1。
+; 端口被占用时接收端会顺序顺延，所以两侧要保持同一段。
+DataPort=49020
+DataPortCount=10
+
+; 旧版兼容主端口；设为 0 可完全关闭。
+PrimaryPort=49010
+
+; 1 = 发送整个数据端口段；0 = 只发送 DataPort 一个端口
+SendLegacyPorts=1
+
+; 1 = 允许客户端把模拟交通发布到 X-Plane TCAS/AI；0 = 完全禁用
+EnableTcasTraffic=1
+
+; 1 = 同时尝试把交通作为可见 AI 飞机加入（使用默认 .acf 模型）；0 = 仅 TCAS 目标
+EnableAiPlanes=1
+
+; OpenFrequency 兼容：模拟 X-Plane 12 Local Web API（HTTP/1.1，仅绑定 127.0.0.1）
+; OpenFrequency 的 X-Plane 数据源默认访问 127.0.0.1:8086，保持默认即可。
+; 若端口被占用（例如 X-Plane 12 自带的 Web API），插件会在日志中报告并继续用 UDP 工作。
+WebApiEnabled=1
+WebApiPort=8086

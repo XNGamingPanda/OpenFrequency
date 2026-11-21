@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="OpenATC_DataBridge.vcxproj" Id="b2bf91a7-7293-4329-8b1f-fa9429ee0391" />
+</Solution>

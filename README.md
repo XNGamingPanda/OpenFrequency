@@ -1,128 +1,104 @@
-# OpenFrequency 📡
-> *The AI ATC for Everyone.*
+# OpenATC DataBridge
 
-![Version](https://img.shields.io/badge/Status-v3.9--beta--ef-orange) ![License](https://img.shields.io/badge/License-MIT-green) ![Simulator](https://img.shields.io/badge/Simulator-MSFS%20|%20X--Plane-blue)
+X-Plane 11/12 插件：向 OpenATC 客户端提供 UDP JSON 遥测，并为
+**OpenFrequency** 提供 X-Plane 12 Local Web API 兼容层。
 
-> 📖 **[中文文档 README_zh-CN.md](README_zh-CN.md)**
+- 版本：1.2
+- 平台：Windows x64，X-Plane 11.55+ / X-Plane 12
+- 构建：Visual Studio 2026（v145 工具集），C++20，静态 CRT（/MT）
 
-> ⚠️ **Emergency Fix Notice**: v3.9-beta-ef fixes urgent MSI permission, IFR/VFR, plugin manager, STT/TTS download, ATIS phraseology, and updater issues in the v3.9 beta line. See [Release Notes](RELEASE_NOTES.md) before upgrading.
+## 功能
 
-**OpenFrequency** is a next-generation, open-source Air Traffic Control system for flight simulators.
+- **UDP 遥测**：10 Hz JSON，发送到 `127.0.0.1:49010` 及 `49020–49029`
+- **UDP 控制**：`127.0.0.1:49031`，支持调频、应答机、模拟交通
+- **TCAS 交通注入**：官方 `override_TCAS` 接口，可选可见 AI 机模
+- **OpenFrequency 兼容**：在 `127.0.0.1:8086` 模拟 X-Plane 12 Local Web API
+  的 REST 子集，OpenFrequency 无需改代码即可连接 X-Plane 11
+- **线程安全**：XPLM 只在模拟器主线程访问；HTTP 线程只读写内存快照和队列
 
-Born from the vision of creating a free, accessible, and highly intelligent alternative to paid services like SayIntentions.AI, OpenFrequency aims to democratize realistic simulation. By leveraging powerful Large Language Models (LLMs) like Google Gemini, it brings "human" controllers and cabin crew to your cockpit without the subscription fee.
+## 构建
 
-## Why OpenFrequency? 🚀
+需要 Visual Studio 2026（v145）和 Windows 10/11 SDK。
+X-Plane SDK 4.3.0 已包含在 `XPSDK430/SDK`，无需另行下载。
 
-Simulation enthusiasts deserve an immersion system that:
-1. **Understands Context**: Remembers your request from 5 minutes ago and knows your flight plan.
-2. **Speaks Naturally**: No more robotic "One-Two-Three". Hear natural accents, static, and hesitation.
-3. **Features Depth**: From emergency checklists to cabin announcements, it covers the full flight experience.
-4. **Costs Nothing**: Built on free/affordable APIs. No $30/mo subscriptions.
-
-## Features ✨
-
-### Core ATC Engine
-- **🧠 Intelligent Core**: Powered by LLMs (Gemini, Gemma, or OpenAI), handling complex negotiations naturally.
-- **📡 CPDLC**: Controller-Pilot Data Link Communications for pre-departure clearance, oceanic, and en-route messages.
-- **🗺️ Radar Vectoring**: Issue HDG / ALT / SPD vectors from the dashboard radar panel.
-- **🛬 VFR / IFR**: Full visual and instrument flight rule communications.
-- **🔁 Auto Busy Level**: Workload adapts automatically to live nearby traffic count.
-
-### ATIS & Airport Intelligence
-- **📻 Bilingual ATIS**: Chinese airports generate full bilingual ATIS (English + Chinese) with correct CAAC-style phrasing.
-- **🗄️ Metric RVSM**: Automatically switches to metric altitude levels in Chinese airspace.
-- **🛣️ Weighted Taxi Routing**: Graph-based taxi path planning with runway crossing penalties, hotspot avoidance, and aircraft size constraints.
-- **📋 Instruction Cards**: BeyondATC-style altitude, heading, speed, squawk, and taxi instruction cards.
-
-### Career Mode
-- **💼 Career Dashboard**: Job market, XP system, violation tracking, airline contracts, license progression.
-- **🔗 SimBrief Integration**: One-click SimBrief dispatch link pre-filled with all mission parameters.
-- **✅ Readiness Checks**: Pre-flight validation of aircraft type, position, cold-and-dark state.
-
-### Audio & TTS
-- **🎙️ Dual TTS**: Switch between Edge-TTS (cloud) and local streaming TTS model.
-- **📦 Model Storage**: TTS and STT models stored in `%APPDATA%\OpenFrequency\models`.
-- **📻 Radio Effects**: Configurable band-pass radio noise filter.
-- **🔇 PTT Lock on ATIS**: ATIS frequency auto-locks PTT (listen-only).
-
-### Simulator Support
-- **MSFS / P3D / FSX** via SimConnect (SDK auto-bundled — no manual download needed)
-- **X-Plane 12** via official Local Web API
-- **AI Traffic Awareness**: LiveTraffic / MSFS AI aircraft state reading
-
-### Plugin System
-- **🔌 Plugin API**: Base class with lifecycle hooks, manifest metadata, dynamic loading.
-- **🛒 Addon Installer**: Browse DLC catalog, one-click FlyByWire A32NX download.
-
-### Packaging & Updates
-- **📦 MSI Installer**: WiX 4 per-machine MSI with upgrade support.
-- **🔄 Auto-Update**: Checks once per day; downloads and verifies new releases in-app.
-- **🇨🇳 China Mirror**: All downloads proxied via Cloudflare Workers for faster China access.
-
-### Other Features
-- **🚨 Emergency Scenarios**: Bird strikes, engine fires, hydraulic failures with configurable probability.
-- **👥 Crew & Cabin**: First Officer + Purser with distinct voices, proactive scenarios, and cabin media.
-- **🎯 Head Tracking**: Zero-cost webcam-based head tracking.
-- **📱 Responsive UI**: Dark mode dashboard with EN / 中文 / 日本語 support.
-- **📊 Crash Telemetry**: PII-sanitized crash reporting (opt-in) and feedback form.
-
-## Download
-
-Go to the [Releases](https://github.com/XNGamingPanda/OpenFrequency/releases) page and download the latest `OpenFrequency-v3.9-beta-ef-Setup.msi`.
-
-Or use the [Download Page](https://openfrequency.pages.dev) powered by Cloudflare Pages.
-
-## Getting Started 🛠️
-
-### Prerequisites
-- Windows 10/11
-- Microsoft Flight Simulator 2020/2024 or X-Plane 12
-- Google Gemini API Key (Free tier available)
-
-### Option A: MSI Installer (Recommended)
-1. Download `OpenFrequency-v3.9-beta-ef-Setup.msi` from [Releases](https://github.com/XNGamingPanda/OpenFrequency/releases).
-2. Run the installer — it creates Start Menu and Desktop shortcuts.
-3. On first launch, OpenFrequency creates `%APPDATA%\OpenFrequency\config.json` from the example config.
-4. Open the config, add your API key, and start flying.
-
-### Option B: Developer Setup (Git)
-```bash
-git clone https://github.com/XNGamingPanda/OpenFrequency.git
-cd OpenFrequency
-pip install -r requirements.txt
-# Copy config.example.json → config.json and add your API key
-python app.py
+```bat
+msbuild OpenATC_DataBridge.vcxproj /p:Configuration=Release /p:Platform=x64
 ```
 
-### Option C: Build from Source
-```powershell
-# Requires: Python 3.11+, PyInstaller, WiX 4 dotnet tool
-# Install WiX: dotnet tool install --global wix
+产物：`x64/Release/OpenATC_DataBridge.xpl`（约 385 KB）。
 
-powershell -ExecutionPolicy Bypass -File installer\build_installer.ps1
-# Output: dist\OpenFrequency-v3.9-beta-ef-Setup.msi
+仓库同时附带预编译成品：`dist/64/win.xpl`（Release x64，可直接安装）。
+
+> 如果使用 VS 2022（v143），请在工程属性中把 `PlatformToolset` 改为 `v143`。
+
+## 安装
+
+```
+X-Plane 11/Resources/plugins/OpenATC_DataBridge/64/win.xpl
+X-Plane 11/Resources/plugins/OpenATC_DataBridge/64/OpenATC_DataBridge.ini
 ```
 
-## Roadmap 🗺️
+1. 可以直接使用随仓库提供的 `dist/64/win.xpl`；如果自行构建，把
+   `OpenATC_DataBridge.xpl` 重命名为 `win.xpl`。
+2. 把 `OpenATC_DataBridge.ini.example` 复制为 `OpenATC_DataBridge.ini`，
+   与 `win.xpl` 放在同一个 `64\` 目录。
+3. 启动 X-Plane，在 `Log.txt` 中搜索 `Local Web API` 确认服务已启动。
 
-- [x] Basic VFR/IFR Communications
-- [x] SimBrief Integration
-- [x] Visual Head Tracking
-- [x] Emergency Scenarios
-- [x] X-Plane Support
-- [x] Dark Mode & i18n
-- [x] Career Mode
-- [x] Crew Management System
-- [x] CPDLC Datalink
-- [x] Metric RVSM (Chinese Airspace)
-- [x] Plugin System & Addon Installer
-- [x] MSI Installer
-- [x] Auto-Update via Cloudflare Workers
-- [x] Local TTS Streaming
-- [x] Radar Vectoring
-- [ ] Multiplayer Traffic Awareness
-- [ ] Career Mode Leaderboards
+## 网络接口
 
-## License 📄
+| 用途 | 地址 | 说明 |
+|------|------|------|
+| UDP 遥测 | `127.0.0.1:49010`、`49020–49029` | 10 Hz JSON，OpenATC 客户端 |
+| UDP 控制 | `127.0.0.1:49031` | `SET COM1` / `SET SQUAWK` / `TRAFFIC` 等 |
+| OpenFrequency Web API | `127.0.0.1:8086` | HTTP/1.1 REST，仅环回地址 |
 
-MIT License — see [LICENSE](LICENSE) for details.
+浏览器直接查看（OpenFrequency 关闭时再访问，避免长连接排队）：
+
+```
+http://127.0.0.1:8086/api/capabilities
+http://127.0.0.1:8086/api/v3/datarefs
+http://127.0.0.1:8086/api/v3/datarefs/1/value
+http://127.0.0.1:8086/api/v3/commands
+```
+
+完整的传输内容、网络实现、端点定义、值编码和错误码见
+[OPENFREQUENCY_BRIDGE.md](OPENFREQUENCY_BRIDGE.md)。
+
+## 配置
+
+见 `OpenATC_DataBridge.ini.example`，主要配置项：
+
+| 键 | 默认值 | 说明 |
+|----|--------|------|
+| `WebApiEnabled` | `1` | OpenFrequency 兼容服务开关 |
+| `WebApiPort` | `8086` | HTTP 端口（仅绑定 127.0.0.1） |
+| `ControlPort` | `49031` | UDP 控制端口 |
+| `DataPort` / `DataPortCount` | `49020` / `10` | UDP 遥测端口段 |
+| `PrimaryPort` | `49010` | 旧版兼容端口，`0` 表示关闭 |
+| `EnableTcasTraffic` | `1` | 是否允许 TCAS 交通注入 |
+| `EnableAiPlanes` | `1` | 是否同时生成可见 AI 机模 |
+
+## 目录结构
+
+```
+dllmain.cpp                  插件入口、UDP 遥测/控制、TCAS 注入
+LocalWebApi.{h,cpp}          OpenFrequency 兼容 HTTP 服务
+XplmWebApiBackend.{h,cpp}    dataref / 命令后端
+pch.* / framework.h          预编译头
+OpenATC_DataBridge.vcxproj   Visual Studio 工程
+OpenATC_DataBridge.ini.example
+LICENSE                      MIT 许可证
+OPENFREQUENCY_BRIDGE.md      网络协议详细文档
+XPSDK430/SDK                 X-Plane SDK 4.3.0（含 license.txt）
+```
+
+## 第三方
+
+- X-Plane SDK 4.3.0：许可证见 `XPSDK430/SDK/license.txt`。
+- TCAS 交通注入行为参考 OpenFrequency（MIT）的 `OpenFrequencyTrafficBridge.py`。
+
+## License
+
+本插件源码采用 MIT License，见 [LICENSE](LICENSE)。
+X-Plane SDK 4.3.0 不属于本许可证范围，使用其自带许可证
+（`XPSDK430/SDK/license.txt`）。
